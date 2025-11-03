@@ -1,21 +1,16 @@
-import React from 'react'
-import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import About from './components/About';
-import Service from './components/Service';
-import Contact from './components/Contact';
-import Footer from './components/Footer';
+import React from "react";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import LandingPage from "./LandingPage";
+import Registration from './Registration';
 
 function App() {
   return (
-    <div>
-     <Navbar/>
-     <Hero/>
-     <About/>
-     <Service/>
-     <Contact/>
-     <Footer/>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/register" element={<Registration />} />
+      </Routes>
+    </Router>
   );
 }
 

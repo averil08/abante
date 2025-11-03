@@ -1,16 +1,17 @@
-# React + Vite
+🩺 ABANTE: Smart Clinic Appointment and Queue Management System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+🌟 Overview
+ABANTE is a comprehensive, web-based system designed for small private clinics to modernize their patient flow. By integrating digital appointment scheduling with a real-time queue management system, ABANTE eliminates paper records and wait time confusion. It is powered by an AI/Machine Learning engine that analyzes patient data to optimize scheduling and predict clinic traffic for better resource management.
 
-Currently, two official plugins are available:
+✨ Features
+Integrated Patient Flow: Seamlessly manages both pre-booked Appointments and impromptu Walk-in patients within a single, unified digital queue.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Real-Time Queue Management: Displays real-time status updates and accurate estimated wait times on clinic screens and patient devices.
 
-## React Compiler
+AI-Driven Optimization: Uses machine learning to analyze historical data (visit duration, no-shows) to predict patient volume and optimize future appointment slotting.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Paperless Operation: All patient check-in, tracking, and status updates are handled digitally.
 
-## Expanding the ESLint configuration
+Automated Communication: Sends automated SMS/email reminders and confirmations for appointments.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Provider Dashboard: Gives doctors and staff a clear interface to call the next patient, view notes, and update consultation status.

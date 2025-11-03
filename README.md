@@ -1,4 +1,4 @@
-🩺 ABANTE: Smart Clinic Appointment and Queue Management System
+🩺 ABANTE: Smart Clinic Appointment and Queue Management Website System
 
 🌟 Overview
 ABANTE is a comprehensive, web-based system designed for small private clinics to modernize their patient flow. By integrating digital appointment scheduling with a real-time queue management system, ABANTE eliminates paper records and wait time confusion. It is powered by an AI/Machine Learning engine that analyzes patient data to optimize scheduling and predict clinic traffic for better resource management.

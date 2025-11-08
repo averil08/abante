@@ -290,8 +290,8 @@ function RegistrationForm() {
                       showTimeSelect
                       timeFormat="h:mm aa"
                       timeIntervals={50}
-                      minTime={new Date().setHours(8,0,0,0)} 
-                      maxTime={new Date().setHours(17,0,0,0)} 
+                      minTime={new Date(new Date().setHours(8,0,0,0))} 
+                      maxTime={new Date(new Date().setHours(17,0,0,0))} 
                       dateFormat="MMMM d, yyyy h:mm aa"
                       className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-600"
                       placeholderText="Select date and time"
@@ -355,7 +355,7 @@ function RegistrationForm() {
                 {/*Symptoms Checkbox */}
                 <div className="space-y-3 p-4 rounded-lg border border-green-300 border-green-500">
                   <Label className="text-green-700 font-bold">Symptoms (Select all that apply)</Label>
-                  <div classname="space-y-2">
+                  <div className="space-y-2">
                     {symptomsList.map((symptom) => (
                       <div key={symptom} className="flex items-center">
                         <input

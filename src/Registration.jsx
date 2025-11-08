@@ -21,6 +21,7 @@ function RegistrationForm() {
     appointmentDateTime: "",
     staffRole: "",
     password: "",
+    daysSinceOnSet: "",
   });
 
   const [selectedPatientType, setSelectedPatientType] = useState(null);
@@ -370,6 +371,19 @@ function RegistrationForm() {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/*Number of days since onset of symptoms */}
+                <div className="space-y-2">
+                  <Label htmlFor="daysSinceOnSet">Number of Days Since Onset of Symptoms</Label>
+                  <Input
+                    id="daysSinceOnSet"
+                    type="number"
+                    value={formData.daysSinceOnSet}
+                    onChange={handleInputChange}
+                    placeholder="Add number only (ex: 3)"
+                    min="0"
+                  />
                 </div>
 
                 {/* Services */}

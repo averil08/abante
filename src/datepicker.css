@@ -1,0 +1,90 @@
+/* Custom styles for react-datepicker calendar */
+.react-datepicker {
+  font-family: 'Arial', sans-serif; /* Change font if desired */
+  border: 2px solid #059669; /* Green border */
+  border-radius: 8px; /* Rounded corners */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  background-color: white; /* White background */
+}
+
+.react-datepicker__header {
+  background-color: #059669; /* Green header background */
+  color: white; /* White text */
+  border-bottom: 1px solid #047857; /* Darker green border */
+  padding: 10px; /* Add padding */
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header {
+  color: white; /* White text for month/year and time header */
+  font-weight: bold; /* Make it bold */
+}
+
+.react-datepicker__day {
+  color: #374151; /* Dark gray for day numbers */
+  border-radius: 4px; /* Slight rounding */
+  transition: background-color 0.2s; /* Smooth hover effect */
+}
+
+.react-datepicker__day:hover {
+  background-color: #10b981; /* Light green on hover */
+  color: white; /* White text on hover */
+}
+
+.react-datepicker__day--selected {
+  background-color: #059669; /* Green for selected day */
+  color: white; /* White text */
+}
+
+.react-datepicker__day--keyboard-selected {
+  background-color: #10b981; /* Light green for keyboard focus */
+  color: white;
+}
+
+.react-datepicker__day--outside-month {
+  color: #9ca3af; /* Lighter gray for days outside current month */
+}
+
+.react-datepicker__navigation {
+  border: none; /* Remove default borders on arrows */
+  background: none; /* Transparent background */
+}
+
+.react-datepicker__navigation:hover {
+  background-color: #047857; /* Darker green on arrow hover */
+}
+
+/* Time picker section */
+.react-datepicker-time__header {
+  background-color: #059669; /* Green time header */
+  color: white;
+  font-weight: bold;
+}
+
+.react-datepicker__time-list-item {
+  color: #374151; /* Dark gray for time options */
+}
+
+.react-datepicker__time-list-item:hover {
+  background-color: #10b981; /* Light green hover */
+  color: white;
+}
+
+.react-datepicker__time-list-item--selected {
+  background-color: #059669; /* Green for selected time */
+  color: white;
+}
+
+/* Input field (the text box) */
+.react-datepicker__input-container input {
+  border: 1px solid #d1d5db; /* Light gray border */
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 14px;
+}
+
+.react-datepicker__input-container input:focus {
+  outline: none;
+  border-color: #059669; /* Green border on focus */
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2); /* Green glow */
+}

@@ -13,8 +13,12 @@ import Logo from "./assets/logo-abante.png";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "./datepicker.css";
+import { useNavigate } from "react-router-dom";
 
+//component starts here
 function RegistrationForm() {
+  const navigate = useNavigate();
+  
   const [selectedType, setSelectedType] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -166,6 +170,9 @@ function RegistrationForm() {
         setTimeout(() => {
           setSelectedPatientType(null);
           setSelectedType(null);
+          
+          //redirect to QueueStatus page here
+          navigate("/qstatus", { state: { patientName: formData.name, type: selectedPatientType, symptoms: formData.symptoms} });
         }, 3000);
       } else {
         showMessage(
@@ -501,7 +508,7 @@ function RegistrationForm() {
                 />
               </div>
 
-              <div className="space-y-3 p-4 rounded-lg border border-green-300 border-green-500">
+              <div className="space-y-3 p-4 rounded-lg border border-green-300">
                 <Label className="text-green-700 font-bold">Symptoms (Select all that apply)</Label>
                 <div className="space-y-2">
                   {symptomsList.map((symptom) => (

@@ -28,10 +28,10 @@ const Navbar = () => {
 
       {/* visibility of sidebar. !nav = not nav so if nav = true, !nav = false vice versa. If menu (nav) = nonvisible(false) place sidebar at left-0 (visible). If menu = visible(true) push it left -100% disappears screen */}
       <div className= {nav ? 'fixed left-0 top-0 w-[70%] h-full border-r border-r-gray-400 bg-[#ffff] ease-in-out duration-500' : 'fixed left-[-100%]'}>
-      <h1 className='w-full text-3xl font-bold m-4'>
+        <h1 className='w-full text-3xl font-bold m-4'>
         <span className='text-[#2e8b57]'>ABA</span>
         <span className='text-[#1c382a]'>NTE</span>
-      </h1>
+        </h1>
 
         <ul className='uppercase p-4'>
             <li className='p-4 border-b border-gray-300'><a href="#home">Home</a></li>

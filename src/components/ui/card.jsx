@@ -26,6 +26,7 @@ const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
 ))
 CardTitle.displayName = "CardTitle"
 
+//Current serving, avg wait time, total patients shadcn style
 const CardDescription = React.forwardRef(({ className, ...props }, ref) => (
   <div
     ref={ref}

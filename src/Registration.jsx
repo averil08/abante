@@ -235,6 +235,9 @@ function RegistrationForm() {
         
         setTimeout(() => {
           setSelectedType(null);
+
+          //redirect to Dashboard page
+          navigate("/dashboard", { state: { staffName: "Jenny Cruz", role: "Secretary"} });
         }, 3000);
       } else {
         showMessage(

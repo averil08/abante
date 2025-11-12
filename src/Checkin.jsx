@@ -1,11 +1,10 @@
-import React, { useState } from "react";
-import { useContext } from "react";
+import React, { useState, useContext } from "react";
 import { PatientContext } from "./PatientContext";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Users, ChartNoAxesCombined, TicketCheck, Calendar } from "lucide-react";
+import { QrCode, User, Users, ChartNoAxesCombined, TicketCheck, Calendar } from "lucide-react";
 import { AiOutlineClose, AiOutlineMenu } from "react-icons/ai";
 import { useNavigate, Navigate } from "react-router-dom";
 import Logo from "./assets/logo-abante.png";
@@ -20,10 +19,13 @@ import {
 
 function Checkin() {
   const navigate = useNavigate();
-  const [nav, setNav] = useState(false);
-  const handleNav = () => setNav(!nav);
   const { patients, addPatient, activePatient, setActivePatient } = useContext(PatientContext);
 
+  // View state: 'clinic' or 'patient'
+  const [viewMode, setViewMode] = useState('clinic');
+  const [nav, setNav] = useState(false);
+  const handleNav = () => setNav(!nav);
+  
   const [selectedPatientType, setSelectedPatientType] = useState(null);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -219,27 +221,21 @@ function Checkin() {
       }
 
       if (result.success) {
-        // ✅ Create new patient object WITH phoneNum and services
         const newPatient = {
           name: formData.name,
           age: formData.age,
-          phoneNum: formData.phoneNum,  // ✅ ADDED
+          phoneNum: formData.phoneNum,
           type: selectedPatientType,
           symptoms: formData.symptoms,
-          services: formData.services,   // ✅ ADDED
+          services: formData.services,
           queueNo: patients.length + 1,
         };
 
-        // ✅ Add patient to context list
         addPatient(newPatient);
-
-        // ✅ Remember this patient as active
         setActivePatient(newPatient);
-
         resetForm();
         showMessage("Success", `Registration completed for ${formData.name}`, true);
 
-        // ✅ Redirect to QueueStatus
         setTimeout(() => {
           navigate("/qstatus");
         }, 1000);
@@ -254,23 +250,128 @@ function Checkin() {
     }
   };
 
-  // --- Step 1: Patient Type Selection ---
-  if (!selectedPatientType) {
+  // === CLINIC VIEW - QR CODE ONLY ===
+  if (viewMode === 'clinic') {
     return (
       <div className="flex w-full min-h-screen">
-        <Sidebar nav={nav} handleNav={handleNav} />
+        {/* DESKTOP SIDEBAR */}
+        <div className="hidden md:flex fixed left-0 top-0 h-full w-52 bg-gray-50 border-r border-gray-300 shadow-lg flex-col z-40">
+          <img className="w-[175px] m-4" src={Logo} alt="Logo" />
+          <ul className="mt-8 text-sm text-gray-700">
+            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+                onClick={() => navigate("/dashboard")}>
+              <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
+              Clinic Dashboard
+            </li>
 
-        {/* Main content */}
-        <div className="flex-1 p-4 md:ml-52 flex items-center justify-center">
-          <Card className="w-full max-w-md shadow-xl border-t-4 border-green-600">
-            <CardHeader>
-              <CardTitle className="text-center text-green-700">Patient Registration</CardTitle>
+            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+                onClick={() => navigate("/analytics")}>
+              <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" />
+              Clinic Analytics
+            </li>
+
+            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+                onClick={() => navigate("/appointment")}>
+              <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
+              Appointments
+            </li>
+
+            <li className="group p-4 flex items-center gap-2 bg-green-600 text-white hover:cursor-pointer" 
+                onClick={() => navigate("/checkin")}>
+              <TicketCheck className="w-5 h-5 text-white" />
+              Patient Check-In
+            </li>
+          </ul>
+        </div>
+
+        {/* MOBILE HAMBURGER */}
+        <div className="md:hidden fixed top-4 right-4 z-50" onClick={handleNav}>
+          {nav ? <AiOutlineClose size={24} /> : <AiOutlineMenu size={24} />}
+        </div>
+
+        {/* MOBILE SIDEBAR */}
+        <div className={`fixed top-0 left-0 w-64 h-full bg-white shadow-lg transform transition-transform duration-300 z-50
+          ${nav ? "translate-x-0" : "-translate-x-full"} md:hidden`}>
+          <img className="w-[175px] m-10" src={Logo} alt="Logo" />
+          <ul className="mt-10 text-sm text-gray-700">
+            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+                onClick={() => { navigate("/dashboard"); setNav(false); }}>
+              <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
+              Clinic Dashboard
+            </li>
+
+            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+                onClick={() => { navigate("/analytics"); setNav(false); }}>
+              <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" />
+              Clinic Analytics
+            </li>
+
+            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+                onClick={() => { navigate("/appointment"); setNav(false); }}>
+              <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
+              Appointments
+            </li>
+
+            <li className="group p-4 flex items-center gap-2 bg-green-600 text-white hover:cursor-pointer" 
+                onClick={() => { navigate("/checkin"); setNav(false); }}>
+              <TicketCheck className="w-5 h-5 text-white" />
+              Patient Check-In
+            </li>
+          </ul>
+        </div>
+
+        {/* MAIN CONTENT */}
+        <div className="flex-1 min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 ml-0 md:ml-52 flex items-center justify-center p-4">
+          <Card className="w-full max-w-2xl shadow-2xl border-t-4 border-green-600">
+            <CardHeader className="text-center pb-2">
+              <div className="flex justify-center mb-4">
+                <img src={Logo} alt="Clinic Logo" className="w-48 h-auto" />
+              </div>
+              <CardTitle className="text-2xl sm:text-3xl text-green-700 mb-2">
+                Patient Check-In System
+              </CardTitle>
+              <p className="text-gray-600 text-sm sm:text-base">
+                De Valley Medical Clinic Queue Management
+              </p>
             </CardHeader>
-            <CardContent className="flex flex-col space-y-4">
-              <Button className="w-full bg-[#33a37f] hover:bg-[#059669] text-white"
-                onClick={() => setSelectedPatientType("Appointment")}>Book Appointment</Button>
-              <Button className="w-full bg-[#33a37f] hover:bg-[#059669] text-white"
-                onClick={() => setSelectedPatientType("Walk-in")}>Walk-in Registration</Button>
+            
+            <CardContent className="space-y-6">
+              {/* QR Code Display */}
+              <div className="bg-white p-8 rounded-xl border-2 border-green-200 flex flex-col items-center">
+                <QrCode className="w-48 h-48 sm:w-64 sm:h-64 text-green-600 mb-4" strokeWidth={1.5} />
+                <p className="text-center text-gray-700 font-medium text-lg mb-2">
+                  Scan to Register
+                </p>
+                <p className="text-center text-gray-500 text-sm max-w-md">
+                  Patients can scan this QR code with their mobile device to access the registration form and join the queue.
+                </p>
+              </div>
+
+              {/* View Toggle Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
+                <Button 
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  disabled
+                >
+                  <QrCode className="w-5 h-5 mr-2" />
+                  Clinic View (Current)
+                </Button>
+                <Button 
+                  onClick={() => setViewMode('patient')}
+                  variant="outline"
+                  className="flex-1 border-green-600 text-green-600 hover:bg-green-50"
+                >
+                  <User className="w-5 h-5 mr-2" />
+                  Switch to Patient View
+                </Button>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
+                <p className="text-amber-800">
+                  <strong>Note:</strong> This is the clinic view showing the QR code for patients to scan. 
+                  Click "Switch to Patient View" to see what patients will interact with.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -278,161 +379,158 @@ function Checkin() {
     );
   }
 
-  // --- Step 2: Patient Form ---
-  return (
-    <div className="flex w-full min-h-screen">
-      {/* Sidebar */}
-      <Sidebar nav={nav} handleNav={handleNav} />
+  // === PATIENT VIEW - REGISTRATION FORMS ===
+  
+  // Step 1: Patient Type Selection
+  if (!selectedPatientType) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md shadow-xl border-t-4 border-green-600">
+          {/* Back to Clinic View Button */}
+          <div className="p-4 border-b border-gray-200">
+            <Button 
+              onClick={() => setViewMode('clinic')}
+              variant="outline"
+              size="sm"
+              className="text-green-600 border-green-600 hover:bg-green-50"
+            >
+              <QrCode className="w-4 h-4 mr-2" />
+              Back to Clinic View
+            </Button>
+          </div>
 
-      {/* Main content */}
-      <div className="flex-1 p-4 md:ml-52">
-        <Card className="w-full max-w-lg shadow-xl border-t-4 border-green-600">
+          <div className="flex justify-center items-center mt-4">
+            <img src={Logo} alt="Logo" className="w-[190px] h-auto" />
+          </div>
+
           <CardHeader>
-            <CardTitle className="text-center text-green-700">
-              {selectedPatientType === "Appointment" ? "Book Appointment" : "Walk-in Registration"}
-            </CardTitle>
+            <CardTitle className="text-center text-green-700">Patient Registration</CardTitle>
+            <p className="text-center text-sm text-gray-500">Choose how you'd like to register</p>
           </CardHeader>
-          <CardContent>
-            {selectedPatientType === "Appointment" && (
-              <div className="space-y-4 mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <Label htmlFor="appointmentDateTime">Appointment Date & Time *</Label>
-                <DatePicker
-                  selected={formData.appointmentDateTime ? new Date(formData.appointmentDateTime) : null}
-                  onChange={(date) => setFormData({ ...formData, appointmentDateTime: date ? date.toISOString() : "" })}
-                  showTimeSelect timeFormat="h:mm aa" timeIntervals={30} minDate={new Date()}
-                  minTime={new Date(new Date().setHours(8,0,0,0))} maxTime={new Date(new Date().setHours(17,0,0,0))}
-                  dateFormat="MMMM d, yyyy h:mm aa"
-                  className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-600"
-                />
-              </div>
-            )}
-
-            <form onSubmit={handlePatientSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name *</Label>
-                  <Input id="name" type="text" value={formData.name} onChange={handleInputChange} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="age">Age *</Label>
-                  <Input id="age" type="number" value={formData.age} onChange={handleInputChange} required />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phoneNum">Phone Number *</Label>
-                <Input id="phoneNum" type="tel" value={formData.phoneNum} onChange={handleInputChange} required />
-              </div>
-
-              <div className="space-y-3 p-4 rounded-lg border border-green-300">
-                <Label className="text-green-700 font-bold">Symptoms (Select all that apply)</Label>
-                {symptomsList.map(symptom => (
-                  <div key={symptom} className="flex items-center">
-                    <input type="checkbox" id={symptom} checked={formData.symptoms.includes(symptom)}
-                      onChange={(e) => handleSymptomChange(symptom, e.target.checked)}
-                      className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
-                    <Label htmlFor={symptom} className="ml-2">{symptom}</Label>
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-3 p-4 rounded-lg border border-green-300 bg-green-50">
-                <Label className="text-green-700 font-bold">Select Services</Label>
-                {serviceCategories.map(cat => (
-                  <div key={cat.id} className="pt-2 border-b last:border-b-0">
-                    <div className="cursor-pointer flex justify-between font-semibold text-green-700"
-                      onClick={() => toggleCategory(cat.id)}>
-                      {cat.label} <span>{expandedCategory === cat.id ? "▲" : "▼"}</span>
-                    </div>
-                    {expandedCategory === cat.id && (
-                      <div className="ml-2 mt-2 space-y-2">
-                        {cat.services.map(svc => (
-                          <div key={svc.id} className="flex items-center">
-                            <input type="checkbox" id={svc.id} checked={formData.services.includes(svc.id)}
-                              onChange={(e) => handleServiceChange(svc.id, e.target.checked)}
-                              className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
-                            <Label htmlFor={svc.id} className="ml-2">{svc.label}</Label>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="space-y-3">
-                <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={isSubmitting}>
-                  {isSubmitting ? "Submitting..." : "Submit Registration"}
-                </Button>
-                <Button type="button" className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800" onClick={() => setSelectedPatientType(null)}>
-                  &larr; Back
-                </Button>
-              </div>
-            </form>
+          
+          <CardContent className="flex flex-col space-y-4">
+            <Button 
+              className="w-full bg-[#33a37f] hover:bg-[#059669] text-white py-6 text-lg"
+              onClick={() => setSelectedPatientType("Appointment")}
+            >
+              Book Appointment
+            </Button>
+            <Button 
+              className="w-full bg-[#33a37f] hover:bg-[#059669] text-white py-6 text-lg"
+              onClick={() => setSelectedPatientType("Walk-in")}
+            >
+              Walk-in Registration
+            </Button>
           </CardContent>
         </Card>
-        <div id="message-box"></div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-// --- Sidebar component ---
-function Sidebar({ nav, handleNav }) {
-  const navigate = useNavigate();
-  const img1 = Logo;
-
+  // Step 2: Patient Form
   return (
-    <>
-      {/* DESKTOP */}
-      <div className="hidden md:flex fixed left-0 top-0 h-full w-52 bg-gray-50 border-r border-gray-300 shadow-lg flex-col">
-        <img className="w-[175px] m-4" src={img1} alt="Logo" />
-        <ul className="mt-8 text-sm text-gray-700">
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer" onClick={() => navigate("/dashboard")}>
-            <Users className="w-5 h-5 text-green-600 group-hover:text-white" /> Clinic Dashboard
-          </li>
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer" onClick={() => navigate("/analytics")}>
-            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" /> Clinic Analytics
-          </li>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+      <Card className="w-full max-w-lg shadow-xl border-t-4 border-green-600 my-8">
+        {/* Back to Clinic View Button */}
+        <div className="p-4 border-b border-gray-200">
+          <Button 
+            onClick={() => setViewMode('clinic')}
+            variant="outline"
+            size="sm"
+            className="text-green-600 border-green-600 hover:bg-green-50"
+          >
+            <QrCode className="w-4 h-4 mr-2" />
+            Back to Clinic View
+          </Button>
+        </div>
 
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointment")}>
-            <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Appointments
-          </li>
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer" onClick={() => navigate("/checkin")}>
-            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" /> Patient Check-In
-          </li>
-        </ul>
-      </div>
+        <CardHeader>
+          <CardTitle className="text-center text-green-700">
+            {selectedPatientType === "Appointment" ? "Book Appointment" : "Walk-in Registration"}
+          </CardTitle>
+        </CardHeader>
+        
+        <CardContent>
+          {selectedPatientType === "Appointment" && (
+            <div className="space-y-4 mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <Label htmlFor="appointmentDateTime">Appointment Date & Time *</Label>
+              <DatePicker
+                selected={formData.appointmentDateTime ? new Date(formData.appointmentDateTime) : null}
+                onChange={(date) => setFormData({ ...formData, appointmentDateTime: date ? date.toISOString() : "" })}
+                showTimeSelect timeFormat="h:mm aa" timeIntervals={30} minDate={new Date()}
+                minTime={new Date(new Date().setHours(8,0,0,0))} maxTime={new Date(new Date().setHours(17,0,0,0))}
+                dateFormat="MMMM d, yyyy h:mm aa"
+                className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-600"
+              />
+            </div>
+          )}
 
-      {/* MOBILE HAMBURGER */}
-      <div className="md:hidden fixed top-10 right-10 z-50" onClick={handleNav}>
-        {nav ? <AiOutlineClose size={24} /> : <AiOutlineMenu size={24} />}
-      </div>
+          <form onSubmit={handlePatientSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Full Name *</Label>
+                <Input id="name" type="text" value={formData.name} onChange={handleInputChange} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="age">Age *</Label>
+                <Input id="age" type="number" value={formData.age} onChange={handleInputChange} required />
+              </div>
+            </div>
 
-      {/* MOBILE */}
-      <div className={`fixed top-0 left-0 w-64 h-full bg-white z-50 shadow-lg transform transition-transform duration-300
-        ${nav ? "translate-x-0" : "-translate-x-full"} md:hidden`}>
-        <img className="w-[175px] m-10" src={img1} alt="Logo" />
-        <ul className="mt-10 text-sm text-gray-700">
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer" onClick={() => navigate("/dashboard")}>
-            <Users className="w-5 h-5 text-green-600 group-hover:text-white" /> Clinic Dashboard
-          </li>
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer" onClick={() => navigate("/analytics")}>
-            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" /> Clinic Analytics
-          </li>
+            <div className="space-y-2">
+              <Label htmlFor="phoneNum">Phone Number *</Label>
+              <Input id="phoneNum" type="tel" value={formData.phoneNum} onChange={handleInputChange} required />
+            </div>
 
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointment")}>
-            <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Appointments
-          </li>
+            <div className="space-y-3 p-4 rounded-lg border border-green-300">
+              <Label className="text-green-700 font-bold">Symptoms (Select all that apply)</Label>
+              {symptomsList.map(symptom => (
+                <div key={symptom} className="flex items-center">
+                  <input type="checkbox" id={symptom} checked={formData.symptoms.includes(symptom)}
+                    onChange={(e) => handleSymptomChange(symptom, e.target.checked)}
+                    className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
+                  <Label htmlFor={symptom} className="ml-2">{symptom}</Label>
+                </div>
+              ))}
+            </div>
 
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer" onClick={() => navigate("/checkin")}>
-            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" /> Patient Check-In
-          </li>
-        </ul>
-      </div>
-    </>
+            <div className="space-y-3 p-4 rounded-lg border border-green-300 bg-green-50">
+              <Label className="text-green-700 font-bold">Select Services</Label>
+              {serviceCategories.map(cat => (
+                <div key={cat.id} className="pt-2 border-b last:border-b-0">
+                  <div className="cursor-pointer flex justify-between font-semibold text-green-700"
+                    onClick={() => toggleCategory(cat.id)}>
+                    {cat.label} <span>{expandedCategory === cat.id ? "▲" : "▼"}</span>
+                  </div>
+                  {expandedCategory === cat.id && (
+                    <div className="ml-2 mt-2 space-y-2">
+                      {cat.services.map(svc => (
+                        <div key={svc.id} className="flex items-center">
+                          <input type="checkbox" id={svc.id} checked={formData.services.includes(svc.id)}
+                            onChange={(e) => handleServiceChange(svc.id, e.target.checked)}
+                            className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
+                          <Label htmlFor={svc.id} className="ml-2">{svc.label}</Label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg" disabled={isSubmitting}>
+                {isSubmitting ? "Submitting..." : "Submit Registration"}
+              </Button>
+              <Button type="button" className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800" onClick={() => setSelectedPatientType(null)}>
+                ← Back
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+      <div id="message-box"></div>
+    </div>
   );
 }
 

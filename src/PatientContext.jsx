@@ -5,10 +5,10 @@ export const PatientContext = createContext();
 export const PatientProvider = ({ children }) => {
   const [activePatient, setActivePatient] = useState(null);
   const [patients, setPatients] = useState([
-    { queueNo: 1, name: "Jane Doe", age: 26, type: "Walk-in", symptoms: ["Fever", "Cough"], services: ["cbc", "fbs"], phoneNum: "09171234567", status: "done", registeredAt: new Date().toISOString() },
-    { queueNo: 2, name: "Mark Cruz", age: 32, type: "Appointment", symptoms: ["Rashes"], services: ["pedia"], phoneNum: "09181234567", status: "in progress", registeredAt: new Date().toISOString(), appointmentDateTime: new Date(Date.now() + 86400000).toISOString() },
-    { queueNo: 3, name: "Leah Santos", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["adult"], phoneNum: "09191234567", status: "waiting", registeredAt: new Date().toISOString() },
-    { queueNo: 4, name: "Analyn Gomez", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["urinalysis"], phoneNum: "09201234567", status: "waiting", registeredAt: new Date().toISOString() },
+    { queueNo: 1, name: "Jane Doe", age: 26, type: "Walk-in", symptoms: ["Fever", "Cough"], services: ["cbc", "fbs"], phoneNum: "09171234567", status: "done", registeredAt: new Date().toISOString(), inQueue: true },
+    { queueNo: 2, name: "Mark Cruz", age: 32, type: "Appointment", symptoms: ["Rashes"], services: ["pedia"], phoneNum: "09181234567", status: "in progress", registeredAt: new Date().toISOString(), appointmentDateTime: new Date(Date.now() + 86400000).toISOString(), appointmentStatus: "accepted", inQueue: true },
+    { queueNo: 3, name: "Leah Santos", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["adult"], phoneNum: "09191234567", status: "waiting", registeredAt: new Date().toISOString(), inQueue: true },
+    { queueNo: 4, name: "Analyn Gomez", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["urinalysis"], phoneNum: "09201234567", status: "waiting", registeredAt: new Date().toISOString(), inQueue: true },
   ]);
 
   const [currentServing, setCurrentServing] = useState(2);
@@ -65,6 +65,7 @@ export const PatientProvider = ({ children }) => {
         queueNo: prev.length + 1, 
         status: newPatient.status || "waiting",
         registeredAt: new Date().toISOString(),
+        inQueue: true,
       }
     ]);
   };
@@ -78,6 +79,20 @@ export const PatientProvider = ({ children }) => {
   const cancelPatient = (queueNo) => {
     setPatients(prev =>
       prev.map(p => p.queueNo === queueNo ? { ...p, status: "cancelled" } : p)
+    );
+  };
+
+  // ✅ Accept appointment - changes status from 'pending' to 'accepted'
+  const acceptAppointment = (queueNo) => {
+    setPatients(prev =>
+      prev.map(p => p.queueNo === queueNo ? { ...p, appointmentStatus: "accepted", inQueue: true } : p)
+    );
+  };
+
+  // ✅ Reject appointment - marks as rejected
+  const rejectAppointment = (queueNo) => {
+    setPatients(prev =>
+      prev.map(p => p.queueNo === queueNo ? { ...p, appointmentStatus: "rejected", inQueue: false } : p)
     );
   };
 
@@ -98,12 +113,13 @@ export const PatientProvider = ({ children }) => {
         status: "waiting",
         registeredAt: new Date().toISOString(),
         requeued: true,
-        originalQueueNo: queueNo
+        originalQueueNo: queueNo,
+        inQueue: true,
       };
       
       // Mark old entry as inactive (but keep it in history)
       const updatedPatients = prev.map(p => 
-        p.queueNo === queueNo ? { ...p, isInactive: true } : p
+        p.queueNo === queueNo ? { ...p, isInactive: true, inQueue: false } : p
       );
       
       // Add new patient entry at the end
@@ -127,8 +143,8 @@ export const PatientProvider = ({ children }) => {
   };
 
   const queueInfo = useMemo(() => {
-    const total = patients.length;
-    const waitingCount = patients.filter(p => p.status === "waiting").length;
+    const total = patients.filter(p => p.inQueue && !p.isInactive).length;
+    const waitingCount = patients.filter(p => p.status === "waiting" && p.inQueue && !p.isInactive).length;
     return { total, waitingCount, currentServing };
   }, [patients, currentServing]);
 
@@ -148,7 +164,9 @@ export const PatientProvider = ({ children }) => {
       queueInfo,
       getAvailableSlots,
       cancelPatient,
-      requeuePatient
+      requeuePatient,
+      acceptAppointment,
+      rejectAppointment,
     }}>
       {children}
     </PatientContext.Provider>

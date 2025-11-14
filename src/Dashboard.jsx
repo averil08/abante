@@ -1,101 +1,250 @@
-import React, { useState, useContext } from 'react';
-import Sidebar from "@/components/Sidebar";
-import { Clock, TrendingUp, Users, XCircle } from 'lucide-react';
+import React, { useState, useContext, useEffect } from 'react';
+import img1 from './assets/logo-abante.png';
+import { Clock, TrendingUp, Users, ChartNoAxesCombined, TicketCheck, Calendar, XCircle } from 'lucide-react';
+import { AiOutlineClose, AiOutlineMenu } from 'react-icons/ai';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
-import { PatientContext } from "./PatientContext";
+import { Link, useNavigate } from "react-router-dom";
+// If using PatientContext, uncomment the next line and remove supabase imports
+// import { PatientContext } from "./PatientContext";
+import { getAllPatients, getPatientStats, updatePatientStatus } from "./lib/supabaseClient";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  // For context API: useContext(PatientContext)
+  // For supabase: Local state
+  const [patients, setPatients] = useState([]);
+  const [stats, setStats] = useState({
+    totalPatients: 0,
+    walkInPatients: 0,
+    appointmentPatients: 0,
+    todayPatients: 0,
+  });
+  const [currentServing, setCurrentServing] = useState(1);
+  const [avgWaitTime, setAvgWaitTime] = useState(5);
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
-  
-  const { 
-    patients, 
-    currentServing, 
-    setCurrentServing,
-    updatePatientStatus,
-    cancelPatient,
-    avgWaitTime,
-    addWaitTime
-  } = useContext(PatientContext);
 
+  // --- Data fetching logic (for supabase) ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const patientsResult = await getAllPatients();
+        if (patientsResult.success) {
+          setPatients(patientsResult.data);
+        } else {
+          setPatients([]);
+        }
+        const statsResult = await getPatientStats();
+        if (statsResult.success) {
+          setStats(statsResult.data);
+        } else {
+          setStats({
+            totalPatients: 0,
+            walkInPatients: 0,
+            appointmentPatients: 0,
+            todayPatients: 0,
+          });
+        }
+      } catch (error) {
+        setPatients([]);
+        setStats({
+          totalPatients: 0,
+          walkInPatients: 0,
+          appointmentPatients: 0,
+          todayPatients: 0,
+        });
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const servingPatient = patients.find(p => p.status === 'in progress');
+    setCurrentServing(servingPatient ? servingPatient.queue_number : 0);
+  }, [patients]);
+
+  // --- For context API, you'd use useContext(PatientContext) and get handlers from there ---
+
+  // Service label mapping (merged, comprehensive)
+  const serviceLabels = {
+    // General Consultation
+    pedia: "Pediatric",
+    adult: "Adult",
+    senior: "Senior (65+)",
+    preventive: "Preventive Exam",
+    "follow-up": "Follow-up",
+    // Hematology
+    cbc: "CBC",
+    platelet: "Platelet Count",
+    esr: "ESR",
+    abo: "Blood Type",
+    // Immunology
+    hbsag: "HBsAg",
+    vdrl: "VDRL/RPR",
+    antiHCV: "Anti-HCV",
+    hpylori: "H.PYLORI",
+    dengueIg: "Dengue IgG+IgM",
+    dengueNs1: "Dengue NS1",
+    dengueDuo: "Dengue Duo",
+    typhidot: "Typhidot",
+    // Chemistry
+    fbs: "FBS",
+    rbs: "RBS",
+    lipid: "Lipid Profile",
+    totalCh: "Total Cholesterol",
+    triglycerides: "Triglycerides",
+    hdl: "HDL",
+    ldl: "LDL",
+    alt: "ALT/SGPT",
+    ast: "AST/SGOT",
+    uric: "Uric Acid",
+    creatinine: "Creatinine",
+    bun: "BUN",
+    hba1c: "HBA1C",
+    albumin: "Albumin",
+    magnesium: "Magnesium",
+    totalProtein: "Total Protein",
+    alp: "ALP",
+    phosphorus: "Phosphorus",
+    sodium: "Sodium",
+    potassium: "Potassium",
+    ionizedCal: "Ionized Calcium",
+    totalCal: "Total Calcium",
+    chloride: "Chloride",
+    // Microscopy
+    urinalysis: "Urinalysis",
+    fecalysis: "Fecalysis",
+    pregnancyT: "Pregnancy Test",
+    fecal: "Fecal Occult Blood",
+    semen: "Semen Analysis",
+    // Others
+    tsh: "TSH",
+    ft3: "FT3",
+    "75g": "75g OGTT",
+    t4: "T4",
+    t3: "T3",
+    psa: "PSA",
+    totalBilirubin: "Total/Direct Bilirubin"
+  };
+  const getServiceLabel = (serviceId) => serviceLabels[serviceId] || serviceId;
   const doctorName = "Dr. Sarah Gonzales";
   const secretaryName = "Ms. Jenny Cruz";
 
-  const serviceLabels = {
-    pedia: "Pediatric", adult: "Adult", senior: "Senior (65+)",
-    preventive: "Preventive Exam", "follow-up": "Follow-up",
-    cbc: "CBC", platelet: "Platelet Count", esr: "ESR", abo: "Blood Type",
-    hbsag: "HBsAg", vdrl: "VDRL/RPR", antiHCV: "Anti-HCV", hpylori: "H.PYLORI",
-    dengueIg: "Dengue IgG+IgM", dengueNs1: "Dengue NS1", dengueDuo: "Dengue Duo",
-    typhidot: "Typhidot", fbs: "FBS", rbs: "RBS", lipid: "Lipid Profile",
-    totalCh: "Total Cholesterol", triglycerides: "Triglycerides", hdl: "HDL",
-    ldl: "LDL", alt: "ALT/SGPT", ast: "AST/SGOT", uric: "Uric Acid",
-    creatinine: "Creatinine", bun: "BUN", hba1c: "HBA1C", albumin: "Albumin",
-    magnesium: "Magnesium", totalProtein: "Total Protein", alp: "ALP",
-    phosphorus: "Phosphorus", sodium: "Sodium", potassium: "Potassium",
-    ionizedCal: "Ionized Calcium", totalCal: "Total Calcium", chloride: "Chloride",
-    urinalysis: "Urinalysis", fecalysis: "Fecalysis", pregnancyT: "Pregnancy Test",
-    fecal: "Fecal Occult Blood", semen: "Semen Analysis", tsh: "TSH",
-    ft3: "FT3", "75g": "75g OGTT", t4: "T4", t3: "T3", psa: "PSA",
-    totalBilirubin: "Total/Direct Bilirubin"
-  };
+  // Handler for "next patient"
+  const handleCallNext = async () => {
+    try {
+      if (currentServing > 0) {
+        await updatePatientStatus(currentServing, 'done');
+      }
+      const nextPatient = patients
+        .filter(p => p.queue_number > currentServing && p.status === 'waiting')
+        .sort((a, b) => a.queue_number - b.queue_number)[0];
 
-  const getServiceLabel = (serviceId) => serviceLabels[serviceId] || serviceId;
-
-  // ✅ FIXED: Find next waiting patient instead of assuming currentServing + 1
-  const handleCallNext = () => {
-    // Mark current patient as done
-    updatePatientStatus(currentServing, 'done');
-    
-    // Find the next patient who is waiting (skip cancelled patients)
-    const nextWaitingPatient = patients.find(p => 
-      p.queueNo > currentServing && p.status === "waiting" && p.inQueue
-    );
-    
-    if (nextWaitingPatient) {
-      // Mark the next waiting patient as in progress
-      updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
-      setCurrentServing(nextWaitingPatient.queueNo);
-    } else {
-      // No more waiting patients, just increment
-      setCurrentServing(prev => prev + 1);
+      if (nextPatient) {
+        await updatePatientStatus(nextPatient.queue_number, 'in progress');
+        setCurrentServing(nextPatient.queue_number);
+      } else {
+        setCurrentServing(prev => prev + 1);
+      }
+      // Update local state
+      const updatedPatients = patients.map(p => {
+        if (p.queue_number === currentServing) return { ...p, status: 'done' };
+        if (p.queue_number === nextPatient?.queue_number) return { ...p, status: 'in progress' };
+        return p;
+      });
+      setPatients(updatedPatients);
+    } catch (error) {
+      console.error('Error calling next patient:', error);
     }
   };
 
-  // ✅ FIXED: Handle cancel properly
-  const handleCancel = () => {
-    // Mark current patient as cancelled
-    cancelPatient(currentServing);
-    
-    // Find the next patient who is waiting
-    const nextWaitingPatient = patients.find(p => 
-      p.queueNo > currentServing && p.status === "waiting" && p.inQueue
-    );
-    
-    if (nextWaitingPatient) {
-      // Mark the next waiting patient as in progress
-      updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
-      setCurrentServing(nextWaitingPatient.queueNo);
-    } else {
-      // No more waiting patients, just increment
-      setCurrentServing(prev => prev + 1);
+  // Handler for "Cancel"
+  const handleCancel = async () => {
+    try {
+      // Mark current as cancelled in DB (if using supabase)
+      await updatePatientStatus(currentServing, 'cancelled');
+      const nextPatient = patients
+        .filter(p => p.queue_number > currentServing && p.status === 'waiting')
+        .sort((a, b) => a.queue_number - b.queue_number)[0];
+      if (nextPatient) {
+        await updatePatientStatus(nextPatient.queue_number, 'in progress');
+        setCurrentServing(nextPatient.queue_number);
+      } else {
+        setCurrentServing(prev => prev + 1);
+      }
+      // Update local state
+      const updatedPatients = patients.map(p => {
+        if (p.queue_number === currentServing) return { ...p, status: 'cancelled' };
+        if (p.queue_number === nextPatient?.queue_number) return { ...p, status: 'in progress' };
+        return p;
+      });
+      setPatients(updatedPatients);
+    } catch (error) {
+      console.error('Error cancelling patient:', error);
     }
   };
 
-  
-  // Filter to only show patients in active queue
-  const queuePatients = patients.filter(p => p.inQueue && !p.isInactive);
-  const totalWaiting = queuePatients.filter(p => p.status === "waiting").length;
+  const addWaitTime = () => setAvgWaitTime(prev => prev + 5);
+  const totalWaiting = patients.filter(p => p.status === "waiting").length;
 
   return (
     <div className="flex w-full min-h-screen">
-      <Sidebar nav={nav} handleNav={handleNav} />
-
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex fixed left-0 top-0 h-full w-52 bg-gray-50 border-r border-gray-300 shadow-lg flex-col z-40">
+        <img className="w-[175px] m-4" src={img1} alt="Logo" />
+        <ul className="mt-8 text-sm text-gray-700">
+          <li className="group p-4 flex items-center gap-2 bg-green-600 text-white hover:cursor-pointer" onClick={() => navigate("/dashboard")}>
+            <Users className="w-5 h-5 text-white" />
+            Clinic Dashboard
+          </li>
+          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/analytics")}>
+            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" /> 
+            Clinic Analytics
+          </li>
+          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointment")}>
+            <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
+            Appointments
+          </li>
+          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/checkin")}>
+            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" /> Patient Check-In
+          </li>
+        </ul>
+      </div>
+      {/* Mobile Hamburger */}
+      <div className="md:hidden fixed top-4 right-4 z-50" onClick={handleNav}>
+        {nav ? <AiOutlineClose size={24} /> : <AiOutlineMenu size={24} />}
+      </div>
+      {/* Mobile Sidebar */}
+      <div className={`fixed top-0 left-0 w-64 h-full bg-white shadow-lg transform transition-transform duration-300 z-50 ${nav ? "translate-x-0" : "-translate-x-full"} md:hidden`}>
+        <img className="w-[175px] m-10" src={img1} alt="Logo" />
+        <ul className="mt-10 text-sm text-gray-700">
+          <li className="group p-4 flex items-center gap-2 bg-green-600 text-white hover:cursor-pointer" 
+              onClick={() => { navigate("/dashboard"); setNav(false); }}>
+            <Users className="w-5 h-5 text-white" />
+            Clinic Dashboard
+          </li>
+          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+              onClick={() => { navigate("/analytics"); setNav(false); }}>
+            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" /> 
+            Clinic Analytics
+          </li>
+          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+              onClick={() => { navigate("/appointment"); setNav(false); }}>
+            <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
+            Appointments
+          </li>
+          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+              onClick={() => { navigate("/checkin"); setNav(false); }}>
+            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" /> 
+            Patient Check-In
+          </li>
+        </ul>
+      </div>
+      {/* Main Content */}
       <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300">
+        {/* Header */}
         <div className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between mb-3">
@@ -106,7 +255,6 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-3 border-t border-gray-100">
               <div className="flex items-center gap-2">
                 <span className="text-xs sm:text-sm text-gray-600">Doctor:</span>
@@ -119,8 +267,9 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-
+        {/* Dashboard Mains */}
         <div className="max-w-7xl mx-auto p-4 sm:p-6">
+          {/* Top Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
             {/* Current Serving */}
             <Card>
@@ -135,10 +284,7 @@ const Dashboard = () => {
                   #{String(currentServing).padStart(3, '0')}
                 </p>
                 <div className="space-y-2">
-                  <Button 
-                    onClick={handleCallNext} 
-                    className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base"
-                  >
+                  <Button onClick={handleCallNext} className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base">
                     Call Next Patient
                   </Button>
                   <Button 
@@ -152,7 +298,6 @@ const Dashboard = () => {
                 </div>
               </CardContent>
             </Card>
-
             {/* Avg Wait Time */}
             <Card>
               <CardHeader className="pb-3">
@@ -168,7 +313,6 @@ const Dashboard = () => {
                 </Button>
               </CardContent>
             </Card>
-
             {/* Total Patients Waiting */}
             <Card className="sm:col-span-2 lg:col-span-1">
               <CardHeader className="pb-3">
@@ -183,23 +327,22 @@ const Dashboard = () => {
               </CardContent>
             </Card>
           </div>
-
-          {/* Patient Queue Table */}
+          {/* Patient Queue Table/Card */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base sm:text-lg">Patient Queue</CardTitle>
               <CardDescription className="text-xs sm:text-sm">List of patients currently in the queue</CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Mobile Card View */}
+              {/* Mobile - Card View */}
               <div className="block lg:hidden space-y-4">
                 {patients.map(patient => (
-                  <Card key={patient.queueNo} className="border-l-4 border-l-green-600">
+                  <Card key={patient.queue_number} className="border-l-4 border-l-green-600">
                     <CardContent className="pt-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <p className="font-bold text-lg text-gray-900">
-                            #{String(patient.queueNo).padStart(3, '0')}
+                            #{String(patient.queue_number).padStart(3, '0')}
                           </p>
                           <p className="text-sm text-gray-600">{patient.name}</p>
                         </div>
@@ -220,10 +363,9 @@ const Dashboard = () => {
                               : ''
                           }
                         >
-                          {patient.status}
+                          {patient.status || 'waiting'}
                         </Badge>
                       </div>
-                      
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Age:</span>
@@ -231,13 +373,12 @@ const Dashboard = () => {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Phone:</span>
-                          <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
+                          <span className="font-medium">{patient.phone_num || 'N/A'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Type:</span>
-                          <span className="font-medium">{patient.type}</span>
+                          <span className="font-medium">{patient.patient_type}</span>
                         </div>
-                        
                         <div className="pt-2 border-t">
                           <p className="text-gray-600 mb-1">Symptoms:</p>
                           <div className="flex flex-wrap gap-1">
@@ -252,7 +393,6 @@ const Dashboard = () => {
                             )}
                           </div>
                         </div>
-                        
                         <div className="pt-2">
                           <p className="text-gray-600 mb-1">Services:</p>
                           <div className="flex flex-wrap gap-1">
@@ -272,7 +412,6 @@ const Dashboard = () => {
                   </Card>
                 ))}
               </div>
-
               {/* Desktop Table View */}
               <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full border-collapse">
@@ -290,12 +429,12 @@ const Dashboard = () => {
                   </thead>
                   <tbody>
                     {patients.map(patient => (
-                      <tr key={patient.queueNo} className="border-b transition-colors hover:bg-gray-50">
-                        <td className="p-4 align-middle font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
+                      <tr key={patient.queue_number} className="border-b transition-colors hover:bg-gray-50">
+                        <td className="p-4 align-middle font-semibold">#{String(patient.queue_number || 0).padStart(3, '0')}</td>
                         <td className="p-4 align-middle">{patient.name}</td>
                         <td className="p-4 align-middle">{patient.age}</td>
-                        <td className="p-4 align-middle text-gray-600">{patient.phoneNum || 'N/A'}</td>
-                        <td className="p-4 align-middle text-gray-500">{patient.type}</td>
+                        <td className="p-4 align-middle text-gray-600">{patient.phone_num || 'N/A'}</td>
+                        <td className="p-4 align-middle text-gray-500">{patient.patient_type || 'N/A'}</td>
                         <td className="p-4 align-middle">
                           <div className="flex flex-wrap gap-1 max-w-xs">
                             {patient.symptoms && patient.symptoms.length > 0 ? (
@@ -340,7 +479,7 @@ const Dashboard = () => {
                                 : ''
                             }
                           >
-                            {patient.status}
+                            {patient.status || 'waiting'}
                           </Badge>
                         </td>
                       </tr>

@@ -115,7 +115,7 @@ const QueueStatus = () => {
     
     return (
       <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4 animate-in slide-in-from-top">
-        <Alert className={`${isCancelled ? 'bg-red-600' : 'bg-green-600'} text-white border-${isCancelled ? 'red' : 'green'}-700 shadow-lg relative`}>
+        <Alert className={`${isCancelled ? 'bg-red-600' : 'bg-green-600'} text-white ${isCancelled ? 'border-red-700' : 'border-green-700'} shadow-lg relative p-4 w-full`}>
           {!isCancelled && (
             <Button
               variant="ghost"
@@ -127,19 +127,16 @@ const QueueStatus = () => {
             </Button>
           )}
           
-          <div className={!isCancelled ? "pr-8" : ""}>
-            <div className="flex items-center gap-2 mb-2">
+          <div className={!isCancelled ? "pr-10" : ""}>
+            <div className="grid grid-cols-[auto,1fr] gap-3">
               <Bell className="h-5 w-5 text-white" />
-              <AlertTitle className="text-white font-semibold ml-2">
-                {isCancelled ? "Appointment Cancelled" : "Queue Update"}
-              </AlertTitle>
+              <AlertDescription className="text-white text-sm font-medium whitespace-normal">
+                {notificationMessage}
+              </AlertDescription>
             </div>
-            <AlertDescription className="text-white text-sm pl-7">
-              {notificationMessage}
-            </AlertDescription>
             
             {isCancelled && (
-              <div className="mt-4 pl-7">
+              <div className="mt-3 pl-8">
                 <Button
                   onClick={handleRequeue}
                   className="bg-white text-red-600 hover:bg-gray-100"

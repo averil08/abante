@@ -237,7 +237,7 @@ function Checkin() {
         result = await registerAppointmentPatient(formData, formData.appointmentDateTime);
       }
 
-            if (result.success) {
+      if (result.success) {
         const newPatient = {
           name: formData.name,
           age: formData.age,
@@ -246,15 +246,29 @@ function Checkin() {
           symptoms: formData.symptoms,
           services: formData.services,
           queueNo: patients.length + 1,
-          status: "waiting",  // ✅ Explicitly set status
           appointmentDateTime: formData.appointmentDateTime || undefined,
         };
+
+        // ✅ KEY FIX: Set different initial state based on patient type
+        if (selectedPatientType === "Walk-in") {
+          newPatient.status = "waiting";
+          newPatient.inQueue = true;
+        } else if (selectedPatientType === "Appointment") {
+          newPatient.status = "waiting";
+          newPatient.appointmentStatus = "pending";
+          newPatient.inQueue = false; // ✅ Don't add to queue until accepted
+        }
 
         addPatient(newPatient);
         setActivePatient(newPatient);
 
         resetForm();
-        showMessage("Success", `Registration completed for ${formData.name}`, true);
+        
+        if (selectedPatientType === "Walk-in") {
+          showMessage("Success", `Registration completed for ${formData.name}. You're in the queue!`, true);
+        } else {
+          showMessage("Success", `Appointment request submitted for ${formData.name}. Please wait for confirmation.`, true);
+        }
 
         setTimeout(() => {
           navigate("/qstatus");

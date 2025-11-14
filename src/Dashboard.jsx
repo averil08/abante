@@ -88,7 +88,12 @@ const Dashboard = () => {
 
   
   // Filter to only show patients in active queue
-  const queuePatients = patients.filter(p => p.inQueue && !p.isInactive);
+  // Exclude appointment patients that haven't been accepted yet
+  const queuePatients = patients.filter(p => {
+    if (p.isInactive) return false;
+    if (p.type === "Appointment" && p.appointmentStatus !== "accepted") return false;
+    return p.inQueue;
+  });
   const totalWaiting = queuePatients.filter(p => p.status === "waiting").length;
 
   return (
@@ -193,7 +198,7 @@ const Dashboard = () => {
             <CardContent>
               {/* Mobile Card View */}
               <div className="block lg:hidden space-y-4">
-                {patients.map(patient => (
+                {queuePatients.map(patient => (
                   <Card key={patient.queueNo} className="border-l-4 border-l-green-600">
                     <CardContent className="pt-4">
                       <div className="flex justify-between items-start mb-3">
@@ -289,7 +294,7 @@ const Dashboard = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {patients.map(patient => (
+                    {queuePatients.map(patient => (
                       <tr key={patient.queueNo} className="border-b transition-colors hover:bg-gray-50">
                         <td className="p-4 align-middle font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
                         <td className="p-4 align-middle">{patient.name}</td>

@@ -1,11 +1,10 @@
 import React, { useState, useContext } from 'react';
-import img1 from './assets/logo-abante.png';
-import { Clock, TrendingUp, Users, ChartNoAxesCombined, TicketCheck, Calendar  } from 'lucide-react';
-import { AiOutlineClose, AiOutlineMenu } from 'react-icons/ai';
+import Sidebar from "@/components/Sidebar";
+import { Clock, TrendingUp, Users, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { PatientContext } from "./PatientContext";
 
 const Dashboard = () => {
@@ -13,161 +12,90 @@ const Dashboard = () => {
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
   
-  // ✅ USE CONTEXT VALUES
   const { 
     patients, 
     currentServing, 
     setCurrentServing,
     updatePatientStatus,
-    avgWaitTime,      // ✅ FROM CONTEXT
-    addWaitTime       // ✅ FROM CONTEXT
+    cancelPatient,
+    avgWaitTime,
+    addWaitTime
   } = useContext(PatientContext);
 
   const doctorName = "Dr. Sarah Gonzales";
   const secretaryName = "Ms. Jenny Cruz";
 
-  // ✅ SERVICE ID TO LABEL MAPPING
   const serviceLabels = {
-    // General Consultation
-    pedia: "Pediatric",
-    adult: "Adult",
-    senior: "Senior (65+)",
-    preventive: "Preventive Exam",
-    "follow-up": "Follow-up",
-    // Hematology
-    cbc: "CBC",
-    platelet: "Platelet Count",
-    esr: "ESR",
-    abo: "Blood Type",
-    // Immunology
-    hbsag: "HBsAg",
-    vdrl: "VDRL/RPR",
-    antiHCV: "Anti-HCV",
-    hpylori: "H.PYLORI",
-    dengueIg: "Dengue IgG+IgM",
-    dengueNs1: "Dengue NS1",
-    dengueDuo: "Dengue Duo",
-    typhidot: "Typhidot",
-    // Chemistry
-    fbs: "FBS",
-    rbs: "RBS",
-    lipid: "Lipid Profile",
-    totalCh: "Total Cholesterol",
-    triglycerides: "Triglycerides",
-    hdl: "HDL",
-    ldl: "LDL",
-    alt: "ALT/SGPT",
-    ast: "AST/SGOT",
-    uric: "Uric Acid",
-    creatinine: "Creatinine",
-    bun: "BUN",
-    hba1c: "HBA1C",
-    albumin: "Albumin",
-    magnesium: "Magnesium",
-    totalProtein: "Total Protein",
-    alp: "ALP",
-    phosphorus: "Phosphorus",
-    sodium: "Sodium",
-    potassium: "Potassium",
-    ionizedCal: "Ionized Calcium",
-    totalCal: "Total Calcium",
-    chloride: "Chloride",
-    // Microscopy
-    urinalysis: "Urinalysis",
-    fecalysis: "Fecalysis",
-    pregnancyT: "Pregnancy Test",
-    fecal: "Fecal Occult Blood",
-    semen: "Semen Analysis",
-    // Others
-    tsh: "TSH",
-    ft3: "FT3",
-    "75g": "75g OGTT",
-    t4: "T4",
-    t3: "T3",
-    psa: "PSA",
+    pedia: "Pediatric", adult: "Adult", senior: "Senior (65+)",
+    preventive: "Preventive Exam", "follow-up": "Follow-up",
+    cbc: "CBC", platelet: "Platelet Count", esr: "ESR", abo: "Blood Type",
+    hbsag: "HBsAg", vdrl: "VDRL/RPR", antiHCV: "Anti-HCV", hpylori: "H.PYLORI",
+    dengueIg: "Dengue IgG+IgM", dengueNs1: "Dengue NS1", dengueDuo: "Dengue Duo",
+    typhidot: "Typhidot", fbs: "FBS", rbs: "RBS", lipid: "Lipid Profile",
+    totalCh: "Total Cholesterol", triglycerides: "Triglycerides", hdl: "HDL",
+    ldl: "LDL", alt: "ALT/SGPT", ast: "AST/SGOT", uric: "Uric Acid",
+    creatinine: "Creatinine", bun: "BUN", hba1c: "HBA1C", albumin: "Albumin",
+    magnesium: "Magnesium", totalProtein: "Total Protein", alp: "ALP",
+    phosphorus: "Phosphorus", sodium: "Sodium", potassium: "Potassium",
+    ionizedCal: "Ionized Calcium", totalCal: "Total Calcium", chloride: "Chloride",
+    urinalysis: "Urinalysis", fecalysis: "Fecalysis", pregnancyT: "Pregnancy Test",
+    fecal: "Fecal Occult Blood", semen: "Semen Analysis", tsh: "TSH",
+    ft3: "FT3", "75g": "75g OGTT", t4: "T4", t3: "T3", psa: "PSA",
     totalBilirubin: "Total/Direct Bilirubin"
   };
 
-  const getServiceLabel = (serviceId) => {
-    return serviceLabels[serviceId] || serviceId;
-  };
+  const getServiceLabel = (serviceId) => serviceLabels[serviceId] || serviceId;
 
+  // ✅ FIXED: Find next waiting patient instead of assuming currentServing + 1
   const handleCallNext = () => {
     // Mark current patient as done
     updatePatientStatus(currentServing, 'done');
-    // Mark next patient as in progress
-    updatePatientStatus(currentServing + 1, 'in progress');
-    setCurrentServing(prev => prev + 1);
+    
+    // Find the next patient who is waiting (skip cancelled patients)
+    const nextWaitingPatient = patients.find(p => 
+      p.queueNo > currentServing && p.status === "waiting" && p.inQueue
+    );
+    
+    if (nextWaitingPatient) {
+      // Mark the next waiting patient as in progress
+      updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
+      setCurrentServing(nextWaitingPatient.queueNo);
+    } else {
+      // No more waiting patients, just increment
+      setCurrentServing(prev => prev + 1);
+    }
   };
 
-  const totalWaiting = patients.filter(p => p.status === "waiting").length;
+  // ✅ FIXED: Handle cancel properly
+  const handleCancel = () => {
+    // Mark current patient as cancelled
+    cancelPatient(currentServing);
+    
+    // Find the next patient who is waiting
+    const nextWaitingPatient = patients.find(p => 
+      p.queueNo > currentServing && p.status === "waiting" && p.inQueue
+    );
+    
+    if (nextWaitingPatient) {
+      // Mark the next waiting patient as in progress
+      updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
+      setCurrentServing(nextWaitingPatient.queueNo);
+    } else {
+      // No more waiting patients, just increment
+      setCurrentServing(prev => prev + 1);
+    }
+  };
+
+  
+  // Filter to only show patients in active queue
+  const queuePatients = patients.filter(p => p.inQueue && !p.isInactive);
+  const totalWaiting = queuePatients.filter(p => p.status === "waiting").length;
 
   return (
     <div className="flex w-full min-h-screen">
-      {/* DESKTOP SIDEBAR */}
-      <div className="hidden md:flex fixed left-0 top-0 h-full w-52 bg-gray-50 border-r border-gray-300 shadow-lg flex-col z-40">
-        <img className="w-[175px] m-4" src={img1} alt="Logo" />
-        <ul className="mt-8 text-sm text-gray-700">
-          <li className="group p-4 flex items-center gap-2 bg-green-600 text-white hover:cursor-pointer" onClick={() => navigate("/dashboard")}>
-            <Users className="w-5 h-5 text-white" />
-            Clinic Dashboard
-          </li>
+      <Sidebar nav={nav} handleNav={handleNav} />
 
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/analytics")}>
-            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" /> 
-            Clinic Analytics
-          </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointment")}>
-            <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Appointments
-          </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/checkin")}>
-            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" /> Patient Check-In
-          </li>
-        </ul>
-      </div>
-
-      {/* MOBILE HAMBURGER */}
-      <div className="md:hidden fixed top-4 right-4 z-50" onClick={handleNav}>
-        {nav ? <AiOutlineClose size={24} /> : <AiOutlineMenu size={24} />}
-      </div>
-
-      {/* MOBILE SIDEBAR */}
-      <div className={`fixed top-0 left-0 w-64 h-full bg-white shadow-lg transform transition-transform duration-300 z-50
-        ${nav ? "translate-x-0" : "-translate-x-full"} md:hidden`}>
-        <img className="w-[175px] m-10" src={img1} alt="Logo" />
-        <ul className="mt-10 text-sm text-gray-700">
-          <li className="group p-4 flex items-center gap-2 bg-green-600 text-white hover:cursor-pointer" 
-              onClick={() => { navigate("/dashboard"); setNav(false); }}>
-            <Users className="w-5 h-5 text-white" />
-            Clinic Dashboard
-          </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-              onClick={() => { navigate("/analytics"); setNav(false); }}>
-            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" /> 
-            Clinic Analytics
-          </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-              onClick={() => { navigate("/appointment"); setNav(false); }}>
-            <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Appointments
-          </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-              onClick={() => { navigate("/checkin"); setNav(false); }}>
-            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" /> 
-            Patient Check-In
-          </li>
-        </ul>
-      </div>
-
-      {/* MAIN CONTENT */}
       <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300">
-        {/* Header */}
         <div className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between mb-3">
@@ -192,9 +120,7 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Dashboard Main Section */}
         <div className="max-w-7xl mx-auto p-4 sm:p-6">
-          {/* Top Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
             {/* Current Serving */}
             <Card>
@@ -208,9 +134,22 @@ const Dashboard = () => {
                 <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">
                   #{String(currentServing).padStart(3, '0')}
                 </p>
-                <Button onClick={handleCallNext} className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base">
-                  Call Next Patient
-                </Button>
+                <div className="space-y-2">
+                  <Button 
+                    onClick={handleCallNext} 
+                    className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base"
+                  >
+                    Call Next Patient
+                  </Button>
+                  <Button 
+                    onClick={handleCancel}
+                    variant="outline"
+                    className="w-full text-red-600 border-red-300 hover:bg-red-50 text-sm sm:text-base"
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Cancel (No Show)
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -252,7 +191,7 @@ const Dashboard = () => {
               <CardDescription className="text-xs sm:text-sm">List of patients currently in the queue</CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Mobile Card View (visible on small screens) */}
+              {/* Mobile Card View */}
               <div className="block lg:hidden space-y-4">
                 {patients.map(patient => (
                   <Card key={patient.queueNo} className="border-l-4 border-l-green-600">
@@ -265,12 +204,19 @@ const Dashboard = () => {
                           <p className="text-sm text-gray-600">{patient.name}</p>
                         </div>
                         <Badge
-                          variant={patient.status === 'done' ? 'default' : patient.status === 'in progress' ? 'secondary' : 'outline'}
+                          variant={
+                            patient.status === 'done' ? 'default' : 
+                            patient.status === 'in progress' ? 'secondary' : 
+                            patient.status === 'cancelled' ? 'destructive' : 
+                            'outline'
+                          }
                           className={
                             patient.status === 'done'
                               ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
                               : patient.status === 'in progress'
                               ? 'bg-green-100 text-green-700 hover:bg-green-100'
+                              : patient.status === 'cancelled'
+                              ? 'bg-red-100 text-red-700 hover:bg-red-100'
                               : ''
                           }
                         >
@@ -327,7 +273,7 @@ const Dashboard = () => {
                 ))}
               </div>
 
-              {/* Desktop Table View (visible on large screens) */}
+              {/* Desktop Table View */}
               <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
@@ -378,12 +324,19 @@ const Dashboard = () => {
                         </td>
                         <td className="p-4 align-middle">
                           <Badge
-                            variant={patient.status === 'done' ? 'default' : patient.status === 'in progress' ? 'secondary' : 'outline'}
+                            variant={
+                              patient.status === 'done' ? 'default' : 
+                              patient.status === 'in progress' ? 'secondary' : 
+                              patient.status === 'cancelled' ? 'destructive' : 
+                              'outline'
+                            }
                             className={
                               patient.status === 'done'
                                 ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
                                 : patient.status === 'in progress'
                                 ? 'bg-green-100 text-green-700 hover:bg-green-100'
+                                : patient.status === 'cancelled'
+                                ? 'bg-red-100 text-red-700 hover:bg-red-100'
                                 : ''
                             }
                           >

@@ -16,13 +16,14 @@ const Navbar = () => {
       
       <ul className='hidden md:flex'>
         <li className='p-4'><a href="#home">Home</a></li>
+        <li className='p-4'><a href="/login">Log In</a></li>
         <li className='p-4'><a href="#about">About</a></li>
         <li className='p-4'><a href="#prices">Prices</a></li>
         <li className='p-4'><a href="#contact">Contact</a></li>
       </ul>
     
       {/* once clicked, setNav will be able to override nav (close icon: Aioutlineclose) it will be true (shows menu icon: AiOutlineMenu) */}
-      <div onClick={handleNav} className='block md:hidden'>
+      <div onClick={handleNav} className='block md:hidden pr-8'>
         {nav ? <AiOutlineClose className='fixed' size={20}/> : <AiOutlineMenu size={20} />}
       </div> 
 
@@ -35,6 +36,7 @@ const Navbar = () => {
 
         <ul className='uppercase p-4'>
             <li className='p-4 border-b border-gray-300'><a href="#home">Home</a></li>
+            <li className='p-4 border-b border-gray-300'><a href="/login">Log In</a></li>
             <li className='p-4 border-b border-gray-300'><a href="#about">About</a></li>
             <li className='p-4 border-b border-gray-300'><a href="#prices">Prices</a></li>
             <li className='p-4 border-b border-gray-300'><a href="#contact">Contact</a></li>

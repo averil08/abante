@@ -1,4 +1,5 @@
 import React, { useState, useContext, useMemo } from 'react';
+import Sidebar from "@/components/Sidebar";
 import { Users, ChartNoAxesCombined, TicketCheck, Clock, TrendingUp, Activity, Stethoscope, Calendar, BarChart3, Menu, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
@@ -129,60 +130,7 @@ const Analytics = () => {
 
   return (
     <div className="flex w-full min-h-screen bg-gray-50">
-      {/* DESKTOP SIDEBAR */}
-      <div className="hidden md:flex fixed left-0 top-0 h-full w-52 bg-gray-50 border-r border-gray-300 shadow-lg flex-col">
-        <img className="w-[175px] m-4" src={img1} alt="Logo" />
-        <ul className="mt-8 text-sm text-gray-700">
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/dashboard")}>
-            <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
-            <Link to="/dashboard">Clinic Dashboard</Link>
-          </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/analytics")}>
-            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" /> 
-            <Link to="/analytics">Clinic Analytics</Link>
-          </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointment")}>
-            <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Appointments
-          </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/checkin")}>
-            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" /> Patient Check-In
-          </li>
-        </ul>
-      </div>
-
-      {/* MOBILE HAMBURGER */}
-      <div className="md:hidden fixed top-10 right-10 z-50" onClick={handleNav}>
-        {nav ? <AiOutlineClose size={24} /> : <AiOutlineMenu size={24} />}
-      </div>
-
-      {/* MOBILE SIDEBAR */}
-      <div className={`fixed top-0 left-0 w-64 h-full bg-white shadow-lg transform transition-transform duration-300
-        ${nav ? "translate-x-0" : "-translate-x-full"} md:hidden`}>
-        <img className="w-[175px] m-10" src={img1} alt="Logo" />
-        <ul className="mt-10 text-sm text-gray-700">
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/dashboard")}>
-            <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
-            <Link to="/dashboard">Clinic Dashboard</Link>
-          </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/analytics")}>
-            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" /> Clinic Analytics
-          </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointment")}>
-            <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Appointments
-          </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/checkin")}>
-            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" /> Patient Check-In
-          </li>
-        </ul>
-      </div>
+       <Sidebar nav={nav} handleNav={handleNav} />
 
       {/* MAIN CONTENT */}
       <div className="flex-1 ml-0 md:ml-52">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
-import { Bell, X, QrCode, Users, ChartNoAxesCombined, TicketCheck, Calendar, User } from "lucide-react";
-import { AiOutlineClose, AiOutlineMenu } from "react-icons/ai";
+import Sidebar from "@/components/Sidebar";
+import { Bell, X, QrCode, User, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -13,82 +13,142 @@ const QueueStatus = () => {
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
   
-  // View mode: 'clinic' (default) or 'patient'
   const [viewMode, setViewMode] = useState('clinic');
   
-  // ✅ GET ALL VALUES FROM CONTEXT
   const { 
     patients, 
     activePatient, 
     currentServing, 
     avgWaitTime,
-    setActivePatient 
+    setActivePatient,
+    requeuePatient
   } = useContext(PatientContext);
 
+  // ✅ Always get the latest patient data from the patients array
   const currentPatient = patients.find(p => p.queueNo === activePatient?.queueNo);
 
-  // 🔔 State for notifications
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState("");
+  const [notificationType, setNotificationType] = useState("success");
 
-  // 💡 Queue data
   const queueNumber = currentPatient?.queueNo || 0;
   const service = currentPatient?.type || "Walk-in";
   const symptoms = currentPatient?.symptoms || [];
   
-  // ✅ CALCULATE WITH REAL avgWaitTime FROM CONTEXT
   const peopleAhead = Math.max(queueNumber - currentServing, 0);
   const estimatedWait = peopleAhead * avgWaitTime;
 
-  // 🔔 Watch queue updates and notify user
+  // ✅ Watch for status changes in the patients array
   useEffect(() => {
     if (!currentPatient) return;
 
     const difference = queueNumber - currentServing;
     
-    if (difference === 1) {
-      setNotificationMessage("Your turn is coming up soon! Please be ready.");
+    // Check if cancelled
+    if (currentPatient.status === "cancelled") {
+      setNotificationMessage("Your appointment has been cancelled. You didn't show up.");
+      setNotificationType("cancelled");
       setShowNotification(true);
-    } else if (difference === 0) {
+      return;
+    }
+    
+    // Check if patient is in progress
+    if (currentPatient.status === "in progress") {
       setNotificationMessage("It's your turn now! Please proceed to the counter.");
+      setNotificationType("success");
+      setShowNotification(true);
+      return;
+    }
+    
+    // Check if coming up soon
+    if (difference === 1 && currentPatient.status === "waiting") {
+      setNotificationMessage("Your turn is coming up soon! Please be ready.");
+      setNotificationType("success");
+      setShowNotification(true);
+    } else if (difference === 0 && currentPatient.status === "waiting") {
+      setNotificationMessage("It's your turn now! Please proceed to the counter.");
+      setNotificationType("success");
       setShowNotification(true);
     } else {
-      setShowNotification(false);
+      // Only hide notification if it's not a cancellation
+      if (notificationType !== "cancelled") {
+        setShowNotification(false);
+      }
     }
-  }, [currentServing, queueNumber, currentPatient]);
+  }, [currentPatient, currentServing, queueNumber, notificationType]);
 
-  // 🔔 Notification component
+  // ✅ Handle requeue - creates new ticket and updates activePatient
+  const handleRequeue = () => {
+    const oldQueueNo = queueNumber;
+    requeuePatient(oldQueueNo);
+    
+    // Find the new ticket that was just created
+    setTimeout(() => {
+      const newTicket = patients.find(p => 
+        p.requeued && p.originalQueueNo === oldQueueNo && !p.isInactive
+      );
+      
+      if (newTicket) {
+        setActivePatient(newTicket);
+        setNotificationMessage(`You've been added back to the queue with ticket #${String(newTicket.queueNo).padStart(3, '0')}!`);
+      } else {
+        setNotificationMessage("You've been added back to the queue!");
+      }
+      setNotificationType("success");
+      setTimeout(() => {
+        setShowNotification(false);
+      }, 3000);
+    }, 100);
+  };
+
   const PushNotification = () => {
     if (!showNotification) return null;
+    
+    const isCancelled = notificationType === "cancelled";
+    
     return (
       <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4 animate-in slide-in-from-top">
-        <Alert className="bg-green-600 text-white border-green-700 shadow-lg relative">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="absolute top-2 right-2 text-white hover:bg-green-700 h-8 w-8 p-0"
-            onClick={() => setShowNotification(false)}
-          >
-            <X className="h-4 w-4" />
-          </Button>
+        <Alert className={`${isCancelled ? 'bg-red-600' : 'bg-green-600'} text-white border-${isCancelled ? 'red' : 'green'}-700 shadow-lg relative`}>
+          {!isCancelled && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-2 right-2 text-white hover:bg-green-700 h-8 w-8 p-0"
+              onClick={() => setShowNotification(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
           
-          <div className="pr-8">
+          <div className={!isCancelled ? "pr-8" : ""}>
             <div className="flex items-center gap-2 mb-2">
               <Bell className="h-5 w-5 text-white" />
-              <AlertTitle className=" text-white font-semibold  ml-2">
-                Queue Update
+              <AlertTitle className="text-white font-semibold ml-2">
+                {isCancelled ? "Appointment Cancelled" : "Queue Update"}
               </AlertTitle>
             </div>
             <AlertDescription className="text-white text-sm pl-7">
               {notificationMessage}
             </AlertDescription>
+            
+            {isCancelled && (
+              <div className="mt-4 pl-7">
+                <Button
+                  onClick={handleRequeue}
+                  className="bg-white text-red-600 hover:bg-gray-100"
+                  size="sm"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Requeue
+                </Button>
+              </div>
+            )}
           </div>
         </Alert>
       </div>
     );
   };
 
-  // 🚨 If no matching patient found
   if (!currentPatient) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-700">
@@ -101,81 +161,30 @@ const QueueStatus = () => {
   if (viewMode === 'clinic') {
     return (
       <div className="flex w-full min-h-screen">
-        {/* DESKTOP SIDEBAR */}
-        <div className="hidden md:flex fixed left-0 top-0 h-full w-52 bg-gray-50 border-r border-gray-300 shadow-lg flex-col z-40">
-          <img className="w-[175px] m-4" src={Logo} alt="Logo" />
-          <ul className="mt-8 text-sm text-gray-700">
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => navigate("/dashboard")}>
-              <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Clinic Dashboard
-            </li>
-
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => navigate("/analytics")}>
-              <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Clinic Analytics
-            </li>
-
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => navigate("/appointment")}>
-              <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Appointments
-            </li>
-
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => navigate("/checkin")}>
-              <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Patient Check-In
-            </li>
-          </ul>
-        </div>
-
-        {/* MOBILE HAMBURGER */}
-        <div className="md:hidden fixed top-4 right-4 z-50" onClick={handleNav}>
-          {nav ? <AiOutlineClose size={24} /> : <AiOutlineMenu size={24} />}
-        </div>
-
-        {/* MOBILE SIDEBAR */}
-        <div className={`fixed top-0 left-0 w-64 h-full bg-white shadow-lg transform transition-transform duration-300 z-50
-          ${nav ? "translate-x-0" : "-translate-x-full"} md:hidden`}>
-          <img className="w-[175px] m-10" src={Logo} alt="Logo" />
-          <ul className="mt-10 text-sm text-gray-700">
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => { navigate("/dashboard"); setNav(false); }}>
-              <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Clinic Dashboard
-            </li>
-
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => { navigate("/analytics"); setNav(false); }}>
-              <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Clinic Analytics
-            </li>
-
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => { navigate("/appointment"); setNav(false); }}>
-              <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Appointments
-            </li>
-
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => { navigate("/checkin"); setNav(false); }}>
-              <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Patient Check-In
-            </li>
-          </ul>
-        </div>
-
-        {/* MAIN CONTENT WITH SIDEBAR */}
+        <Sidebar nav={nav} handleNav={handleNav} />
         <PushNotification />
         <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 p-4">
           <div className="max-w-[800px] mt-[20px] sm:mt-[50px] w-full mx-auto space-y-6">
             <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 text-center">
-              <Badge className="text-sm sm:text-lg mb-4 bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+              <Badge className={`text-sm sm:text-lg mb-4 ${
+                currentPatient.status === 'cancelled' 
+                  ? 'bg-red-100 text-red-700' 
+                  : currentPatient.status === 'in progress'
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-emerald-100 text-emerald-700'
+              } hover:bg-emerald-100`}>
                 <Bell className="w-4 h-4 mr-2" />
-                Queue Joined
+                {currentPatient.status === 'cancelled' ? 'Cancelled' : 
+                 currentPatient.status === 'in progress' ? 'In Progress' : 'Queue Joined'}
               </Badge>
+
+              {currentPatient.requeued && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Requeued:</strong> Your original ticket #{String(currentPatient.originalQueueNo).padStart(3, '0')} has been replaced with this new ticket.
+                  </p>
+                </div>
+              )}
 
               <h2 className="text-lg md:text-xl text-gray-600 mb-2">Your Queue Number</h2>
               <div className="text-5xl sm:text-6xl font-bold text-green-600 mb-6">{queueNumber}</div>
@@ -189,6 +198,16 @@ const QueueStatus = () => {
                   <span className="text-gray-600 font-normal">Currently Serving</span>
                   <span className="font-medium text-gray-900">
                     #{String(currentServing).padStart(3, "0")}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 font-normal">Status</span>
+                  <span className={`font-medium ${
+                    currentPatient.status === 'cancelled' ? 'text-red-600' : 
+                    currentPatient.status === 'in progress' ? 'text-green-600' : 
+                    'text-gray-900'
+                  }`}>
+                    {currentPatient.status}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -228,7 +247,6 @@ const QueueStatus = () => {
                 </div>
               </div>
 
-              {/* View Toggle & Done Buttons */}
               <div className="mt-6 space-y-3">
                 <Button
                   onClick={() => setViewMode('patient')}
@@ -257,7 +275,6 @@ const QueueStatus = () => {
       </div>
     );
   }
-  
 
   // === PATIENT VIEW (No Sidebar) ===
   return (
@@ -267,10 +284,25 @@ const QueueStatus = () => {
       <div className="flex-1 p-4">
         <div className="max-w-[800px] mt-[20px] sm:mt-[50px] w-full mx-auto space-y-6">
           <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 text-center">
-            <Badge className="text-sm sm:text-lg mb-4 bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+            <Badge className={`text-sm sm:text-lg mb-4 ${
+              currentPatient.status === 'cancelled' 
+                ? 'bg-red-100 text-red-700' 
+                : currentPatient.status === 'in progress'
+                ? 'bg-green-100 text-green-700'
+                : 'bg-emerald-100 text-emerald-700'
+            } hover:bg-emerald-100`}>
               <Bell className="w-4 h-4 mr-2" />
-              Queue Joined
+              {currentPatient.status === 'cancelled' ? 'Cancelled' : 
+               currentPatient.status === 'in progress' ? 'In Progress' : 'Queue Joined'}
             </Badge>
+
+            {currentPatient.requeued && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Requeued:</strong> Your original ticket #{String(currentPatient.originalQueueNo).padStart(3, '0')} has been replaced with this new ticket.
+                </p>
+              </div>
+            )}
 
             <h2 className="text-lg md:text-xl text-gray-600 mb-2">Your Queue Number</h2>
             <div className="text-5xl sm:text-6xl font-bold text-green-600 mb-6">{queueNumber}</div>
@@ -284,6 +316,16 @@ const QueueStatus = () => {
                 <span className="text-gray-600 font-normal">Currently Serving</span>
                 <span className="font-medium text-gray-900">
                   #{String(currentServing).padStart(3, "0")}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600 font-normal">Status</span>
+                <span className={`font-medium ${
+                  currentPatient.status === 'cancelled' ? 'text-red-600' : 
+                  currentPatient.status === 'in progress' ? 'text-green-600' : 
+                  'text-gray-900'
+                }`}>
+                  {currentPatient.status}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -323,7 +365,6 @@ const QueueStatus = () => {
               </div>
             </div>
 
-            {/* View Toggle & Done Buttons */}
             <div className="mt-6 space-y-3">
               <Button
                 onClick={() => setViewMode('clinic')}

@@ -1,20 +1,16 @@
 import React, { useState, useContext } from 'react';
-import { Users, ChartNoAxesCombined, TicketCheck, Calendar, Clock, Phone, User, Activity, Stethoscope, CheckCircle, XCircle } from 'lucide-react';
-import { AiOutlineClose, AiOutlineMenu } from 'react-icons/ai';
+import Sidebar from "@/components/Sidebar";
+import { Calendar, Clock, Phone, User, Activity, Stethoscope, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
-import { useNavigate } from "react-router-dom";
 import { PatientContext } from "./PatientContext";
-import img1 from './assets/logo-abante.png';
-
 
 const Appointment = () => {
-  const navigate = useNavigate();
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
   
-  const { patients, addPatient, setPatients } = useContext(PatientContext);
+  const { patients, acceptAppointment, rejectAppointment } = useContext(PatientContext);
   
   // Filter appointments (patients with type "Appointment")
   const appointments = patients.filter(p => p.type === "Appointment");
@@ -42,19 +38,11 @@ const Appointment = () => {
   const getServiceLabel = (serviceId) => serviceLabels[serviceId] || serviceId;
 
   const handleAccept = (appointment) => {
-    setPatients(prev => 
-      prev.map(p => 
-        p.queueNo === appointment.queueNo 
-          ? { ...p, appointmentStatus: 'accepted' }
-          : p
-      )
-    );
+    acceptAppointment(appointment.queueNo);
   };
 
   const handleReject = (appointment) => {
-    setPatients(prev => 
-      prev.filter(p => p.queueNo !== appointment.queueNo)
-    );
+    rejectAppointment(appointment.queueNo);
   };
 
   const formatDateTime = (dateTimeString) => {
@@ -72,65 +60,7 @@ const Appointment = () => {
 
   return (
     <div className="flex w-full min-h-screen">
-      {/* DESKTOP SIDEBAR */}
-      <div className="hidden md:flex fixed left-0 top-0 h-full w-52 bg-gray-50 border-r border-gray-300 shadow-lg flex-col z-40">
-        <img className="w-[175px] m-4" src={img1} alt="Logo" />
-        <ul className="mt-8 text-sm text-gray-700">
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-              onClick={() => navigate("/dashboard")}>
-            <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Clinic Dashboard
-          </li>
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-              onClick={() => navigate("/analytics")}>
-            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Clinic Analytics
-          </li>
-          <li className="group p-4 flex items-center gap-2 bg-green-600 text-white hover:cursor-pointer" 
-              onClick={() => navigate("/appointment")}>
-            <Calendar className="w-5 h-5 text-white" />
-            Appointments
-          </li>
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-              onClick={() => navigate("/checkin")}>
-            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Patient Check-In
-          </li>
-        </ul>
-      </div>
-
-      {/* MOBILE HAMBURGER */}
-      <div className="md:hidden fixed top-4 right-4 z-50" onClick={handleNav}>
-        {nav ? <AiOutlineClose size={24} /> : <AiOutlineMenu size={24} />}
-      </div>
-
-      {/* MOBILE SIDEBAR */}
-      <div className={`fixed top-0 left-0 w-64 h-full bg-white shadow-lg transform transition-transform duration-300 z-50
-        ${nav ? "translate-x-0" : "-translate-x-full"} md:hidden`}>
-        <img className="w-[175px] m-10" src="/assets/logo-abante.png" alt="Logo" />
-        <ul className="mt-10 text-sm text-gray-700">
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-              onClick={() => { navigate("/dashboard"); setNav(false); }}>
-            <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Clinic Dashboard
-          </li>
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-              onClick={() => { navigate("/analytics"); setNav(false); }}>
-            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Clinic Analytics
-          </li>
-          <li className="group p-4 flex items-center gap-2 bg-green-600 text-white hover:cursor-pointer" 
-              onClick={() => { navigate("/appointment"); setNav(false); }}>
-            <Calendar className="w-5 h-5 text-white" />
-            Appointments
-          </li>
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-              onClick={() => { navigate("/checkin"); setNav(false); }}>
-            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Patient Check-In
-          </li>
-        </ul>
-      </div>
+       <Sidebar nav={nav} handleNav={handleNav} />
 
       {/* MAIN CONTENT */}
       <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300">

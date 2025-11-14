@@ -1,11 +1,11 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { PatientContext } from "./PatientContext";
+import Sidebar from "@/components/Sidebar";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { QrCode, User, Users, ChartNoAxesCombined, TicketCheck, Calendar } from "lucide-react";
-import { AiOutlineClose, AiOutlineMenu } from "react-icons/ai";
+import { QrCode, User, AlertCircle } from "lucide-react";
 import { useNavigate, Navigate } from "react-router-dom";
 import Logo from "./assets/logo-abante.png";
 import DatePicker from "react-datepicker";
@@ -19,9 +19,8 @@ import {
 
 function Checkin() {
   const navigate = useNavigate();
-  const { patients, addPatient, activePatient, setActivePatient } = useContext(PatientContext);
+  const { patients, addPatient, activePatient, setActivePatient, getAvailableSlots } = useContext(PatientContext);
 
-  // View state: 'clinic' or 'patient'
   const [viewMode, setViewMode] = useState('clinic');
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
@@ -29,6 +28,8 @@ function Checkin() {
   const [selectedPatientType, setSelectedPatientType] = useState(null);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState(5);
+  
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -39,6 +40,14 @@ function Checkin() {
     appointmentDateTime: "",
     daysSinceOnSet: "",
   });
+
+  // ✅ Update available slots whenever appointment date/time changes
+  useEffect(() => {
+    if (formData.appointmentDateTime) {
+      const slots = getAvailableSlots(formData.appointmentDateTime);
+      setAvailableSlots(slots);
+    }
+  }, [formData.appointmentDateTime, getAvailableSlots, patients]);
 
   const symptomsList = [
     'Fever','Cough','Sore Throat','Headache','Stomach Pain',
@@ -188,6 +197,7 @@ function Checkin() {
       daysSinceOnSet: "",
     });
     setExpandedCategory(null);
+    setAvailableSlots(5);
   };
 
   if (activePatient) {
@@ -210,6 +220,13 @@ function Checkin() {
           return;
         }
 
+        // Check if slots are available
+        if (availableSlots <= 0) {
+          showMessage("No Slots Available", "This time slot is fully booked. Please choose another time.", false);
+          setIsSubmitting(false);
+          return;
+        }
+
         const isAvailable = await checkAppointmentAvailable(formData.appointmentDateTime);
         if (!isAvailable) {
           showMessage("Slot Not Available", "This time is already booked.", false);
@@ -220,7 +237,7 @@ function Checkin() {
         result = await registerAppointmentPatient(formData, formData.appointmentDateTime);
       }
 
-      if (result.success) {
+            if (result.success) {
         const newPatient = {
           name: formData.name,
           age: formData.age,
@@ -229,10 +246,13 @@ function Checkin() {
           symptoms: formData.symptoms,
           services: formData.services,
           queueNo: patients.length + 1,
+          status: "waiting",  // ✅ Explicitly set status
+          appointmentDateTime: formData.appointmentDateTime || undefined,
         };
 
         addPatient(newPatient);
         setActivePatient(newPatient);
+
         resetForm();
         showMessage("Success", `Registration completed for ${formData.name}`, true);
 
@@ -254,73 +274,8 @@ function Checkin() {
   if (viewMode === 'clinic') {
     return (
       <div className="flex w-full min-h-screen">
-        {/* DESKTOP SIDEBAR */}
-        <div className="hidden md:flex fixed left-0 top-0 h-full w-52 bg-gray-50 border-r border-gray-300 shadow-lg flex-col z-40">
-          <img className="w-[175px] m-4" src={Logo} alt="Logo" />
-          <ul className="mt-8 text-sm text-gray-700">
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => navigate("/dashboard")}>
-              <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Clinic Dashboard
-            </li>
+        <Sidebar nav={nav} handleNav={handleNav} />
 
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => navigate("/analytics")}>
-              <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Clinic Analytics
-            </li>
-
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => navigate("/appointment")}>
-              <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Appointments
-            </li>
-
-            <li className="group p-4 flex items-center gap-2 bg-green-600 text-white hover:cursor-pointer" 
-                onClick={() => navigate("/checkin")}>
-              <TicketCheck className="w-5 h-5 text-white" />
-              Patient Check-In
-            </li>
-          </ul>
-        </div>
-
-        {/* MOBILE HAMBURGER */}
-        <div className="md:hidden fixed top-4 right-4 z-50" onClick={handleNav}>
-          {nav ? <AiOutlineClose size={24} /> : <AiOutlineMenu size={24} />}
-        </div>
-
-        {/* MOBILE SIDEBAR */}
-        <div className={`fixed top-0 left-0 w-64 h-full bg-white shadow-lg transform transition-transform duration-300 z-50
-          ${nav ? "translate-x-0" : "-translate-x-full"} md:hidden`}>
-          <img className="w-[175px] m-10" src={Logo} alt="Logo" />
-          <ul className="mt-10 text-sm text-gray-700">
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => { navigate("/dashboard"); setNav(false); }}>
-              <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Clinic Dashboard
-            </li>
-
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => { navigate("/analytics"); setNav(false); }}>
-              <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Clinic Analytics
-            </li>
-
-            <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
-                onClick={() => { navigate("/appointment"); setNav(false); }}>
-              <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
-              Appointments
-            </li>
-
-            <li className="group p-4 flex items-center gap-2 bg-green-600 text-white hover:cursor-pointer" 
-                onClick={() => { navigate("/checkin"); setNav(false); }}>
-              <TicketCheck className="w-5 h-5 text-white" />
-              Patient Check-In
-            </li>
-          </ul>
-        </div>
-
-        {/* MAIN CONTENT */}
         <div className="flex-1 min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 ml-0 md:ml-52 flex items-center justify-center p-4">
           <Card className="w-full max-w-2xl shadow-2xl border-t-4 border-green-600">
             <CardHeader className="text-center pb-2">
@@ -336,7 +291,6 @@ function Checkin() {
             </CardHeader>
             
             <CardContent className="space-y-6">
-              {/* QR Code Display */}
               <div className="bg-white p-8 rounded-xl border-2 border-green-200 flex flex-col items-center">
                 <QrCode className="w-48 h-48 sm:w-64 sm:h-64 text-green-600 mb-4" strokeWidth={1.5} />
                 <p className="text-center text-gray-700 font-medium text-lg mb-2">
@@ -347,7 +301,6 @@ function Checkin() {
                 </p>
               </div>
 
-              {/* View Toggle Buttons */}
               <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
                 <Button 
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white"
@@ -386,7 +339,6 @@ function Checkin() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
         <Card className="w-full max-w-md shadow-xl border-t-4 border-green-600">
-          {/* Back to Clinic View Button */}
           <div className="p-4 border-b border-gray-200">
             <Button 
               onClick={() => setViewMode('clinic')}
@@ -431,7 +383,6 @@ function Checkin() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-lg shadow-xl border-t-4 border-green-600 my-8">
-        {/* Back to Clinic View Button */}
         <div className="p-4 border-b border-gray-200">
           <Button 
             onClick={() => setViewMode('clinic')}
@@ -457,11 +408,30 @@ function Checkin() {
               <DatePicker
                 selected={formData.appointmentDateTime ? new Date(formData.appointmentDateTime) : null}
                 onChange={(date) => setFormData({ ...formData, appointmentDateTime: date ? date.toISOString() : "" })}
-                showTimeSelect timeFormat="h:mm aa" timeIntervals={30} minDate={new Date()}
-                minTime={new Date(new Date().setHours(8,0,0,0))} maxTime={new Date(new Date().setHours(17,0,0,0))}
+                showTimeSelect 
+                timeFormat="h:mm aa" 
+                timeIntervals={30} 
+                minDate={new Date()}
+                minTime={new Date(new Date().setHours(8,0,0,0))} 
+                maxTime={new Date(new Date().setHours(17,0,0,0))}
                 dateFormat="MMMM d, yyyy h:mm aa"
                 className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-600"
               />
+              
+              {/* ✅ Show available slots */}
+              {formData.appointmentDateTime && (
+                <div className={`flex items-center gap-2 p-3 rounded-md ${availableSlots > 0 ? 'bg-blue-50 border border-blue-200' : 'bg-red-50 border border-red-200'}`}>
+                  <AlertCircle className={`w-5 h-5 ${availableSlots > 0 ? 'text-blue-600' : 'text-red-600'}`} />
+                  <div>
+                    <p className={`font-semibold text-sm ${availableSlots > 0 ? 'text-blue-900' : 'text-red-900'}`}>
+                      {availableSlots > 0 ? `${availableSlots} slot${availableSlots !== 1 ? 's' : ''} available` : 'No slots available'}
+                    </p>
+                    <p className={`text-xs ${availableSlots > 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                      {availableSlots > 0 ? 'Book now to secure your appointment' : 'Please select another time'}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -519,7 +489,11 @@ function Checkin() {
             </div>
 
             <div className="space-y-3">
-              <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg" disabled={isSubmitting}>
+              <Button 
+                type="submit" 
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg" 
+                disabled={isSubmitting || (selectedPatientType === "Appointment" && availableSlots <= 0)}
+              >
                 {isSubmitting ? "Submitting..." : "Submit Registration"}
               </Button>
               <Button type="button" className="w-full bg-gray-300 hover:bg-gray-400 text-gray-800" onClick={() => setSelectedPatientType(null)}>

@@ -136,6 +136,10 @@ const Appointment = () => {
                         </Badge>
                         {appointment.appointmentStatus === 'accepted' ? (
                           <Badge className="bg-green-600">Accepted</Badge>
+                        ) : appointment.appointmentStatus === 'rejected' ? (
+                          <Badge variant="destructive" className="bg-red-600 text-white">
+                            Rejected
+                          </Badge>
                         ) : (
                           <Badge variant="secondary" className="bg-amber-100 text-amber-700">
                             Pending

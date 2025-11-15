@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { QrCode, User, AlertCircle } from "lucide-react";
+import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate, Navigate } from "react-router-dom";
 import Logo from "./assets/logo-abante.png";
 import DatePicker from "react-datepicker";
@@ -24,6 +25,14 @@ function Checkin() {
   const [viewMode, setViewMode] = useState('clinic');
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
+
+  // ✅ Add this useEffect to detect URL parameter
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('view') === 'patient') {
+      setViewMode('patient');
+    }
+  }, []);
   
   const [selectedPatientType, setSelectedPatientType] = useState(null);
   const [expandedCategory, setExpandedCategory] = useState(null);
@@ -306,8 +315,16 @@ function Checkin() {
             
             <CardContent className="space-y-6">
               <div className="bg-white p-8 rounded-xl border-2 border-green-200 flex flex-col items-center">
-                <QrCode className="w-48 h-48 sm:w-64 sm:h-64 text-green-600 mb-4" strokeWidth={1.5} />
-                <p className="text-center text-gray-700 font-medium text-lg mb-2">
+                <div className="bg-white p-4 rounded-lg shadow-inner">
+                  <QRCodeSVG 
+                    value={`${import.meta.env.VITE_APP_URL}/checkin?view=patient`}
+                    size={200}
+                    level="H"
+                    marginSize={4}
+                    className="w-48 h-48 sm:w-64 sm:h-64"
+                  />
+                </div>
+                <p className="text-center text-gray-700 font-medium text-lg mb-2 mt-4">
                   Scan to Register
                 </p>
                 <p className="text-center text-gray-500 text-sm max-w-md">

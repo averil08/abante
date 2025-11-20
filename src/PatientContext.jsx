@@ -9,7 +9,7 @@ export const PatientProvider = ({ children }) => {
     { queueNo: 2, name: "Mark Cruz", age: 32, type: "Appointment", symptoms: ["Rashes"], services: ["pedia"], phoneNum: "09181234567", status: "in progress", registeredAt: new Date().toISOString(), appointmentDateTime: new Date(Date.now() + 86400000).toISOString(), appointmentStatus: "accepted", inQueue: true },
     { queueNo: 3, name: "Leah Santos", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["adult"], phoneNum: "09191234567", status: "waiting", registeredAt: new Date().toISOString(), inQueue: true },
     { queueNo: 4, name: "Analyn Gomez", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["urinalysis"], phoneNum: "09201234567", status: "waiting", registeredAt: new Date().toISOString(), inQueue: true },
-  ]);
+  ]); 
 
   const [currentServing, setCurrentServing] = useState(2);
   const [avgWaitTime, setAvgWaitTime] = useState(15);
@@ -39,16 +39,21 @@ export const PatientProvider = ({ children }) => {
   }, [patients, activePatient]);
 
   const getAvailableSlots = (dateTimeString) => {
-    if (!dateTimeString) return 5;
+    if (!dateTimeString) return 1; // Changed from 5 to 1 slot only
     
-    const MAX_SLOTS_PER_TIME = 5;
+    const MAX_SLOTS_PER_TIME = 1; //changed from 5 slots to 1
     const targetDate = new Date(dateTimeString);
     
     const minutes = targetDate.getMinutes();
     targetDate.setMinutes(minutes < 30 ? 0 : 30, 0, 0);
     
+    // Count appointments that are NOT rejected (only count pending and accepted)
     const bookedCount = patients.filter(p => {
       if (!p.appointmentDateTime) return false;
+
+      // Don't count rejected appointments
+      if (p.appointmentStatus === 'rejected') return false;
+
       const pDate = new Date(p.appointmentDateTime);
       pDate.setMinutes(pDate.getMinutes() < 30 ? 0 : 30, 0, 0);
       return pDate.getTime() === targetDate.getTime();
@@ -57,11 +62,14 @@ export const PatientProvider = ({ children }) => {
     return Math.max(0, MAX_SLOTS_PER_TIME - bookedCount);
   };
 
+  //added ispriority and prioritytype
   const addPatient = (newPatient) => {
     setPatients(prev => [
       ...prev,
       { 
         ...newPatient,
+        isPriority: newPatient.isPriority || false,
+        priorityType: newPatient.priorityType || null,
         queueNo: prev.length + 1, 
         status: newPatient.status || "waiting",
         registeredAt: new Date().toISOString(),
@@ -89,10 +97,16 @@ export const PatientProvider = ({ children }) => {
     );
   };
 
-  // ✅ Reject appointment - marks as rejected
-  const rejectAppointment = (queueNo) => {
+  // ✅ Updated rejectAppointment function to accept and store the reason
+  const rejectAppointment = (queueNo, reason) => {
     setPatients(prev =>
-      prev.map(p => p.queueNo === queueNo ? { ...p, appointmentStatus: "rejected", inQueue: false } : p)
+      prev.map(p => p.queueNo === queueNo ? { 
+        ...p, 
+        appointmentStatus: "rejected", 
+        rejectionReason: reason,
+        rejectedAt: new Date().toISOString(),
+        inQueue: false 
+      } : p)
     );
   };
 

@@ -37,7 +37,8 @@ function Checkin() {
   const [selectedPatientType, setSelectedPatientType] = useState(null);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [availableSlots, setAvailableSlots] = useState(5);
+  //changed from useState(5) to (1)
+  const [availableSlots, setAvailableSlots] = useState(1);
   
   const [formData, setFormData] = useState({
     name: "",
@@ -48,7 +49,18 @@ function Checkin() {
     services: [],
     appointmentDateTime: "",
     daysSinceOnSet: "",
+    isPriority: false,
+    priorityType: null,
   });
+
+  const handlePriorityChange = (checked) => {
+    setFormData(prev => ({ ...prev, isPriority: checked, priorityType: checked ? prev.priorityType : null }));
+  };
+
+  const handlePriorityTypeChange = (value) => {
+    setFormData(prev => ({ ...prev, priorityType: value }));
+  };
+
 
   // ✅ Update available slots whenever appointment date/time changes
   useEffect(() => {
@@ -71,7 +83,7 @@ function Checkin() {
       services: [
         { id: "pedia", label: "Pediatric Consultation" },
         { id: "adult", label: "Adult Consultation" },
-        { id: "senior", label: "Senior Consultation (65+)" },
+        { id: "senior", label: "Senior Consultation (60+)" },
         { id: "preventive", label: "Preventive/Annual Physical Exam" },
         { id: "follow-up", label: "Follow-up Consultation" },
       ],
@@ -164,6 +176,7 @@ function Checkin() {
     setFormData({ ...formData, [id]: value });
   };
 
+  //define priority handlers
   const handleSymptomChange = (symptom, isChecked) => {
     setFormData((prev) => {
       const symptoms = prev.symptoms;
@@ -173,6 +186,7 @@ function Checkin() {
     });
   };
 
+  //define priority handlers
   const handleServiceChange = (serviceId, isChecked) => {
     setFormData((prev) => {
       const services = prev.services;
@@ -206,7 +220,7 @@ function Checkin() {
       daysSinceOnSet: "",
     });
     setExpandedCategory(null);
-    setAvailableSlots(5);
+    setAvailableSlots(1); //Changed from 5 to 1
   };
 
   if (activePatient) {
@@ -235,17 +249,19 @@ function Checkin() {
           setIsSubmitting(false);
           return;
         }
-
-        const isAvailable = await checkAppointmentAvailable(formData.appointmentDateTime);
-        if (!isAvailable) {
-          showMessage("Slot Not Available", "This time is already booked.", false);
-          setIsSubmitting(false);
-          return;
-        }
+        
+        //Remove/comment the duplicate check
+        //const isAvailable = await checkAppointmentAvailable(formData.appointmentDateTime);
+        //if (!isAvailable) {
+        //  showMessage("Slot Not Available", "This time is already booked.", false);
+        //  setIsSubmitting(false);
+        // return;
+        //}
 
         result = await registerAppointmentPatient(formData, formData.appointmentDateTime);
       }
 
+      //added priority(ispriority and prioritytype fields)
       if (result.success) {
         const newPatient = {
           name: formData.name,
@@ -256,6 +272,8 @@ function Checkin() {
           services: formData.services,
           queueNo: patients.length + 1,
           appointmentDateTime: formData.appointmentDateTime || undefined,
+          isPriority: formData.isPriority,
+          priorityType: formData.priorityType,
         };
 
         // ✅ KEY FIX: Set different initial state based on patient type
@@ -455,10 +473,10 @@ function Checkin() {
                   <AlertCircle className={`w-5 h-5 ${availableSlots > 0 ? 'text-blue-600' : 'text-red-600'}`} />
                   <div>
                     <p className={`font-semibold text-sm ${availableSlots > 0 ? 'text-blue-900' : 'text-red-900'}`}>
-                      {availableSlots > 0 ? `${availableSlots} slot${availableSlots !== 1 ? 's' : ''} available` : 'No slots available'}
+                      {availableSlots > 0 ? 'Slot available' : 'Slot not available'}
                     </p>
                     <p className={`text-xs ${availableSlots > 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                      {availableSlots > 0 ? 'Book now to secure your appointment' : 'Please select another time'}
+                      {availableSlots > 0 ? 'Book now to secure your appointment' : 'This time is already booked, please select another time'}
                     </p>
                   </div>
                 </div>
@@ -482,6 +500,70 @@ function Checkin() {
               <Label htmlFor="phoneNum">Phone Number *</Label>
               <Input id="phoneNum" type="tel" value={formData.phoneNum} onChange={handleInputChange} required />
             </div>
+
+            {/* ✅ NEW: Priority Section (Walk-in Only) */}
+            {selectedPatientType === "Walk-in" && (
+              <div className="space-y-3 p-4 rounded-lg border-2 border-purple-300 bg-purple-50">
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-purple-700 font-bold">Priority Patient (Optional)</Label>
+                  <input 
+                    type="checkbox" 
+                    id="isPriority"
+                    checked={formData.isPriority}
+                    onChange={(e) => handlePriorityChange(e.target.checked)}
+                    className="h-5 w-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500" 
+                  />
+                </div>
+                
+                {formData.isPriority && (
+                  <div className="space-y-3 pl-2">
+                    <p className="text-sm text-purple-700 mb-2">Please select priority type:</p>
+                    <div className="flex items-center">
+                      <input 
+                        type="radio" 
+                        id="pwd"
+                        name="priorityType"
+                        value="PWD"
+                        checked={formData.priorityType === "PWD"}
+                        onChange={(e) => handlePriorityTypeChange(e.target.value)}
+                        className="h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500" 
+                      />
+                      <Label htmlFor="pwd" className="ml-2">PWD (Person with Disability)</Label>
+                    </div>
+
+                    <div className="flex items-center">
+                      <input 
+                        type="radio" 
+                        id="pregnant"
+                        name="priorityType"
+                        value="Pregnant"
+                        checked={formData.priorityType === "Pregnant"}
+                        onChange={(e) => handlePriorityTypeChange(e.target.value)}
+                        className="h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500" 
+                      />
+                      <Label htmlFor="pregnant" className="ml-2">Pregnant</Label>
+                    </div>
+
+                    <div className="flex items-center">
+                      <input 
+                        type="radio" 
+                        id="senior"
+                        name="priorityType"
+                        value="Senior"
+                        checked={formData.priorityType === "Senior"}
+                        onChange={(e) => handlePriorityTypeChange(e.target.value)}
+                        className="h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500" 
+                      />
+                      <Label htmlFor="senior" className="ml-2">Senior Citizen (60+)</Label>
+                    </div>
+
+                    <div className="mt-2 p-2 bg-purple-100 rounded text-xs text-purple-800">
+                      <strong>Note:</strong> Priority patients will be served ahead of regular patients in the queue.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-3 p-4 rounded-lg border border-green-300">
               <Label className="text-green-700 font-bold">Symptoms (Select all that apply)</Label>

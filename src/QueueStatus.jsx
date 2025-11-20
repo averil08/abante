@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import Sidebar from "@/components/Sidebar";
-import { Bell, X, QrCode, User, RefreshCw, XCircle } from "lucide-react";
+//added MessageSquare icon
+import { Bell, X, QrCode, User, RefreshCw, XCircle, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -447,6 +448,33 @@ const QueueStatus = () => {
                   </div>
                 </div>
 
+                {/* Added Rejection Reason Display for clinic view */}
+                {currentPatient.rejectionReason && (
+                  <div className="mt-6 p-3 sm:p-4 bg-red-100 rounded-xl border border-red-300">
+                    <div className="flex items-start gap-3">
+                      <MessageSquare className="w-5 sm:w-6 h-5 text-red-700 mt-0.5 flex-shrink-0" />
+                      <div className="text-left text-sm sm:text-lg">
+                        <p className="font-semibold text-red-900 mb-2">Reason for Rejection:</p>
+                        <p className="text-xs sm:text-sm text-red-800 mb-2">
+                          {currentPatient.rejectionReason}
+                        </p>
+                        {currentPatient.rejectedAt && (
+                          <p className="text-xs text-red-700 italic">
+                            Rejected on {new Date(currentPatient.rejectedAt).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="mt-6 p-3 sm:p-4 bg-red-50 rounded-xl border border-red-200">
                   <div className="flex items-start gap-3">
                     <XCircle className="w-5 sm:w-6 h-5 text-red-600 mt-0.5 flex-shrink-0" />
@@ -550,6 +578,33 @@ const QueueStatus = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Added Rejection Reason Display for patient view */}
+              {currentPatient.rejectionReason && (
+                <div className="mt-6 p-3 sm:p-4 bg-red-100 rounded-xl border border-red-300">
+                  <div className="flex items-start gap-3">
+                    <MessageSquare className="w-5 sm:w-6 h-5 text-red-700 mt-0.5 flex-shrink-0" />
+                    <div className="text-left text-sm sm:text-lg">
+                      <p className="font-semibold text-red-900 mb-2">Reason for Rejection:</p>
+                      <p className="text-xs sm:text-sm text-red-800 mb-2">
+                        {currentPatient.rejectionReason}
+                      </p>
+                      {currentPatient.rejectedAt && (
+                        <p className="text-xs text-red-700 italic">
+                          Rejected on {new Date(currentPatient.rejectedAt).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6 p-3 sm:p-4 bg-red-50 rounded-xl border border-red-200">
                 <div className="flex items-start gap-3">

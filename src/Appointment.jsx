@@ -1,6 +1,10 @@
 import React, { useState, useContext } from 'react';
 import Sidebar from "@/components/Sidebar";
-import { Calendar, Clock, Phone, User, Activity, Stethoscope, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Clock, Phone, User, Activity, Stethoscope, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+//automatic added dialog in components/ui (run npx shadcn@latest add dialog to install + make dialog.jsx)
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+//automatic added textarea in components/ui (run npx shadcn@latest add textarea to install + make textarea.jsx)
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
@@ -41,8 +45,31 @@ const Appointment = () => {
     acceptAppointment(appointment.queueNo);
   };
 
-  const handleReject = (appointment) => {
-    rejectAppointment(appointment.queueNo);
+  //replaced the direct reject handler
+  const handleRejectClick = (appointment) => {
+    setRejectionDialog({
+      open: true,
+      appointment: appointment,
+      reason: ""
+    });
+  };
+
+  //added rejection dialogue state to manage modal
+  const [rejectionDialog, setRejectionDialog] = useState({
+    open: false,
+    appointment: null,
+    reason: ""
+  });
+
+  //Added the confirmation handler that saves the reason"
+  const handleRejectConfirm = () => {
+    if (!rejectionDialog.reason.trim()) {
+      alert("Please provide a reason for rejection");
+      return;
+    }
+
+    rejectAppointment(rejectionDialog.appointment.queueNo, rejectionDialog.reason);
+    setRejectionDialog({ open: false, appointment: null, reason: "" });
   };
 
   const formatDateTime = (dateTimeString) => {
@@ -223,6 +250,24 @@ const Appointment = () => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Added Rejection Reason Display */}
+                    {appointment.appointmentStatus === 'rejected' && appointment.rejectionReason && (
+                      <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <MessageSquare className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold text-red-900 mb-1">Rejection Reason</p>
+                            <p className="text-sm text-red-800">{appointment.rejectionReason}</p>
+                            {appointment.rejectedAt && (
+                              <p className="text-xs text-red-600 mt-1">
+                                Rejected on {formatDateTime(appointment.rejectedAt)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Action Buttons */}
                     {(!appointment.appointmentStatus || appointment.appointmentStatus === 'pending') && (
@@ -235,7 +280,7 @@ const Appointment = () => {
                           Accept Appointment
                         </Button>
                         <Button 
-                          onClick={() => handleReject(appointment)}
+                          onClick={() => handleRejectClick(appointment)}
                           variant="outline"
                           className="flex-1 text-red-600 border-red-300 hover:bg-red-50"
                         >
@@ -251,6 +296,55 @@ const Appointment = () => {
           )}
         </div>
       </div>
+
+      {/* Added Rejection Reason Dialog */}
+      <Dialog open={rejectionDialog.open} onOpenChange={(open) => setRejectionDialog({...rejectionDialog, open})}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Reject Appointment</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting {rejectionDialog.appointment?.name}'s appointment.
+              This will be shared with the patient.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">
+                Rejection Reason *
+              </label>
+              <Textarea
+                placeholder="e.g., No available time slots, Requires specialist referral, etc."
+                value={rejectionDialog.reason}
+                onChange={(e) => setRejectionDialog({...rejectionDialog, reason: e.target.value})}
+                className="min-h-[100px] resize-none"
+                maxLength={500}
+              />
+              <p className="text-xs text-gray-500 text-right">
+                {rejectionDialog.reason.length}/500 characters
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setRejectionDialog({ open: false, appointment: null, reason: "" })}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleRejectConfirm}
+              className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
+              disabled={!rejectionDialog.reason.trim()}
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              Send Rejection to Patient
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

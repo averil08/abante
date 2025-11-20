@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import Sidebar from "@/components/Sidebar";
-import { Clock, TrendingUp, Users, XCircle } from 'lucide-react';
+import { Clock, TrendingUp, Users, XCircle, CheckCircle2  } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
@@ -46,18 +46,47 @@ const Dashboard = () => {
 
   const getServiceLabel = (serviceId) => serviceLabels[serviceId] || serviceId;
 
-  // ✅ FIXED: Find next waiting patient instead of assuming currentServing + 1
+  // Add this new function
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'waiting':
+        return { text: 'Waiting', className: 'bg-yellow-100 text-yellow-700' };
+      case 'in progress':
+        return { text: 'In Progress', className: 'bg-blue-100 text-blue-700' };
+      case 'done':
+        return { text: 'Completed', className: 'bg-emerald-100 text-emerald-700' };
+      case 'cancelled':
+        return { text: 'Cancelled', className: 'bg-red-100 text-red-700' };
+      default:
+        return { text: status, className: 'bg-gray-100 text-gray-700' };
+    }
+  };
+
+  
+  // ✅ FIXED: Prioritize priority patients, then regular queue
   const handleCallNext = () => {
     // Mark current patient as done
     updatePatientStatus(currentServing, 'done');
     
-    // Find the next patient who is waiting (skip cancelled patients)
+    // First, check if there are any waiting priority patients
+    const nextPriorityPatient = patients.find(p => 
+      p.status === "waiting" && p.inQueue && p.isPriority
+    );
+    
+    if (nextPriorityPatient) {
+      // Call the priority patient first
+      updatePatientStatus(nextPriorityPatient.queueNo, 'in progress');
+      setCurrentServing(nextPriorityPatient.queueNo);
+      return;
+    }
+    
+    // If no priority patients, find the next regular waiting patient
     const nextWaitingPatient = patients.find(p => 
-      p.queueNo > currentServing && p.status === "waiting" && p.inQueue
+     p.status === "waiting" && p.inQueue && !p.isPriority
     );
     
     if (nextWaitingPatient) {
-      // Mark the next waiting patient as in progress
+      // Mark the next waiting patient as in progress  and sync the queue number
       updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
       setCurrentServing(nextWaitingPatient.queueNo);
     } else {
@@ -66,10 +95,35 @@ const Dashboard = () => {
     }
   };
 
+  const handleCallSpecificPatient = (queueNo) => {
+    // Mark current serving patient as done if there is one
+    if (currentServing) {
+      const currentPatient = patients.find(p => p.queueNo === currentServing);
+      if (currentPatient && currentPatient.status === 'in progress') {
+        updatePatientStatus(currentServing, 'done');
+      }
+    }
+    
+    // Mark the selected patient as in progress
+    updatePatientStatus(queueNo, 'in progress');
+    // Set them as the one currently being served
+    setCurrentServing(queueNo);
+  };
+
   // ✅ FIXED: Handle cancel properly
   const handleCancel = () => {
     // Mark current patient as cancelled
     cancelPatient(currentServing);
+
+    const nextPriorityPatient = patients.find(p => 
+      p.status === "waiting" && p.inQueue && p.isPriority
+    );
+
+    if (nextPriorityPatient) {
+      updatePatientStatus(nextPriorityPatient.queueNo, 'in progress');
+      setCurrentServing(nextPriorityPatient.queueNo);
+      return;
+    }
     
     // Find the next patient who is waiting
     const nextWaitingPatient = patients.find(p => 
@@ -92,8 +146,31 @@ const Dashboard = () => {
   const queuePatients = patients.filter(p => {
     if (p.isInactive) return false;
     if (p.type === "Appointment" && p.appointmentStatus !== "accepted") return false;
+    if (p.status === "done" || p.status === "cancelled") return false; // Exclude done and cancelled
+    if (p.isPriority) return false; // Exclude priority patients from active queue
     return p.inQueue;
   });
+
+  // ✅ Filter done patients - only "done" status
+  const donePatients = patients.filter(p => {
+    if (p.isInactive) return false;
+    return p.status === "done" && p.inQueue;
+  });
+
+  // ✅ Filter cancel patients - only "cancel" status
+  const cancelPatients = patients.filter(p => {
+    if (p.isInactive) return false;
+    return p.status === "cancelled" && p.inQueue;
+  });
+
+  // Priority patients (PWD, Pregnant, Senior)
+  const priorityPatients = patients.filter(p => {
+    if (p.isInactive) return false;
+    if (p.status === "done" || p.status === "cancelled") return false;
+    return p.isPriority && p.inQueue;
+  });
+
+
   const totalWaiting = queuePatients.filter(p => p.status === "waiting").length;
 
   return (
@@ -192,8 +269,8 @@ const Dashboard = () => {
           {/* Patient Queue Table */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base sm:text-lg">Patient Queue</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">List of patients currently in the queue</CardDescription>
+              <CardTitle className="text-base sm:text-lg">Patient Queue (Active)</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">Patients currently in progress or waiting</CardDescription>
             </CardHeader>
             <CardContent>
               {/* Mobile Card View */}
@@ -206,7 +283,7 @@ const Dashboard = () => {
                           <p className="font-bold text-lg text-gray-900">
                             #{String(patient.queueNo).padStart(3, '0')}
                           </p>
-                          <p className="text-sm text-gray-600">{patient.name}</p>
+                          <p className="text-sm text-gray-600">{patient.name}</p>  
                         </div>
                         <Badge
                           variant={
@@ -353,6 +430,473 @@ const Dashboard = () => {
                   </tbody>
                 </table>
               </div>
+            </CardContent>
+          </Card>
+
+           {/* ✅ FIXED: Priority Patients Table - Removed Action Column, Added Status Column */}
+          <Card className="mt-6">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-yellow-500" />
+                <div>
+                  <CardTitle className="text-base sm:text-lg">Priority Patients</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Patients who are PWD, Pregnant or Senior Citizen</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {priorityPatients.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p>No Priority consultations yet</p>
+                </div>
+              ) : (
+                <>
+                  {/* Mobile Card View - NO ACTION BUTTONS */}
+                  <div className="block lg:hidden space-y-4">
+                    {priorityPatients.map(patient => (
+                      <Card key={patient.queueNo} className={`border-l-4 ${patient.status === 'waiting' ? 'border-l-yellow-600' : patient.status === 'in progress' ? 'border-l-green-600' : 'border-l-emerald-600'}`}>
+                        <CardContent className="pt-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <p className="font-bold text-lg text-gray-900">
+                                #{String(patient.queueNo).padStart(3, '0')}
+                              </p>
+                              <p className="text-sm text-gray-600">{patient.name}</p>
+                            </div>
+                            <Badge
+                              variant={
+                                patient.status === 'done' ? 'default' : 
+                                patient.status === 'in progress' ? 'secondary' : 
+                                patient.status === 'cancelled' ? 'destructive' : 
+                                'outline'
+                              }
+                              className={
+                                patient.status === 'done'
+                                  ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                  : patient.status === 'in progress'
+                                  ? 'bg-green-100 text-green-700 hover:bg-green-100'
+                                  : patient.status === 'cancelled'
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-100'
+                                  : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100'
+                              }
+                            >
+                              {patient.status}
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Age:</span>
+                              <span className="font-medium">{patient.age}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Phone:</span>
+                              <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Type:</span>
+                              <span className="font-medium">{patient.type}</span>
+                            </div>
+
+                            <div className="pt-2 border-t">
+                              <p className="text-gray-600 mb-1">Symptoms:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {patient.symptoms && patient.symptoms.length > 0 ? (
+                                  patient.symptoms.map((symptom, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                      {symptom}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="pt-2">
+                              <p className="text-gray-600 mb-1">Services:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {patient.services && patient.services.length > 0 ? (
+                                  patient.services.map((serviceId, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                      {getServiceLabel(serviceId)}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View - STATUS COLUMN INSTEAD OF ACTION */}
+                  <div className="hidden lg:block overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-yellow-50">
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Patient Name</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Age</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Phone</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Type</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Symptoms</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Services</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {priorityPatients.map(patient => (
+                          <tr key={patient.queueNo} className="border-b transition-colors hover:bg-yellow-50">
+                            <td className="p-4 align-middle font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
+                            <td className="p-4 align-middle">{patient.name}</td>
+                            <td className="p-4 align-middle">{patient.age}</td>
+                            <td className="p-4 align-middle text-gray-600">{patient.phoneNum || 'N/A'}</td>
+                            <td className="p-4 align-middle text-gray-500">{patient.type}</td>
+                            <td className="p-4 align-middle">
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {patient.symptoms && patient.symptoms.length > 0 ? (
+                                  patient.symptoms.map((symptom, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                      {symptom}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4 align-middle">
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {patient.services && patient.services.length > 0 ? (
+                                  patient.services.map((serviceId, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                      {getServiceLabel(serviceId)}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4 align-middle">
+                              <Badge
+                                variant={
+                                  patient.status === 'done' ? 'default' : 
+                                  patient.status === 'in progress' ? 'secondary' : 
+                                  patient.status === 'cancelled' ? 'destructive' : 
+                                  'outline'
+                                }
+                                className={
+                                  patient.status === 'done'
+                                    ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                    : patient.status === 'in progress'
+                                    ? 'bg-green-100 text-green-700 hover:bg-green-100'
+                                    : patient.status === 'cancelled'
+                                    ? 'bg-red-100 text-red-700 hover:bg-red-100'
+                                    : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100'
+                                }
+                              >
+                                {patient.status}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Done Patients Table */}
+          <Card className="mt-6">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                <div>
+                  <CardTitle className="text-base sm:text-lg">Done Patients</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Patients who have completed their consultation</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {donePatients.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p>No completed consultations yet</p>
+                </div>
+              ) : (
+                <>
+                  {/* Mobile Card View */}
+                  <div className="block lg:hidden space-y-4">
+                    {donePatients.map(patient => (
+                      <Card key={patient.queueNo} className="border-l-4 border-l-emerald-600">
+                        <CardContent className="pt-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <p className="font-bold text-lg text-gray-900">
+                                #{String(patient.queueNo).padStart(3, '0')}
+                              </p>
+                              <p className="text-sm text-gray-600">{patient.name}</p>
+                            </div>
+                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                              Completed
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Age:</span>
+                              <span className="font-medium">{patient.age}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Phone:</span>
+                              <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Type:</span>
+                              <span className="font-medium">{patient.type}</span>
+                            </div>
+                            
+                            <div className="pt-2 border-t">
+                              <p className="text-gray-600 mb-1">Symptoms:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {patient.symptoms && patient.symptoms.length > 0 ? (
+                                  patient.symptoms.map((symptom, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                      {symptom}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="pt-2">
+                              <p className="text-gray-600 mb-1">Services:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {patient.services && patient.services.length > 0 ? (
+                                  patient.services.map((serviceId, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                      {getServiceLabel(serviceId)}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-emerald-50">
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Patient Name</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Age</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Phone</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Type</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Symptoms</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Services</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {donePatients.map(patient => (
+                          <tr key={patient.queueNo} className="border-b transition-colors hover:bg-emerald-50">
+                            <td className="p-4 align-middle font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
+                            <td className="p-4 align-middle">{patient.name}</td>
+                            <td className="p-4 align-middle">{patient.age}</td>
+                            <td className="p-4 align-middle text-gray-600">{patient.phoneNum || 'N/A'}</td>
+                            <td className="p-4 align-middle text-gray-500">{patient.type}</td>
+                            <td className="p-4 align-middle">
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {patient.symptoms && patient.symptoms.length > 0 ? (
+                                  patient.symptoms.map((symptom, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                      {symptom}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4 align-middle">
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {patient.services && patient.services.length > 0 ? (
+                                  patient.services.map((serviceId, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                      {getServiceLabel(serviceId)}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Cancel Patients Table */}
+          <Card className="mt-6">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-red-600" />
+                <div>
+                  <CardTitle className="text-base sm:text-lg">Cancelled Patients</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Patients who missed their turn in queue</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {cancelPatients.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                  <p>No cancelled consultations yet</p>
+                </div>
+              ) : (
+                <>
+                  {/* Mobile Card View */}
+                  <div className="block lg:hidden space-y-4">
+                    {cancelPatients.map(patient => (
+                      <Card key={patient.queueNo} className="border-l-4 border-l-emerald-600">
+                        <CardContent className="pt-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <p className="font-bold text-lg text-gray-900">
+                                #{String(patient.queueNo).padStart(3, '0')}
+                              </p>
+                              <p className="text-sm text-gray-600">{patient.name}</p>
+                            </div>
+                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                              Completed
+                            </Badge>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Age:</span>
+                              <span className="font-medium">{patient.age}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Phone:</span>
+                              <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Type:</span>
+                              <span className="font-medium">{patient.type}</span>
+                            </div>
+                            
+                            <div className="pt-2 border-t">
+                              <p className="text-gray-600 mb-1">Symptoms:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {patient.symptoms && patient.symptoms.length > 0 ? (
+                                  patient.symptoms.map((symptom, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                      {symptom}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="pt-2">
+                              <p className="text-gray-600 mb-1">Services:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {patient.services && patient.services.length > 0 ? (
+                                  patient.services.map((serviceId, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                      {getServiceLabel(serviceId)}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-emerald-50">
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Patient Name</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Age</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Phone</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Type</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Symptoms</th>
+                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Services</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cancelPatients.map(patient => (
+                          <tr key={patient.queueNo} className="border-b transition-colors hover:bg-emerald-50">
+                            <td className="p-4 align-middle font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
+                            <td className="p-4 align-middle">{patient.name}</td>
+                            <td className="p-4 align-middle">{patient.age}</td>
+                            <td className="p-4 align-middle text-gray-600">{patient.phoneNum || 'N/A'}</td>
+                            <td className="p-4 align-middle text-gray-500">{patient.type}</td>
+                            <td className="p-4 align-middle">
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {patient.symptoms && patient.symptoms.length > 0 ? (
+                                  patient.symptoms.map((symptom, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                      {symptom}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4 align-middle">
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {patient.services && patient.services.length > 0 ? (
+                                  patient.services.map((serviceId, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                      {getServiceLabel(serviceId)}
+                                    </Badge>
+                                  ))
+                                ) : (
+                                  <span className="text-gray-400 text-xs">None</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import Sidebar from "@/components/Sidebar";
 //added MessageSquare icon
 import { Bell, X, QrCode, User, RefreshCw, XCircle, MessageSquare } from "lucide-react";
@@ -31,6 +31,27 @@ const QueueStatus = () => {
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState("");
   const [notificationType, setNotificationType] = useState("success");
+  const hideTimerRef = useRef(null);
+
+  const clearHideTimer = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  };
+
+  const showTimedNotification = (message, type = 'success', duration = 3000) => {
+    clearHideTimer();
+    setNotificationMessage(message);
+    setNotificationType(type);
+    setShowNotification(true);
+    if (duration && duration > 0) {
+      hideTimerRef.current = setTimeout(() => {
+        setShowNotification(false);
+        hideTimerRef.current = null;
+      }, duration);
+    }
+  };
 
   const queueNumber = currentPatient?.queueNo || 0;
   const service = currentPatient?.type || "Walk-in";
@@ -55,37 +76,29 @@ const QueueStatus = () => {
     if (isAppointmentPending) return;
 
     const difference = queueNumber - currentServing;
-    
-    // Check if cancelled
+
+    // Check if cancelled -> persistent notification until user acts
     if (currentPatient.status === "cancelled") {
+      clearHideTimer();
       setNotificationMessage("Your appointment has been cancelled. You didn't show up.");
       setNotificationType("cancelled");
       setShowNotification(true);
       return;
     }
-    
+
     // Check if patient is in progress
     if (currentPatient.status === "in progress") {
-      setNotificationMessage("It's your turn now! Please proceed to the counter.");
-      setNotificationType("success");
-      setShowNotification(true);
+      showTimedNotification("It's your turn now! Please proceed to the counter.", 'success', 4000);
       return;
     }
-    
+
     // Check if coming up soon
     if (difference === 1 && currentPatient.status === "waiting") {
-      setNotificationMessage("Your turn is coming up soon! Please be ready.");
-      setNotificationType("success");
-      setShowNotification(true);
+      showTimedNotification("Your turn is coming up soon! Please be ready.", 'success', 3500);
     } else if (difference === 0 && currentPatient.status === "waiting") {
-      setNotificationMessage("It's your turn now! Please proceed to the counter.");
-      setNotificationType("success");
-      setShowNotification(true);
+      showTimedNotification("It's your turn now! Please proceed to the counter.", 'success', 4000);
     } else {
-      // Only hide notification if it's not a cancellation
-      if (notificationType !== "cancelled") {
-        setShowNotification(false);
-      }
+      // Do nothing: let any current timed notification finish, don't forcibly hide (avoids flicker)
     }
   }, [currentPatient, currentServing, queueNumber, notificationType, isAppointmentPending]);
 
@@ -102,14 +115,10 @@ const QueueStatus = () => {
       
       if (newTicket) {
         setActivePatient(newTicket);
-        setNotificationMessage(`You've been added back to the queue with ticket #${String(newTicket.queueNo).padStart(3, '0')}!`);
+        showTimedNotification(`You've been added back to the queue with ticket #${String(newTicket.queueNo).padStart(3, '0')}!`, 'success', 3000);
       } else {
-        setNotificationMessage("You've been added back to the queue!");
+        showTimedNotification("You've been added back to the queue!", 'success', 3000);
       }
-      setNotificationType("success");
-      setTimeout(() => {
-        setShowNotification(false);
-      }, 3000);
     }, 100);
   };
 

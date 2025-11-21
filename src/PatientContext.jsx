@@ -6,6 +6,8 @@ import {
   requeuePatient as requeuePatientDB,
   acceptAppointment as acceptAppointmentDB,
   rejectAppointment as rejectAppointmentDB,
+  registerWalkInPatient as registerWalkInPatientDB,
+  registerAppointmentPatient as registerAppointmentPatientDB,
   getAvailableSlots as getAvailableSlotsDB,
   subscribeToPatients
 } from "./lib/supabaseClient";
@@ -18,19 +20,73 @@ export const PatientProvider = ({ children }) => {
   const [currentServing, setCurrentServing] = useState(1);
   const [avgWaitTime, setAvgWaitTime] = useState(15);
   const [loading, setLoading] = useState(true);
+  const [callingNext, setCallingNext] = useState(false);
+
+  // LocalStorage key and helpers for a quick client-side fallback
+  const LOCAL_KEY = 'abante.currentServing';
+
+  const loadLocalCurrentServing = () => {
+    try {
+      const raw = localStorage.getItem(LOCAL_KEY);
+      if (!raw) return null;
+      const n = parseInt(raw, 10);
+      return Number.isNaN(n) ? null : n;
+    } catch (err) {
+      return null;
+    }
+  };
+
+  const saveLocalCurrentServing = (n) => {
+    try {
+      if (n === null || n === undefined) return;
+      localStorage.setItem(LOCAL_KEY, String(n));
+    } catch (err) {
+      // ignore storage errors
+    }
+  };
+
+  // Persist-aware setter: accepts either a value or an updater function
+  const setCurrentServingPersist = (val) => {
+    if (typeof val === 'function') {
+      setCurrentServing(prev => {
+        const next = val(prev);
+        saveLocalCurrentServing(next);
+        return next;
+      });
+    } else {
+      setCurrentServing(val);
+      saveLocalCurrentServing(val);
+    }
+  };
 
   // ✅ Load patients from database on mount
   useEffect(() => {
+    // Try to restore a quick client-side pointer for UX while DB loads
+    const saved = loadLocalCurrentServing();
+    if (saved !== null) setCurrentServing(saved);
+
     loadPatients();
     
-    // ✅ Subscribe to real-time changes
-    const subscription = subscribeToPatients((payload) => {
-      console.log('Real-time change:', payload);
-      loadPatients(); // Reload patients when changes occur
-    });
+    // ✅ Subscribe to real-time changes (guarded)
+    let subscription;
+    try {
+      subscription = subscribeToPatients((payload) => {
+        console.log('Real-time change:', payload);
+        loadPatients(); // Reload patients when changes occur
+      });
+    } catch (err) {
+      console.error('Error subscribing to patients:', err);
+      subscription = null;
+    }
 
     return () => {
-      subscription.unsubscribe();
+      try {
+        if (subscription && typeof subscription.unsubscribe === 'function') {
+          subscription.unsubscribe();
+        }
+      } catch (err) {
+        console.error('Error unsubscribing from patients subscription:', err);
+      }
     };
   }, []);
 
@@ -63,6 +119,20 @@ export const PatientProvider = ({ children }) => {
           isInactive: p.is_inactive
         }));
         setPatients(mappedPatients);
+
+        // Set active patient and currentServing based on any "in progress" patient
+        const inProgress = mappedPatients.find(p => p.status === 'in progress' && p.inQueue && !p.isInactive);
+        if (inProgress) {
+          setActivePatient(inProgress);
+          setCurrentServingPersist(inProgress.queueNo || 1);
+        } else {
+          // If none in progress, set currentServing to smallest queued queueNo or keep existing
+          const queued = mappedPatients.filter(p => p.inQueue && !p.isInactive && typeof p.queueNo === 'number');
+            if (queued.length > 0) {
+            const smallest = queued.reduce((min, p) => (p.queueNo < min ? p.queueNo : min), queued[0].queueNo);
+            setCurrentServingPersist(prev => prev && prev > 0 ? prev : smallest);
+          }
+        }
       }
     } catch (error) {
       console.error('Error loading patients:', error);
@@ -115,6 +185,87 @@ export const PatientProvider = ({ children }) => {
     setPatients(prev => [...prev, newPatient]);
   };
 
+  // ✅ Register walk-in via Supabase and update local state
+  const registerWalkInPatient = async (patientData) => {
+    try {
+      const result = await registerWalkInPatientDB(patientData);
+      if (result.success) {
+        const p = result.data;
+        const mapped = {
+          id: p.id,
+          queueNo: p.queue_no,
+          name: p.name,
+          age: p.age,
+          phoneNum: p.phone_num,
+          type: p.patient_type === 'walk-in' ? 'Walk-in' : 'Appointment',
+          symptoms: p.symptoms || [],
+          services: p.services || [],
+          status: p.status,
+          registeredAt: p.created_at,
+          appointmentDateTime: p.appointment_datetime,
+          appointmentStatus: p.appointment_status,
+          rejectionReason: p.rejection_reason,
+          rejectedAt: p.rejected_at,
+          inQueue: p.in_queue,
+          isPriority: p.is_priority,
+          priorityType: p.priority_type,
+          requeued: p.requeued,
+          originalQueueNo: p.original_queue_no,
+          isInactive: p.is_inactive
+        };
+
+        setPatients(prev => [...prev, mapped]);
+        setActivePatient(mapped);
+        // Persist currentServing if this registration influenced it
+        if (mapped.queueNo) saveLocalCurrentServing(mapped.queueNo);
+      }
+      return result;
+    } catch (error) {
+      console.error('Error registering walk-in patient (context):', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // ✅ Register appointment via Supabase and update local state
+  const registerAppointmentPatient = async (patientData, appointmentDateTime) => {
+    try {
+      const result = await registerAppointmentPatientDB(patientData, appointmentDateTime);
+      if (result.success) {
+        const p = result.data.patient || result.data;
+        const mapped = {
+          id: p.id,
+          queueNo: p.queue_no,
+          name: p.name,
+          age: p.age,
+          phoneNum: p.phone_num,
+          type: p.patient_type === 'walk-in' ? 'Walk-in' : 'Appointment',
+          symptoms: p.symptoms || [],
+          services: p.services || [],
+          status: p.status,
+          registeredAt: p.created_at,
+          appointmentDateTime: p.appointment_datetime,
+          appointmentStatus: p.appointment_status,
+          rejectionReason: p.rejection_reason,
+          rejectedAt: p.rejected_at,
+          inQueue: p.in_queue,
+          isPriority: p.is_priority,
+          priorityType: p.priority_type,
+          requeued: p.requeued,
+          originalQueueNo: p.original_queue_no,
+          isInactive: p.is_inactive
+        };
+
+        setPatients(prev => [...prev, mapped]);
+        setActivePatient(mapped);
+        if (mapped.queueNo) saveLocalCurrentServing(mapped.queueNo);
+      }
+      return result;
+    } catch (error) {
+      console.error('Error registering appointment patient (context):', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   // ✅ Update patient status
   const updatePatientStatus = async (patientId, newStatus) => {
     try {
@@ -139,6 +290,9 @@ export const PatientProvider = ({ children }) => {
         setPatients(prev =>
           prev.map(p => p.id === patientId ? { ...p, status: "cancelled", inQueue: false } : p)
         );
+        // If cancelling affected the currentServing, persist current value
+        const affected = patients.find(p => p.id === patientId);
+        if (affected && affected.queueNo) saveLocalCurrentServing(currentServing);
       }
       return result;
     } catch (error) {
@@ -165,6 +319,8 @@ export const PatientProvider = ({ children }) => {
             inQueue: true 
           } : p)
         );
+        // persist current pointer in case this changed ordering
+        saveLocalCurrentServing(currentServing);
       }
       return result;
     } catch (error) {
@@ -193,6 +349,7 @@ export const PatientProvider = ({ children }) => {
             inQueue: false 
           } : p)
         );
+        saveLocalCurrentServing(currentServing);
       }
       return result;
     } catch (error) {
@@ -214,6 +371,8 @@ export const PatientProvider = ({ children }) => {
       if (result.success) {
         // Reload patients to get the new ticket
         await loadPatients();
+        // ensure persisted pointer matches DB-derived pointer after reload
+        saveLocalCurrentServing(currentServing);
       }
       return result;
     } catch (error) {
@@ -222,24 +381,58 @@ export const PatientProvider = ({ children }) => {
     }
   };
 
-  // ✅ Call next patient
+  // ✅ Call next patient (priority-aware, DB-backed)
   const callNextPatient = async () => {
+    if (callingNext) return;
+    setCallingNext(true);
     try {
-      // Update current patient to done
-      const currentPatient = patients.find(p => p.queueNo === currentServing);
-      if (currentPatient) {
-        await updatePatientStatus(currentPatient.id, "done");
+      // Build current queued list (fresh from state)
+      const queued = patients
+        .filter(p => p.inQueue && !p.isInactive && typeof p.queueNo === 'number')
+        .slice() // clone
+        .sort((a, b) => {
+          const pa = a.isPriority ? 0 : 1;
+          const pb = b.isPriority ? 0 : 1;
+          if (pa !== pb) return pa - pb; // priority first
+          return a.queueNo - b.queueNo; // then FIFO
+        });
+
+      if (queued.length === 0) {
+        setCallingNext(false);
+        return;
       }
 
-      // Update next patient to in progress
-      const nextPatient = patients.find(p => p.queueNo === currentServing + 1);
+      // Mark existing in-progress patient as done (if any)
+      const currentlyInProgress = patients.find(p => p.status === 'in progress' && p.inQueue && !p.isInactive);
+      if (currentlyInProgress) {
+        const resDone = await updatePatientStatus(currentlyInProgress.id, 'done');
+        if (!resDone || !resDone.success) {
+          console.error('Failed to mark patient done', resDone);
+          setCallingNext(false);
+          return;
+        }
+      }
+
+      // Pick the next waiting patient according to priority-first ordering
+      const nextPatient = queued.find(p => p.status === 'waiting');
+
       if (nextPatient) {
-        await updatePatientStatus(nextPatient.id, "in progress");
+        const resNext = await updatePatientStatus(nextPatient.id, 'in progress');
+        if (resNext && resNext.success) {
+          setActivePatient(nextPatient);
+          setCurrentServingPersist(nextPatient.queueNo);
+        } else {
+          console.error('Failed to set next patient in progress', resNext);
+        }
+      } else {
+        // No waiting patient found: advance pointer locally
+        setCurrentServingPersist(prev => (typeof prev === 'number' ? prev + 1 : (currentServing || 0) + 1));
+        setActivePatient(null);
       }
-
-      setCurrentServing(prev => prev + 1);
     } catch (error) {
       console.error('Error calling next patient:', error);
+    } finally {
+      setCallingNext(false);
     }
   };
 
@@ -258,8 +451,10 @@ export const PatientProvider = ({ children }) => {
       patients,
       setPatients,
       addPatient,
+      registerWalkInPatient,
+      registerAppointmentPatient,
       currentServing,
-      setCurrentServing,
+      setCurrentServing: setCurrentServingPersist,
       activePatient,
       setActivePatient,
       updatePatientStatus,

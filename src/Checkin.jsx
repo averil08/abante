@@ -12,15 +12,11 @@ import Logo from "./assets/logo-abante.png";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "./datepicker.css";
-import {
-  registerWalkInPatient,
-  registerAppointmentPatient,
-  checkAppointmentAvailable
-} from "./lib/supabaseClient";
+// Registration is handled via PatientContext; do not import supabase functions directly here
 
 function Checkin() {
   const navigate = useNavigate();
-  const { patients, addPatient, activePatient, setActivePatient, getAvailableSlots } = useContext(PatientContext);
+  const { patients, addPatient, activePatient, setActivePatient, getAvailableSlots, registerWalkInPatient, registerAppointmentPatient } = useContext(PatientContext);
 
   const [viewMode, setViewMode] = useState('clinic');
   const [nav, setNav] = useState(false);
@@ -65,8 +61,15 @@ function Checkin() {
   // ✅ Update available slots whenever appointment date/time changes
   useEffect(() => {
     if (formData.appointmentDateTime) {
-      const slots = getAvailableSlots(formData.appointmentDateTime);
-      setAvailableSlots(slots);
+      (async () => {
+        try {
+          const slots = await getAvailableSlots(formData.appointmentDateTime);
+          setAvailableSlots(typeof slots === 'number' ? slots : 0);
+        } catch (err) {
+          console.error('Error fetching available slots in Checkin:', err);
+          setAvailableSlots(0);
+        }
+      })();
     }
   }, [formData.appointmentDateTime, getAvailableSlots, patients]);
 
@@ -263,34 +266,9 @@ function Checkin() {
 
       //added priority(ispriority and prioritytype fields)
       if (result.success) {
-        const newPatient = {
-          name: formData.name,
-          age: formData.age,
-          phoneNum: formData.phoneNum,
-          type: selectedPatientType,
-          symptoms: formData.symptoms,
-          services: formData.services,
-          queueNo: patients.length + 1,
-          appointmentDateTime: formData.appointmentDateTime || undefined,
-          isPriority: formData.isPriority,
-          priorityType: formData.priorityType,
-        };
-
-        // ✅ KEY FIX: Set different initial state based on patient type
-        if (selectedPatientType === "Walk-in") {
-          newPatient.status = "waiting";
-          newPatient.inQueue = true;
-        } else if (selectedPatientType === "Appointment") {
-          newPatient.status = "waiting";
-          newPatient.appointmentStatus = "pending";
-          newPatient.inQueue = false; // ✅ Don't add to queue until accepted
-        }
-
-        addPatient(newPatient);
-        setActivePatient(newPatient);
-
+        // Context registration functions already updated local state and set active patient
         resetForm();
-        
+
         if (selectedPatientType === "Walk-in") {
           showMessage("Success", `Registration completed for ${formData.name}. You're in the queue!`, true);
         } else {

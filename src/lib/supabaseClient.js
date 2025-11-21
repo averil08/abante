@@ -183,17 +183,44 @@ export const rejectAppointment = async (patientId, reason) => {
 // Update patient status
 export const updatePatientStatus = async (patientId, newStatus) => {
   try {
+    if (patientId === undefined || patientId === null) {
+      const msg = 'updatePatientStatus called with invalid patientId';
+      console.error(msg, { patientId, newStatus });
+      return { success: false, error: msg };
+    }
+
     const { data, error } = await supabase
       .from('patients')
       .update({ status: newStatus })
       .eq('id', patientId)
       .select();
 
-    if (error) throw error;
+    if (error) {
+      // Provide more structured and readable error output for debugging
+      try {
+        const errMsg = error && error.message ? error.message : JSON.stringify(error);
+        console.error(`Error updating patient status: ${errMsg}`, {
+          patientId,
+          newStatus,
+          code: error && error.code,
+          details: error && error.details
+        });
+      } catch (logErr) {
+        console.error('Error updating patient status (failed to stringify error):', error, logErr);
+      }
+      return { success: false, error: error && error.message ? error.message : JSON.stringify(error), details: error };
+    }
+
     return { success: true, data: data[0] };
   } catch (error) {
-    console.error('Error updating patient status:', error);
-    return { success: false, error: error.message };
+    // Catch unexpected exceptions and log useful context
+    try {
+      const exMsg = error && error.message ? error.message : String(error);
+      console.error(`Unexpected exception in updatePatientStatus: ${exMsg}`, { patientId, newStatus, exception: error });
+    } catch (logErr) {
+      console.error('Unexpected exception in updatePatientStatus (failed to stringify):', error, logErr);
+    }
+    return { success: false, error: error && error.message ? error.message : String(error), details: error };
   }
 };
 
@@ -584,22 +611,38 @@ export const registerStaff = async (email, password, staffRole) => {
 
 // Subscribe to patient changes
 export const subscribeToPatients = (callback) => {
-  return supabase
+  const channel = supabase
     .channel('patients_channel')
-    .on('postgres_changes', 
-      { event: '*', schema: 'public', table: 'patients' },
-      callback
-    )
-    .subscribe();
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, callback);
+
+  channel.subscribe();
+
+  return {
+    unsubscribe: () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (err) {
+        console.error('Error unsubscribing from patients channel:', err);
+      }
+    }
+  };
 };
 
 // Subscribe to appointment changes
 export const subscribeToAppointments = (callback) => {
-  return supabase
+  const channel = supabase
     .channel('appointments_channel')
-    .on('postgres_changes',
-      { event: '*', schema: 'public', table: 'appointments' },
-      callback
-    )
-    .subscribe();
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments' }, callback);
+
+  channel.subscribe();
+
+  return {
+    unsubscribe: () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch (err) {
+        console.error('Error unsubscribing from appointments channel:', err);
+      }
+    }
+  };
 };

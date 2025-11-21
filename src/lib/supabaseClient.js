@@ -25,7 +25,11 @@ export const registerWalkInPatient = async (patientData) => {
           symptoms: patientData.symptoms || [],
           services: patientData.services || [],
           days_since_onset: patientData.daysSinceOnSet ? parseInt(patientData.daysSinceOnSet) : null,
-          patient_type: 'walk-in'
+          patient_type: 'walk-in',
+          status: 'waiting',
+          is_priority: patientData.isPriority || false,
+          priority_type: patientData.priorityType || null,
+          in_queue: true
         }
       ])
       .select();
@@ -53,7 +57,13 @@ export const registerAppointmentPatient = async (patientData, appointmentDateTim
           symptoms: patientData.symptoms || [],
           services: patientData.services || [],
           days_since_onset: patientData.daysSinceOnSet ? parseInt(patientData.daysSinceOnSet) : null,
-          patient_type: 'appointment'
+          patient_type: 'appointment',
+          status: 'waiting',
+          appointment_status: 'pending',
+          appointment_datetime: appointmentDateTime,
+          in_queue: false,
+          is_priority: patientData.isPriority || false,
+          priority_type: patientData.priorityType || null
         }
       ])
       .select();
@@ -69,7 +79,7 @@ export const registerAppointmentPatient = async (patientData, appointmentDateTim
         {
           patient_id: patient.id,
           appointment_datetime: appointmentDateTime,
-          status: 'scheduled'
+          status: 'pending'
         }
       ])
       .select();
@@ -90,40 +100,174 @@ export const registerAppointmentPatient = async (patientData, appointmentDateTim
 };
 
 // ============================================
-// STAFF REGISTRATION FUNCTIONS
+// APPOINTMENT MANAGEMENT FUNCTIONS
 // ============================================
 
-// Register clinic staff with authentication
-export const registerStaff = async (email, password, staffRole) => {
+// Accept appointment
+export const acceptAppointment = async (patientId) => {
   try {
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-    });
+    // Update patient record
+    const { data: patientData, error: patientError } = await supabase
+      .from('patients')
+      .update({ 
+        appointment_status: 'accepted',
+        in_queue: true 
+      })
+      .eq('id', patientId)
+      .select();
 
-    if (authError) throw authError;
+    if (patientError) throw patientError;
 
-    // Insert staff record
-    const { data: staffData, error: staffError } = await supabase
-      .from('clinic_staff')
+    // Update appointment record
+    const { data: appointmentData, error: appointmentError } = await supabase
+      .from('appointments')
+      .update({ status: 'accepted' })
+      .eq('patient_id', patientId)
+      .select();
+
+    if (appointmentError) throw appointmentError;
+
+    return { 
+      success: true, 
+      data: { patient: patientData[0], appointment: appointmentData[0] }
+    };
+  } catch (error) {
+    console.error('Error accepting appointment:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Reject appointment
+export const rejectAppointment = async (patientId, reason) => {
+  try {
+    // Update patient record
+    const { data: patientData, error: patientError } = await supabase
+      .from('patients')
+      .update({ 
+        appointment_status: 'rejected',
+        rejection_reason: reason,
+        rejected_at: new Date().toISOString(),
+        in_queue: false 
+      })
+      .eq('id', patientId)
+      .select();
+
+    if (patientError) throw patientError;
+
+    // Update appointment record
+    const { data: appointmentData, error: appointmentError } = await supabase
+      .from('appointments')
+      .update({ 
+        status: 'rejected',
+        rejection_reason: reason 
+      })
+      .eq('patient_id', patientId)
+      .select();
+
+    if (appointmentError) throw appointmentError;
+
+    return { 
+      success: true, 
+      data: { patient: patientData[0], appointment: appointmentData[0] }
+    };
+  } catch (error) {
+    console.error('Error rejecting appointment:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============================================
+// PATIENT STATUS MANAGEMENT FUNCTIONS
+// ============================================
+
+// Update patient status
+export const updatePatientStatus = async (patientId, newStatus) => {
+  try {
+    const { data, error } = await supabase
+      .from('patients')
+      .update({ status: newStatus })
+      .eq('id', patientId)
+      .select();
+
+    if (error) throw error;
+    return { success: true, data: data[0] };
+  } catch (error) {
+    console.error('Error updating patient status:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Cancel patient
+export const cancelPatient = async (patientId) => {
+  try {
+    const { data, error } = await supabase
+      .from('patients')
+      .update({ 
+        status: 'cancelled',
+        in_queue: false 
+      })
+      .eq('id', patientId)
+      .select();
+
+    if (error) throw error;
+    return { success: true, data: data[0] };
+  } catch (error) {
+    console.error('Error cancelling patient:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Requeue patient
+export const requeuePatient = async (patientId) => {
+  try {
+    // Get the original patient data
+    const { data: originalPatient, error: fetchError } = await supabase
+      .from('patients')
+      .select('*')
+      .eq('id', patientId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // Mark original as inactive
+    const { error: updateError } = await supabase
+      .from('patients')
+      .update({ 
+        is_inactive: true,
+        in_queue: false 
+      })
+      .eq('id', patientId);
+
+    if (updateError) throw updateError;
+
+    // Create new patient entry
+    const { data: newPatient, error: insertError } = await supabase
+      .from('patients')
       .insert([
         {
-          email: email,
-          staff_role: staffRole,
+          name: originalPatient.name,
+          age: originalPatient.age,
+          phone_num: originalPatient.phone_num,
+          physician: originalPatient.physician,
+          symptoms: originalPatient.symptoms,
+          services: originalPatient.services,
+          days_since_onset: originalPatient.days_since_onset,
+          patient_type: originalPatient.patient_type,
+          status: 'waiting',
+          in_queue: true,
+          requeued: true,
+          original_queue_no: originalPatient.queue_no,
+          is_priority: originalPatient.is_priority,
+          priority_type: originalPatient.priority_type
         }
       ])
       .select();
 
-    if (staffError) throw staffError;
+    if (insertError) throw insertError;
 
-    return { 
-      success: true, 
-      data: staffData[0],
-      message: 'Registration successful! Please check your email to verify your account.'
-    };
+    return { success: true, data: newPatient[0] };
   } catch (error) {
-    console.error('Error registering staff:', error);
+    console.error('Error requeuing patient:', error);
     return { success: false, error: error.message };
   }
 };
@@ -152,19 +296,52 @@ export const checkPhoneExists = async (phoneNum) => {
 // Check if appointment slot is available
 export const checkAppointmentAvailable = async (appointmentDateTime) => {
   try {
+    const targetDate = new Date(appointmentDateTime);
+    const minutes = targetDate.getMinutes();
+    targetDate.setMinutes(minutes < 30 ? 0 : 30, 0, 0);
+    
     const { data, error } = await supabase
-      .from('appointments')
+      .from('patients')
       .select('id')
-      .eq('appointment_datetime', appointmentDateTime)
-      .eq('status', 'scheduled')
-      .single();
+      .eq('patient_type', 'appointment')
+      .neq('appointment_status', 'rejected')
+      .gte('appointment_datetime', targetDate.toISOString())
+      .lt('appointment_datetime', new Date(targetDate.getTime() + 30 * 60000).toISOString());
 
-    if (error && error.code !== 'PGRST116') throw error;
-    // Return true if slot is available (no data found)
-    return !data;
+    if (error) throw error;
+    
+    // Return true if slot is available (less than max slots)
+    const MAX_SLOTS = 1;
+    return (data?.length || 0) < MAX_SLOTS;
   } catch (error) {
     console.error('Error checking appointment availability:', error);
     return false;
+  }
+};
+
+// Get available slots for a time
+export const getAvailableSlots = async (appointmentDateTime) => {
+  try {
+    const MAX_SLOTS = 1;
+    const targetDate = new Date(appointmentDateTime);
+    const minutes = targetDate.getMinutes();
+    targetDate.setMinutes(minutes < 30 ? 0 : 30, 0, 0);
+    
+    const { data, error } = await supabase
+      .from('patients')
+      .select('id')
+      .eq('patient_type', 'appointment')
+      .neq('appointment_status', 'rejected')
+      .gte('appointment_datetime', targetDate.toISOString())
+      .lt('appointment_datetime', new Date(targetDate.getTime() + 30 * 60000).toISOString());
+
+    if (error) throw error;
+    
+    const bookedCount = data?.length || 0;
+    return Math.max(0, MAX_SLOTS - bookedCount);
+  } catch (error) {
+    console.error('Error getting available slots:', error);
+    return 0;
   }
 };
 
@@ -205,7 +382,7 @@ export const getWalkInPatients = async () => {
   }
 };
 
-// Get today's walk-in patients (using the view we created)
+// Get today's walk-in patients
 export const getTodaysWalkIns = async () => {
   try {
     const { data, error } = await supabase
@@ -224,19 +401,9 @@ export const getTodaysWalkIns = async () => {
 export const getAllAppointments = async () => {
   try {
     const { data, error } = await supabase
-      .from('appointments')
-      .select(`
-        *,
-        patients (
-          name,
-          age,
-          phone_num,
-          physician,
-          symptoms,
-          services,
-          days_since_onset
-        )
-      `)
+      .from('patients')
+      .select('*')
+      .eq('patient_type', 'appointment')
       .order('appointment_datetime', { ascending: true });
 
     if (error) throw error;
@@ -247,7 +414,7 @@ export const getAllAppointments = async () => {
   }
 };
 
-// Get upcoming appointments (using the view we created)
+// Get upcoming appointments
 export const getUpcomingAppointments = async () => {
   try {
     const { data, error } = await supabase
@@ -272,17 +439,9 @@ export const getAppointmentsByDate = async (date) => {
     endOfDay.setHours(23, 59, 59, 999);
 
     const { data, error } = await supabase
-      .from('appointments')
-      .select(`
-        *,
-        patients (
-          name,
-          age,
-          phone_num,
-          symptoms,
-          services
-        )
-      `)
+      .from('patients')
+      .select('*')
+      .eq('patient_type', 'appointment')
       .gte('appointment_datetime', startOfDay.toISOString())
       .lte('appointment_datetime', endOfDay.toISOString())
       .order('appointment_datetime', { ascending: true });
@@ -378,4 +537,69 @@ export const getPatientStats = async () => {
     console.error('Error fetching patient statistics:', error);
     return { success: false, error: error.message };
   }
+};
+
+// ============================================
+// STAFF REGISTRATION FUNCTIONS
+// ============================================
+
+// Register clinic staff with authentication
+export const registerStaff = async (email, password, staffRole) => {
+  try {
+    // Create auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email,
+      password: password,
+    });
+
+    if (authError) throw authError;
+
+    // Insert staff record
+    const { data: staffData, error: staffError } = await supabase
+      .from('clinic_staff')
+      .insert([
+        {
+          email: email,
+          staff_role: staffRole,
+        }
+      ])
+      .select();
+
+    if (staffError) throw staffError;
+
+    return { 
+      success: true, 
+      data: staffData[0],
+      message: 'Registration successful! Please check your email to verify your account.'
+    };
+  } catch (error) {
+    console.error('Error registering staff:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// ============================================
+// REAL-TIME SUBSCRIPTIONS
+// ============================================
+
+// Subscribe to patient changes
+export const subscribeToPatients = (callback) => {
+  return supabase
+    .channel('patients_channel')
+    .on('postgres_changes', 
+      { event: '*', schema: 'public', table: 'patients' },
+      callback
+    )
+    .subscribe();
+};
+
+// Subscribe to appointment changes
+export const subscribeToAppointments = (callback) => {
+  return supabase
+    .channel('appointments_channel')
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'appointments' },
+      callback
+    )
+    .subscribe();
 };

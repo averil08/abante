@@ -1,9 +1,7 @@
 import React, { useState, useContext } from 'react';
 import Sidebar from "@/components/Sidebar";
 import { Calendar, Clock, Phone, User, Activity, Stethoscope, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
-//automatic added dialog in components/ui (run npx shadcn@latest add dialog to install + make dialog.jsx)
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-//automatic added textarea in components/ui (run npx shadcn@latest add textarea to install + make textarea.jsx)
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,11 +39,13 @@ const Appointment = () => {
 
   const getServiceLabel = (serviceId) => serviceLabels[serviceId] || serviceId;
 
-  const handleAccept = (appointment) => {
-    acceptAppointment(appointment.queueNo);
+  const handleAccept = async (appointment) => {
+    const result = await acceptAppointment(appointment.queueNo);
+    if (result && !result.success) {
+      alert(`Error accepting appointment: ${result.error}`);
+    }
   };
 
-  //replaced the direct reject handler
   const handleRejectClick = (appointment) => {
     setRejectionDialog({
       open: true,
@@ -54,22 +54,24 @@ const Appointment = () => {
     });
   };
 
-  //added rejection dialogue state to manage modal
   const [rejectionDialog, setRejectionDialog] = useState({
     open: false,
     appointment: null,
     reason: ""
   });
 
-  //Added the confirmation handler that saves the reason"
-  const handleRejectConfirm = () => {
+  const handleRejectConfirm = async () => {
     if (!rejectionDialog.reason.trim()) {
       alert("Please provide a reason for rejection");
       return;
     }
 
-    rejectAppointment(rejectionDialog.appointment.queueNo, rejectionDialog.reason);
-    setRejectionDialog({ open: false, appointment: null, reason: "" });
+    const result = await rejectAppointment(rejectionDialog.appointment.queueNo, rejectionDialog.reason);
+    if (result && result.success) {
+      setRejectionDialog({ open: false, appointment: null, reason: "" });
+    } else {
+      alert(`Error rejecting appointment: ${result?.error || 'Unknown error'}`);
+    }
   };
 
   const formatDateTime = (dateTimeString) => {
@@ -151,7 +153,7 @@ const Appointment = () => {
           ) : (
             <div className="space-y-4">
               {appointments.map((appointment) => (
-                <Card key={appointment.queueNo} className="overflow-hidden hover:shadow-lg transition-shadow">
+                <Card key={appointment.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                   <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 pb-3">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <CardTitle className="text-lg sm:text-xl text-green-700">
@@ -251,7 +253,7 @@ const Appointment = () => {
                       </div>
                     </div>
 
-                    {/* Added Rejection Reason Display */}
+                    {/* Rejection Reason Display */}
                     {appointment.appointmentStatus === 'rejected' && appointment.rejectionReason && (
                       <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                         <div className="flex items-start gap-3">
@@ -297,7 +299,7 @@ const Appointment = () => {
         </div>
       </div>
 
-      {/* Added Rejection Reason Dialog */}
+      {/* Rejection Reason Dialog */}
       <Dialog open={rejectionDialog.open} onOpenChange={(open) => setRejectionDialog({...rejectionDialog, open})}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

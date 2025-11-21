@@ -1,18 +1,75 @@
 import React, { createContext, useState, useMemo, useEffect } from "react";
+import { 
+  getAllPatients, 
+  updatePatientStatus as updatePatientStatusDB,
+  cancelPatient as cancelPatientDB,
+  requeuePatient as requeuePatientDB,
+  acceptAppointment as acceptAppointmentDB,
+  rejectAppointment as rejectAppointmentDB,
+  getAvailableSlots as getAvailableSlotsDB,
+  subscribeToPatients
+} from "./lib/supabaseClient";
 
 export const PatientContext = createContext();
 
 export const PatientProvider = ({ children }) => {
   const [activePatient, setActivePatient] = useState(null);
-  const [patients, setPatients] = useState([
-    { queueNo: 1, name: "Jane Doe", age: 26, type: "Walk-in", symptoms: ["Fever", "Cough"], services: ["cbc", "fbs"], phoneNum: "09171234567", status: "done", registeredAt: new Date().toISOString(), inQueue: true },
-    { queueNo: 2, name: "Mark Cruz", age: 32, type: "Appointment", symptoms: ["Rashes"], services: ["pedia"], phoneNum: "09181234567", status: "in progress", registeredAt: new Date().toISOString(), appointmentDateTime: new Date(Date.now() + 86400000).toISOString(), appointmentStatus: "accepted", inQueue: true },
-    { queueNo: 3, name: "Leah Santos", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["adult"], phoneNum: "09191234567", status: "waiting", registeredAt: new Date().toISOString(), inQueue: true },
-    { queueNo: 4, name: "Analyn Gomez", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["urinalysis"], phoneNum: "09201234567", status: "waiting", registeredAt: new Date().toISOString(), inQueue: true },
-  ]); 
-
-  const [currentServing, setCurrentServing] = useState(2);
+  const [patients, setPatients] = useState([]);
+  const [currentServing, setCurrentServing] = useState(1);
   const [avgWaitTime, setAvgWaitTime] = useState(15);
+  const [loading, setLoading] = useState(true);
+
+  // ✅ Load patients from database on mount
+  useEffect(() => {
+    loadPatients();
+    
+    // ✅ Subscribe to real-time changes
+    const subscription = subscribeToPatients((payload) => {
+      console.log('Real-time change:', payload);
+      loadPatients(); // Reload patients when changes occur
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // ✅ Load all patients from database
+  const loadPatients = async () => {
+    try {
+      const result = await getAllPatients();
+      if (result.success) {
+        // Map database fields to frontend format
+        const mappedPatients = result.data.map(p => ({
+          id: p.id,
+          queueNo: p.queue_no,
+          name: p.name,
+          age: p.age,
+          phoneNum: p.phone_num,
+          type: p.patient_type === 'walk-in' ? 'Walk-in' : 'Appointment',
+          symptoms: p.symptoms || [],
+          services: p.services || [],
+          status: p.status,
+          registeredAt: p.created_at,
+          appointmentDateTime: p.appointment_datetime,
+          appointmentStatus: p.appointment_status,
+          rejectionReason: p.rejection_reason,
+          rejectedAt: p.rejected_at,
+          inQueue: p.in_queue,
+          isPriority: p.is_priority,
+          priorityType: p.priority_type,
+          requeued: p.requeued,
+          originalQueueNo: p.original_queue_no,
+          isInactive: p.is_inactive
+        }));
+        setPatients(mappedPatients);
+      }
+    } catch (error) {
+      console.error('Error loading patients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ✅ Automatically sync activePatient with patients array
   useEffect(() => {
@@ -31,125 +88,159 @@ export const PatientProvider = ({ children }) => {
       }
       
       // Normal sync for active patients
-      const updatedPatient = patients.find(p => p.queueNo === activePatient.queueNo);
+      const updatedPatient = patients.find(p => p.id === activePatient.id);
       if (updatedPatient && JSON.stringify(updatedPatient) !== JSON.stringify(activePatient)) {
         setActivePatient(updatedPatient);
       }
     }
   }, [patients, activePatient]);
 
-  const getAvailableSlots = (dateTimeString) => {
-    if (!dateTimeString) return 1; // Changed from 5 to 1 slot only
+  // ✅ Get available slots (calls backend)
+  const getAvailableSlots = async (dateTimeString) => {
+    if (!dateTimeString) return 1;
     
-    const MAX_SLOTS_PER_TIME = 1; //changed from 5 slots to 1
-    const targetDate = new Date(dateTimeString);
-    
-    const minutes = targetDate.getMinutes();
-    targetDate.setMinutes(minutes < 30 ? 0 : 30, 0, 0);
-    
-    // Count appointments that are NOT rejected (only count pending and accepted)
-    const bookedCount = patients.filter(p => {
-      if (!p.appointmentDateTime) return false;
-
-      // Don't count rejected appointments
-      if (p.appointmentStatus === 'rejected') return false;
-
-      const pDate = new Date(p.appointmentDateTime);
-      pDate.setMinutes(pDate.getMinutes() < 30 ? 0 : 30, 0, 0);
-      return pDate.getTime() === targetDate.getTime();
-    }).length;
-    
-    return Math.max(0, MAX_SLOTS_PER_TIME - bookedCount);
+    try {
+      const slots = await getAvailableSlotsDB(dateTimeString);
+      return slots;
+    } catch (error) {
+      console.error('Error getting available slots:', error);
+      return 0;
+    }
   };
 
-  //added ispriority and prioritytype
+  // ✅ Add patient (handled by Checkin.jsx calling registerWalkInPatient/registerAppointmentPatient)
   const addPatient = (newPatient) => {
-    setPatients(prev => [
-      ...prev,
-      { 
-        ...newPatient,
-        isPriority: newPatient.isPriority || false,
-        priorityType: newPatient.priorityType || null,
-        queueNo: prev.length + 1, 
-        status: newPatient.status || "waiting",
-        registeredAt: new Date().toISOString(),
-        inQueue: true,
+    // This function now just updates local state
+    // The actual database insertion happens in Checkin.jsx
+    setPatients(prev => [...prev, newPatient]);
+  };
+
+  // ✅ Update patient status
+  const updatePatientStatus = async (patientId, newStatus) => {
+    try {
+      const result = await updatePatientStatusDB(patientId, newStatus);
+      if (result.success) {
+        setPatients(prev =>
+          prev.map(p => p.id === patientId ? { ...p, status: newStatus } : p)
+        );
       }
-    ]);
+      return result;
+    } catch (error) {
+      console.error('Error updating patient status:', error);
+      return { success: false, error: error.message };
+    }
   };
 
-  const updatePatientStatus = (queueNo, newStatus) => {
-    setPatients(prev =>
-      prev.map(p => p.queueNo === queueNo ? { ...p, status: newStatus } : p)
-    );
+  // ✅ Cancel patient
+  const cancelPatient = async (patientId) => {
+    try {
+      const result = await cancelPatientDB(patientId);
+      if (result.success) {
+        setPatients(prev =>
+          prev.map(p => p.id === patientId ? { ...p, status: "cancelled", inQueue: false } : p)
+        );
+      }
+      return result;
+    } catch (error) {
+      console.error('Error cancelling patient:', error);
+      return { success: false, error: error.message };
+    }
   };
 
-  const cancelPatient = (queueNo) => {
-    setPatients(prev =>
-      prev.map(p => p.queueNo === queueNo ? { ...p, status: "cancelled" } : p)
-    );
+  // ✅ Accept appointment
+  const acceptAppointment = async (queueNo) => {
+    try {
+      const patient = patients.find(p => p.queueNo === queueNo);
+      if (!patient) {
+        console.error('Patient not found');
+        return { success: false, error: 'Patient not found' };
+      }
+
+      const result = await acceptAppointmentDB(patient.id);
+      if (result.success) {
+        setPatients(prev =>
+          prev.map(p => p.id === patient.id ? { 
+            ...p, 
+            appointmentStatus: "accepted", 
+            inQueue: true 
+          } : p)
+        );
+      }
+      return result;
+    } catch (error) {
+      console.error('Error accepting appointment:', error);
+      return { success: false, error: error.message };
+    }
   };
 
-  // ✅ Accept appointment - changes status from 'pending' to 'accepted'
-  const acceptAppointment = (queueNo) => {
-    setPatients(prev =>
-      prev.map(p => p.queueNo === queueNo ? { ...p, appointmentStatus: "accepted", inQueue: true } : p)
-    );
+  // ✅ Reject appointment
+  const rejectAppointment = async (queueNo, reason) => {
+    try {
+      const patient = patients.find(p => p.queueNo === queueNo);
+      if (!patient) {
+        console.error('Patient not found');
+        return { success: false, error: 'Patient not found' };
+      }
+
+      const result = await rejectAppointmentDB(patient.id, reason);
+      if (result.success) {
+        setPatients(prev =>
+          prev.map(p => p.id === patient.id ? { 
+            ...p, 
+            appointmentStatus: "rejected",
+            rejectionReason: reason,
+            rejectedAt: new Date().toISOString(),
+            inQueue: false 
+          } : p)
+        );
+      }
+      return result;
+    } catch (error) {
+      console.error('Error rejecting appointment:', error);
+      return { success: false, error: error.message };
+    }
   };
 
-  // ✅ Updated rejectAppointment function to accept and store the reason
-  const rejectAppointment = (queueNo, reason) => {
-    setPatients(prev =>
-      prev.map(p => p.queueNo === queueNo ? { 
-        ...p, 
-        appointmentStatus: "rejected", 
-        rejectionReason: reason,
-        rejectedAt: new Date().toISOString(),
-        inQueue: false 
-      } : p)
-    );
+  // ✅ Requeue patient
+  const requeuePatient = async (queueNo) => {
+    try {
+      const patient = patients.find(p => p.queueNo === queueNo);
+      if (!patient) {
+        console.error('Patient not found');
+        return { success: false, error: 'Patient not found' };
+      }
+
+      const result = await requeuePatientDB(patient.id);
+      if (result.success) {
+        // Reload patients to get the new ticket
+        await loadPatients();
+      }
+      return result;
+    } catch (error) {
+      console.error('Error requeuing patient:', error);
+      return { success: false, error: error.message };
+    }
   };
 
-  const requeuePatient = (queueNo) => {
-    setPatients(prev => {
-      // Find the cancelled patient
-      const cancelledPatient = prev.find(p => p.queueNo === queueNo);
-      if (!cancelledPatient) return prev;
-      
-      // Get the highest queue number to assign new ticket
-      const maxQueueNo = Math.max(...prev.map(p => p.queueNo));
-      const newQueueNo = maxQueueNo + 1;
-      
-      // Create new patient entry with new queue number
-      const newPatient = {
-        ...cancelledPatient,
-        queueNo: newQueueNo,
-        status: "waiting",
-        registeredAt: new Date().toISOString(),
-        requeued: true,
-        originalQueueNo: queueNo,
-        inQueue: true,
-      };
-      
-      // Mark old entry as inactive (but keep it in history)
-      const updatedPatients = prev.map(p => 
-        p.queueNo === queueNo ? { ...p, isInactive: true, inQueue: false } : p
-      );
-      
-      // Add new patient entry at the end
-      return [...updatedPatients, newPatient];
-    });
-  };
+  // ✅ Call next patient
+  const callNextPatient = async () => {
+    try {
+      // Update current patient to done
+      const currentPatient = patients.find(p => p.queueNo === currentServing);
+      if (currentPatient) {
+        await updatePatientStatus(currentPatient.id, "done");
+      }
 
-  const callNextPatient = () => {
-    setPatients(prev =>
-      prev.map(p => {
-        if (p.queueNo === currentServing) return { ...p, status: "done" };
-        if (p.queueNo === currentServing + 1) return { ...p, status: "in progress" };
-        return p;
-      })
-    );
-    setCurrentServing(prev => prev + 1);
+      // Update next patient to in progress
+      const nextPatient = patients.find(p => p.queueNo === currentServing + 1);
+      if (nextPatient) {
+        await updatePatientStatus(nextPatient.id, "in progress");
+      }
+
+      setCurrentServing(prev => prev + 1);
+    } catch (error) {
+      console.error('Error calling next patient:', error);
+    }
   };
 
   const addWaitTime = () => {
@@ -181,6 +272,8 @@ export const PatientProvider = ({ children }) => {
       requeuePatient,
       acceptAppointment,
       rejectAppointment,
+      loading,
+      loadPatients
     }}>
       {children}
     </PatientContext.Provider>

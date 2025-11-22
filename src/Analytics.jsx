@@ -198,7 +198,8 @@ const Analytics = () => {
         {/* Header */}
         <div className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-            <div className="flex items-center justify-between">
+            {/* Desktop: Side by side layout */}
+            <div className="hidden sm:flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <BarChart3 className="w-6 h-6 text-green-600" />
                 <div>
@@ -211,7 +212,25 @@ const Analytics = () => {
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
               >
                 <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Download Report</span>
+                <span>Download Report</span>
+              </button>
+            </div>
+
+            {/* Mobile: Stacked layout */}
+            <div className="sm:hidden space-y-4">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="w-6 h-6 text-green-600" />
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">Clinic Analytics</h1>
+                  <p className="text-sm text-gray-600">Insights and statistics</p>
+                </div>
+              </div>
+              <button
+                onClick={downloadAnalyticsReport}
+                className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2.5 rounded-md transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Report</span>
               </button>
             </div>
           </div>

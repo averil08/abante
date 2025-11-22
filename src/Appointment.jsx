@@ -97,7 +97,7 @@ const Appointment = () => {
             <div className="flex items-center gap-3">
               <Calendar className="w-6 h-6 text-green-600" />
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Appointment Management</h1>
+                <h1 className="text-xl max-sm:text-base  font-bold text-gray-900 ">Appointment Management</h1>
                 <p className="text-sm text-gray-600">Review and manage patient appointments</p>
               </div>
             </div>

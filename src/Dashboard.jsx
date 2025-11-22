@@ -241,10 +241,11 @@ const Dashboard = () => {
       <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300">
         <div className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-            <div className="flex items-center justify-between mb-3">
+            {/* Desktop: Side by side layout */}
+            <div className="hidden sm:flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
                 <div>
-                  <h1 className="text-lg sm:text-xl font-bold text-gray-900">Dashboard — General Consultation</h1>
+                  <h1 className="text-lg sm:text-xl font-bold text-gray-900">Dashboard</h1>
                   <p className="text-xs sm:text-sm text-gray-600">De Valley Medical Clinic Queue Management</p>
                 </div>
               </div>
@@ -253,9 +254,25 @@ const Dashboard = () => {
                 className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
               >
                 <Download className="w-4 h-4" />
-                <span className="hidden sm:inline">Download Report</span>
+                <span>Download Report</span>
               </Button>
             </div>
+
+            {/* Mobile: Stacked layout */}
+            <div className="sm:hidden space-y-3 mb-3">
+              <div>
+                <h1 className="text-lg font-bold text-gray-900">Dashboard</h1>
+                <p className="text-xs text-gray-600">De Valley Medical Clinic Queue</p>
+              </div>
+              <Button 
+                onClick={downloadReport}
+                className="w-full bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Report</span>
+              </Button>
+            </div>
+
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-3 border-t border-gray-100">
               <div className="flex items-center gap-2">
                 <span className="text-xs sm:text-sm text-gray-600">Doctor:</span>

@@ -1,12 +1,10 @@
 import React, { useState, useContext, useMemo } from 'react';
 import Sidebar from "@/components/Sidebar";
-import { Users, ChartNoAxesCombined, TicketCheck, Clock, TrendingUp, Activity, Stethoscope, Calendar, BarChart3, Menu, X } from 'lucide-react';
+import { Users, ChartNoAxesCombined, TicketCheck, Clock, TrendingUp, Activity, Stethoscope, Calendar, BarChart3, Menu, X, Download  } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
 import { PatientContext } from "./PatientContext";
-import img1 from './assets/logo-abante.png';
-import { Link, useNavigate } from "react-router-dom";
-import { AiOutlineClose, AiOutlineMenu } from 'react-icons/ai';
+import {  useNavigate } from "react-router-dom";
 
 const Analytics = () => {
   const [nav, setNav] = useState(false);
@@ -128,6 +126,69 @@ const Analytics = () => {
     };
   }, [patients]);
 
+  // Download Analytics Report Function
+  const downloadAnalyticsReport = () => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    // Create CSV content
+    let csvContent = "De Valley Medical Clinic - Analytics Report\n";
+    csvContent += `Generated: ${dateStr} at ${timeStr}\n\n`;
+
+    // Patient Volume Stats
+    csvContent += "=== PATIENT VOLUME STATISTICS ===\n";
+    csvContent += `Total Patients Today,${analytics.totalToday}\n`;
+    csvContent += `Total Patients This Week,${analytics.totalWeek}\n`;
+    csvContent += `Walk-in Patients Served,${analytics.servedWalkIn}\n`;
+    csvContent += `Appointments Served,${analytics.servedAppointment}\n`;
+    csvContent += `Average Wait Time,${avgWaitTime} mins\n\n`;
+
+    // Most Prevalent Symptoms
+    csvContent += "=== MOST PREVALENT SYMPTOMS (TOP 5) ===\n";
+    csvContent += "Rank,Symptom,Patient Count\n";
+    analytics.topSymptoms.forEach(([symptom, count], idx) => {
+      csvContent += `${idx + 1},${symptom},${count}\n`;
+    });
+    csvContent += "\n";
+
+    // Most Requested Services
+    csvContent += "=== MOST REQUESTED SERVICES (TOP 5) ===\n";
+    csvContent += "Rank,Service,Request Count\n";
+    analytics.topServices.forEach(([service, count], idx) => {
+      csvContent += `${idx + 1},${service},${count}\n`;
+    });
+    csvContent += "\n";
+
+    // Age Distribution
+    csvContent += "=== AGE DISTRIBUTION ===\n";
+    csvContent += "Age Group,Patient Count,Percentage\n";
+    Object.entries(analytics.ageGroups).forEach(([group, count]) => {
+      const percentage = patients.length > 0 ? Math.round((count / patients.length) * 100) : 0;
+      const isTop = analytics.mostPrevalentAge && group === analytics.mostPrevalentAge[0];
+      csvContent += `${group} years${isTop ? ' (Most Prevalent)' : ''},${count},${percentage}%\n`;
+    });
+    csvContent += "\n";
+
+    // Peak Hours
+    csvContent += "=== PEAK REGISTRATION HOURS ===\n";
+    csvContent += "Time Slot,Patient Count\n";
+    analytics.peakHours.forEach(peak => {
+      csvContent += `${peak.time},${peak.count}\n`;
+    });
+
+    // Create download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Analytics_Report_${now.toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex w-full min-h-screen bg-gray-50">
        <Sidebar nav={nav} handleNav={handleNav} />
@@ -137,12 +198,21 @@ const Analytics = () => {
         {/* Header */}
         <div className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-            <div className="flex items-center gap-3">
-              <BarChart3 className="w-6 h-6 text-green-600" />
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Clinic Analytics</h1>
-                <p className="text-sm text-gray-600">Performance insights and statistics</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="w-6 h-6 text-green-600" />
+                <div>
+                  <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Clinic Analytics</h1>
+                  <p className="text-sm text-gray-600">Performance insights and statistics</p>
+                </div>
               </div>
+              <button
+                onClick={downloadAnalyticsReport}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Download Report</span>
+              </button>
             </div>
           </div>
         </div>

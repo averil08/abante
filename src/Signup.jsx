@@ -10,6 +10,9 @@ import { useNavigate } from "react-router-dom";
 function Signup() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
+    fullName: "",
+    companyName: "",
+    phoneNumber: "",
     email: "",
     password: "",
   });
@@ -34,6 +37,9 @@ function Signup() {
 
   const resetForm = () => {
     setFormData({
+      fullName: "",
+      companyName: "",
+      phoneNumber: "",
       email: "",
       password: "",
     });
@@ -45,8 +51,16 @@ function Signup() {
 
     try {
       // Validation
-      if (!formData.email || !formData.password) {
+      if (!formData.fullName || !formData.companyName || !formData.phoneNumber || !formData.email || !formData.password) {
         showMessage("Validation Error", "Please fill in all required fields.", false);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Phone number validation (basic)
+      const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+      if (!phoneRegex.test(formData.phoneNumber)) {
+        showMessage("Validation Error", "Please enter a valid phone number.", false);
         setIsSubmitting(false);
         return;
       }
@@ -60,7 +74,15 @@ function Signup() {
       // Default staff role - use "secretary" as it's allowed by database constraint
       const staffRole = "secretary";
 
-      const result = await registerStaff(formData.email, formData.password, staffRole);
+      // You'll need to update the registerStaff function to accept additional parameters
+      const result = await registerStaff(
+        formData.email, 
+        formData.password, 
+        staffRole,
+        formData.fullName,
+        formData.companyName,
+        formData.phoneNumber
+      );
 
       if (result.success) {
         showMessage(
@@ -86,7 +108,7 @@ function Signup() {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
-      <Card className="w-full max-w-sm shadow-xl border-t-4 border-green-600">
+      <Card className="w-full max-w-md shadow-xl border-t-4 border-green-600">
         <Button 
           onClick={() => navigate("/")}
           variant="link"
@@ -109,6 +131,42 @@ function Signup() {
 
         <CardContent>
           <form onSubmit={handleStaffSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name *</Label>
+              <Input
+                id="fullName"
+                type="text"
+                value={formData.fullName}
+                onChange={handleInputChange}
+                placeholder="John Doe"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="companyName">Company Name *</Label>
+              <Input
+                id="companyName"
+                type="text"
+                value={formData.companyName}
+                onChange={handleInputChange}
+                placeholder="Abante Clinic"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">Phone Number *</Label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={handleInputChange}
+                placeholder="+63 912 345 6789"
+                required
+              />
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">Email *</Label>
               <Input

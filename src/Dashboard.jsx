@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import Sidebar from "@/components/Sidebar";
-import { Clock, TrendingUp, Users, XCircle, CheckCircle2  } from 'lucide-react';
+import { Clock, TrendingUp, Users, XCircle, CheckCircle2, Download   } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,67 @@ const Dashboard = () => {
   };
 
   const getServiceLabel = (serviceId) => serviceLabels[serviceId] || serviceId;
+
+  // Download Report Function
+  const downloadReport = () => {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+
+    // Helper function to format services and symptoms
+    const formatArray = (arr) => arr && arr.length > 0 ? arr.map(item => getServiceLabel(item)).join(', ') : 'None';
+
+    // Create CSV content
+    let csvContent = "De Valley Medical Clinic - Dashboard Report\n";
+    csvContent += `Generated: ${dateStr} at ${timeStr}\n`;
+    csvContent += `Doctor: ${doctorName}\n`;
+    csvContent += `Secretary: ${secretaryName}\n`;
+    csvContent += `Current Serving: #${String(currentServing).padStart(3, '0')}\n`;
+    csvContent += `Average Wait Time: ${avgWaitTime} mins\n`;
+    csvContent += `Total Patients Waiting: ${totalWaiting}\n\n`;
+
+    // Active Queue Patients
+    csvContent += "=== ACTIVE QUEUE PATIENTS ===\n";
+    csvContent += "Queue #,Patient Name,Age,Phone,Type,Symptoms,Services,Status\n";
+    queuePatients.forEach(patient => {
+      csvContent += `#${String(patient.queueNo).padStart(3, '0')},${patient.name},${patient.age},${patient.phoneNum || 'N/A'},${patient.type},"${formatArray(patient.symptoms)}","${formatArray(patient.services)}",${patient.status}\n`;
+    });
+    csvContent += "\n";
+
+    // Priority Patients
+    csvContent += "=== PRIORITY PATIENTS ===\n";
+    csvContent += "Queue #,Patient Name,Age,Phone,Type,Symptoms,Services,Status,Priority Type\n";
+    priorityPatients.forEach(patient => {
+      csvContent += `#${String(patient.queueNo).padStart(3, '0')},${patient.name},${patient.age},${patient.phoneNum || 'N/A'},${patient.type},"${formatArray(patient.symptoms)}","${formatArray(patient.services)}",${patient.status},${patient.priorityType || 'N/A'}\n`;
+    });
+    csvContent += "\n";
+
+    // Done Patients
+    csvContent += "=== COMPLETED PATIENTS ===\n";
+    csvContent += "Queue #,Patient Name,Age,Phone,Type,Symptoms,Services\n";
+    donePatients.forEach(patient => {
+      csvContent += `#${String(patient.queueNo).padStart(3, '0')},${patient.name},${patient.age},${patient.phoneNum || 'N/A'},${patient.type},"${formatArray(patient.symptoms)}","${formatArray(patient.services)}"\n`;
+    });
+    csvContent += "\n";
+
+    // Cancelled Patients
+    csvContent += "=== CANCELLED PATIENTS ===\n";
+    csvContent += "Queue #,Patient Name,Age,Phone,Type,Symptoms,Services\n";
+    cancelPatients.forEach(patient => {
+      csvContent += `#${String(patient.queueNo).padStart(3, '0')},${patient.name},${patient.age},${patient.phoneNum || 'N/A'},${patient.type},"${formatArray(patient.symptoms)}","${formatArray(patient.services)}"\n`;
+    });
+
+    // Create download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Dashboard_Report_${now.toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Add this new function
   const getStatusBadge = (status) => {
@@ -187,8 +248,14 @@ const Dashboard = () => {
                   <p className="text-xs sm:text-sm text-gray-600">De Valley Medical Clinic Queue Management</p>
                 </div>
               </div>
+              <Button 
+                onClick={downloadReport}
+                className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Download Report</span>
+              </Button>
             </div>
-
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-3 border-t border-gray-100">
               <div className="flex items-center gap-2">
                 <span className="text-xs sm:text-sm text-gray-600">Doctor:</span>

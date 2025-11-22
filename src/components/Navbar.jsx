@@ -16,10 +16,10 @@ const Navbar = () => {
       
       <ul className='hidden md:flex'>
         <li className='p-4'><a href="#home">Home</a></li>
-        <li className='p-4 text-[#ffff] text-center bg-[#059669] w-[90px] rounded-3xl my-2 mx-auto py-2'><a href="/login">Log In</a></li>
         <li className='p-4'><a href="#about">About</a></li>
         <li className='p-4'><a href="#prices">Prices</a></li>
         <li className='p-4'><a href="#contact">Contact</a></li>
+        <li className='p-4 text-[#ffff] text-center bg-[#059669] w-[90px] rounded-3xl my-2 mx-auto py-2'><a href="/login">Log In</a></li>
       </ul>
     
       {/* once clicked, setNav will be able to override nav (close icon: Aioutlineclose) it will be true (shows menu icon: AiOutlineMenu) */}
@@ -36,10 +36,10 @@ const Navbar = () => {
 
         <ul className='uppercase p-4'>
             <li className='p-4 border-b border-gray-300'><a href="#home">Home</a></li>
-            <li className='p-4 border-b border-gray-300 text-[#059669] font-medium hover:underline'><a href="/login">Log In</a></li>
             <li className='p-4 border-b border-gray-300'><a href="#about">About</a></li>
             <li className='p-4 border-b border-gray-300'><a href="#prices">Prices</a></li>
             <li className='p-4 border-b border-gray-300'><a href="#contact">Contact</a></li>
+            <li className='p-4 border-b border-gray-300 text-[#059669] font-medium hover:underline'><a href="/login">Log In</a></li>
         </ul>
       </div>
     </div>

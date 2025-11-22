@@ -50,6 +50,8 @@ function Signup() {
     setIsSubmitting(true);
 
     try {
+      console.log('Form data:', formData);
+
       // Validation
       if (!formData.fullName || !formData.companyName || !formData.phoneNumber || !formData.email || !formData.password) {
         showMessage("Validation Error", "Please fill in all required fields.", false);
@@ -74,7 +76,15 @@ function Signup() {
       // Default staff role - use "secretary" as it's allowed by database constraint
       const staffRole = "secretary";
 
-      // You'll need to update the registerStaff function to accept additional parameters
+      console.log('Calling registerStaff with:', {
+        email: formData.email,
+        staffRole,
+        fullName: formData.fullName,
+        companyName: formData.companyName,
+        phoneNumber: formData.phoneNumber
+      });
+
+      // Call the register function with all required parameters
       const result = await registerStaff(
         formData.email, 
         formData.password, 
@@ -84,23 +94,36 @@ function Signup() {
         formData.phoneNumber
       );
 
+      console.log('Registration result:', result);
+
       if (result.success) {
         showMessage(
           "Registration Successful!",
-          "Redirecting to dashboard...",
+          "Please check your email to verify your account. Redirecting to dashboard...",
           true
         );
         resetForm();
 
-        // Redirect immediately to dashboard
+        // Redirect to dashboard after a delay
         setTimeout(() => {
           navigate("/dashboard");
-        }, 1500);
+        }, 2000);
       } else {
-        showMessage("Registration Failed", `Error: ${result.error}. Please try again.`, false);
+        // Show detailed error message
+        let errorMessage = `Error: ${result.error}`;
+        if (result.details) {
+          errorMessage += `\n\nDetails: ${result.details}`;
+        }
+        if (result.hint) {
+          errorMessage += `\n\nHint: ${result.hint}`;
+        }
+        
+        console.error('Registration failed:', errorMessage);
+        showMessage("Registration Failed", errorMessage, false);
       }
     } catch (error) {
-      showMessage("Registration Failed", "An unexpected error occurred. Please try again.", false);
+      console.error('Unexpected error:', error);
+      showMessage("Registration Failed", `An unexpected error occurred: ${error.message}`, false);
     } finally {
       setIsSubmitting(false);
     }

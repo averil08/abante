@@ -94,15 +94,22 @@ export const registerAppointmentPatient = async (patientData, appointmentDateTim
 // ============================================
 
 // Register clinic staff with authentication
-export const registerStaff = async (email, password, staffRole) => {
+export const registerStaff = async (email, password, staffRole, fullName, companyName, phoneNumber) => {
   try {
+    console.log('Attempting to register staff with:', { email, staffRole, fullName, companyName, phoneNumber });
+    
     // Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email,
       password: password,
     });
 
-    if (authError) throw authError;
+    if (authError) {
+      console.error('Auth error:', authError);
+      throw authError;
+    }
+
+    console.log('Auth user created successfully:', authData);
 
     // Insert staff record
     const { data: staffData, error: staffError } = await supabase
@@ -111,11 +118,20 @@ export const registerStaff = async (email, password, staffRole) => {
         {
           email: email,
           staff_role: staffRole,
+          full_name: fullName,
+          company_name: companyName,
+          phone_number: phoneNumber,
         }
       ])
       .select();
 
-    if (staffError) throw staffError;
+    if (staffError) {
+      console.error('Staff insert error:', staffError);
+      console.error('Error details:', JSON.stringify(staffError, null, 2));
+      throw staffError;
+    }
+
+    console.log('Staff record created successfully:', staffData);
 
     return { 
       success: true, 
@@ -124,7 +140,15 @@ export const registerStaff = async (email, password, staffRole) => {
     };
   } catch (error) {
     console.error('Error registering staff:', error);
-    return { success: false, error: error.message };
+    console.error('Error message:', error.message);
+    console.error('Error details:', error.details);
+    console.error('Error hint:', error.hint);
+    return { 
+      success: false, 
+      error: error.message || 'An unknown error occurred',
+      details: error.details,
+      hint: error.hint
+    };
   }
 };
 

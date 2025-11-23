@@ -91,6 +91,7 @@ export const PatientProvider = ({ children }) => {
   }, []);
 
   // ✅ Load all patients from database
+
   const loadPatients = async () => {
     try {
       const result = await getAllPatients();
@@ -112,25 +113,38 @@ export const PatientProvider = ({ children }) => {
           rejectionReason: p.rejection_reason,
           rejectedAt: p.rejected_at,
           inQueue: p.in_queue,
-          isPriority: p.is_priority,
-          priorityType: p.priority_type,
-          requeued: p.requeued,
+          isPriority: p.is_priority || false,
+          priorityType: p.priority_type || null,
+          requeued: p.requeued || false,
           originalQueueNo: p.original_queue_no,
-          isInactive: p.is_inactive
+          isInactive: p.is_inactive || false,
+          physician: p.physician || null,
+          daysSinceOnset: p.days_since_onset || null
         }));
         setPatients(mappedPatients);
 
-        // Set active patient and currentServing based on any "in progress" patient
-        const inProgress = mappedPatients.find(p => p.status === 'in progress' && p.inQueue && !p.isInactive);
-        if (inProgress) {
-          setActivePatient(inProgress);
-          setCurrentServingPersist(inProgress.queueNo || 1);
-        } else {
-          // If none in progress, set currentServing to smallest queued queueNo or keep existing
-          const queued = mappedPatients.filter(p => p.inQueue && !p.isInactive && typeof p.queueNo === 'number');
+        // ✅ ONLY set currentServing and activePatient if there's no active patient yet
+        // This prevents overwriting the newly registered patient's session
+        if (!activePatient) {
+          // Set currentServing based on any "in progress" patient
+          const inProgress = mappedPatients.find(p => p.status === 'in progress' && p.inQueue && !p.isInactive);
+          if (inProgress) {
+            setActivePatient(inProgress);
+            setCurrentServingPersist(inProgress.queueNo || 1);
+          } else {
+            // If none in progress, set currentServing to smallest queued queueNo or keep existing
+            const queued = mappedPatients.filter(p => p.inQueue && !p.isInactive && typeof p.queueNo === 'number');
             if (queued.length > 0) {
-            const smallest = queued.reduce((min, p) => (p.queueNo < min ? p.queueNo : min), queued[0].queueNo);
-            setCurrentServingPersist(prev => prev && prev > 0 ? prev : smallest);
+              const smallest = queued.reduce((min, p) => (p.queueNo < min ? p.queueNo : min), queued[0].queueNo);
+              setCurrentServingPersist(prev => prev && prev > 0 ? prev : smallest);
+            }
+          }
+        } else {
+          // If there IS an active patient, only update currentServing based on in-progress patients
+          // but don't change activePatient
+          const inProgress = mappedPatients.find(p => p.status === 'in progress' && p.inQueue && !p.isInactive);
+          if (inProgress) {
+            setCurrentServingPersist(inProgress.queueNo);
           }
         }
       }
@@ -140,6 +154,7 @@ export const PatientProvider = ({ children }) => {
       setLoading(false);
     }
   };
+
 
   // ✅ Automatically sync activePatient with patients array
   useEffect(() => {
@@ -185,86 +200,97 @@ export const PatientProvider = ({ children }) => {
     setPatients(prev => [...prev, newPatient]);
   };
 
-  // ✅ Register walk-in via Supabase and update local state
-  const registerWalkInPatient = async (patientData) => {
-    try {
-      const result = await registerWalkInPatientDB(patientData);
-      if (result.success) {
-        const p = result.data;
-        const mapped = {
-          id: p.id,
-          queueNo: p.queue_no,
-          name: p.name,
-          age: p.age,
-          phoneNum: p.phone_num,
-          type: p.patient_type === 'walk-in' ? 'Walk-in' : 'Appointment',
-          symptoms: p.symptoms || [],
-          services: p.services || [],
-          status: p.status,
-          registeredAt: p.created_at,
-          appointmentDateTime: p.appointment_datetime,
-          appointmentStatus: p.appointment_status,
+
+// ✅ Register walk-in via Supabase and update local state optimistically
+
+const registerWalkInPatient = async (patientData) => {
+    try {
+      const result = await registerWalkInPatientDB(patientData);
+      if (result.success) {
+        const p = result.data;
+        const mapped = {
+          id: p.id,
+          queueNo: p.queue_no,
+          name: p.name,
+          age: p.age,
+          phoneNum: p.phone_num,
+          type: p.patient_type === 'walk-in' ? 'Walk-in' : 'Appointment',
+          symptoms: p.symptoms || [],
+          services: p.services || [],
+          status: p.status,
+          registeredAt: p.created_at,
+          appointmentDateTime: p.appointment_datetime,
+          appointmentStatus: p.appointment_status,
           rejectionReason: p.rejection_reason,
-          rejectedAt: p.rejected_at,
-          inQueue: p.in_queue,
-          isPriority: p.is_priority,
-          priorityType: p.priority_type,
-          requeued: p.requeued,
-          originalQueueNo: p.original_queue_no,
-          isInactive: p.is_inactive
-        };
+          rejectedAt: p.rejected_at,
+          inQueue: p.in_queue,
+          isPriority: p.is_priority,
+          priorityType: p.priority_type,
+          requeued: p.requeued,
+          originalQueueNo: p.original_queue_no,
+          isInactive: p.is_inactive
+        };
 
-        setPatients(prev => [...prev, mapped]);
-        setActivePatient(mapped);
-        // Persist currentServing if this registration influenced it
-        if (mapped.queueNo) saveLocalCurrentServing(mapped.queueNo);
-      }
-      return result;
-    } catch (error) {
-      console.error('Error registering walk-in patient (context):', error);
-      return { success: false, error: error.message };
+        setPatients(prev => [...prev, mapped]);
+        setActivePatient(mapped);
+
+      }
+      return result;
+    } catch (error) {
+      console.error('Error registering walk-in patient (context):', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+// ✅ Register appointment via Supabase and update local state
+const registerAppointmentPatient = async (patientData, appointmentDateTime) => {
+  try {
+    const result = await registerAppointmentPatientDB(patientData, appointmentDateTime);
+    if (result.success) {
+      // Create the patient object directly from the result
+      const p = result.data.patient || result.data;
+      const newPatient = {
+        id: p.id,
+        queueNo: p.queue_no,
+        name: p.name,
+        age: p.age,
+        phoneNum: p.phone_num,
+        type: p.patient_type === 'walk-in' ? 'Walk-in' : 'Appointment',
+        symptoms: p.symptoms || [],
+        services: p.services || [],
+        status: p.status,
+        registeredAt: p.created_at,
+        appointmentDateTime: p.appointment_datetime,
+        appointmentStatus: p.appointment_status,
+        rejectionReason: p.rejection_reason,
+        rejectedAt: p.rejected_at,
+        inQueue: p.in_queue,
+        isPriority: p.is_priority || false,
+        priorityType: p.priority_type || null,
+        requeued: p.requeued || false,
+        originalQueueNo: p.original_queue_no,
+        isInactive: p.is_inactive || false,
+        physician: p.physician || null,
+        daysSinceOnset: p.days_since_onset || null
+      };
+      
+      // Set as active patient FIRST
+      setActivePatient(newPatient);
+      
+      // DON'T save the queue number as currentServing - it's the patient's ticket, not what's being called
+      
+      
+      // Then reload all patients in background
+      await loadPatients();
     }
-  };
+    return result;
+  } catch (error) {
+    console.error('Error registering appointment patient (context):', error);
+    return { success: false, error: error.message };
+  }
+};
 
-  // ✅ Register appointment via Supabase and update local state
-  const registerAppointmentPatient = async (patientData, appointmentDateTime) => {
-    try {
-      const result = await registerAppointmentPatientDB(patientData, appointmentDateTime);
-      if (result.success) {
-        const p = result.data.patient || result.data;
-        const mapped = {
-          id: p.id,
-          queueNo: p.queue_no,
-          name: p.name,
-          age: p.age,
-          phoneNum: p.phone_num,
-          type: p.patient_type === 'walk-in' ? 'Walk-in' : 'Appointment',
-          symptoms: p.symptoms || [],
-          services: p.services || [],
-          status: p.status,
-          registeredAt: p.created_at,
-          appointmentDateTime: p.appointment_datetime,
-          appointmentStatus: p.appointment_status,
-          rejectionReason: p.rejection_reason,
-          rejectedAt: p.rejected_at,
-          inQueue: p.in_queue,
-          isPriority: p.is_priority,
-          priorityType: p.priority_type,
-          requeued: p.requeued,
-          originalQueueNo: p.original_queue_no,
-          isInactive: p.is_inactive
-        };
 
-        setPatients(prev => [...prev, mapped]);
-        setActivePatient(mapped);
-        if (mapped.queueNo) saveLocalCurrentServing(mapped.queueNo);
-      }
-      return result;
-    } catch (error) {
-      console.error('Error registering appointment patient (context):', error);
-      return { success: false, error: error.message };
-    }
-  };
 
   // ✅ Update patient status
   const updatePatientStatus = async (patientId, newStatus) => {

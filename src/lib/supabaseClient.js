@@ -103,6 +103,8 @@ export const registerAppointmentPatient = async (patientData, appointmentDateTim
 // APPOINTMENT MANAGEMENT FUNCTIONS
 // ============================================
 
+//staff registration functions go here (original code - abante clinic supabase)
+
 // Accept appointment
 export const acceptAppointment = async (patientId) => {
   try {
@@ -382,7 +384,7 @@ export const getAllPatients = async () => {
     const { data, error } = await supabase
       .from('patients')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true });
 
     if (error) throw error;
     return { success: true, data };

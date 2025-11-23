@@ -101,6 +101,21 @@ function Signup() {
           navigate("/");
         }, 3000);
 
+        {/*User submits/clicks "Sign Up" button
+          ↓  ← "Registration Success! Check email"  then redirect to Landing page 
+        Signup.jsx calls registerStaff()
+          ↓
+        supabaseClient.js → supabase.auth.signUp()  ← This creates the user
+          ↓
+        SUPABASE (backend) automatically sends verification email  ← 
+          ↓
+        Email arrives in user's inbox 
+          ↓
+        User clicks link → SUPABASE marks email as verified + redirect to site URL (example: "/" landing page or "/login")
+          ↓
+        User back to landing page (/) must click "LOGIN" to go Login page
+          */}
+
       } else {
         showMessage("Registration Failed", `Error: ${result.error}. Please try again.`, false);
       }

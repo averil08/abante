@@ -50,7 +50,7 @@ function Login() {
         return;
       }
 
-      // ✅ TEMPORARY: Frontend-only validation (remove when backend is ready)
+      // âœ… TEMPORARY: Frontend-only validation (remove when backend is ready)
       // This will accept any email/password for now
       // Your backend team will replace this with actual Supabase authentication
       

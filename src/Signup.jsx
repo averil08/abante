@@ -26,9 +26,12 @@ function Signup() {
   const showMessage = (title, message, isSuccess = true) => {
     document.getElementById("message-box").innerHTML = `
       <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-lg shadow-2xl max-w-sm text-center">
+        <div class="bg-white p-6 rounded-lg shadow-2xl max-w-md text-center">
           <h3 class="text-xl font-bold ${isSuccess ? 'text-green-600' : 'text-red-600'} mb-4">${title}</h3>
-          <p class="text-gray-700 mb-4">${message}</p>
+          <p class="text-gray-700 mb-4 whitespace-pre-line">${message}</p>
+          ${isSuccess ? 
+            '<p class="text-sm text-gray-500 mb-4">📧 Check your inbox and click the verification link to activate your account.</p>' 
+            : ''}
           <button onclick="document.getElementById('message-box').innerHTML=''" class="bg-${isSuccess ? 'green' : 'red'}-600 text-white px-4 py-2 rounded-md hover:bg-${isSuccess ? 'green' : 'red'}-700">Close</button>
         </div>
       </div>
@@ -87,15 +90,17 @@ function Signup() {
       if (result.success) {
         showMessage(
           "Registration Successful!",
-          "Redirecting to dashboard...",
+          "Please check your email to verify your account before logging in. You can close this page.",
           true
         );
         resetForm();
 
-        // Redirect immediately to dashboard
+        // DO NOT redirect to dashboard - user must verify email first
+        // Optionally redirect to login page after showing the message
         setTimeout(() => {
-          navigate("/dashboard");
-        }, 1500);
+          navigate("/");
+        }, 3000);
+
       } else {
         showMessage("Registration Failed", `Error: ${result.error}. Please try again.`, false);
       }

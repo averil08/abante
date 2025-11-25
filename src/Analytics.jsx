@@ -206,10 +206,77 @@ const Analytics = () => {
       }
     });
 
+    // Patient count trend by weeks (last 8 weeks)
+    const weeklyData = [];
+    for (let i = 7; i >= 0; i--) {
+      const weekStart = new Date(today);
+      weekStart.setDate(weekStart.getDate() - (i * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      
+      const count = patients.filter(p => {
+        if (!p.registeredAt) return false;
+        const pDate = new Date(p.registeredAt);
+        return pDate >= weekStart && pDate <= weekEnd;
+      }).length;
+
+      weeklyData.push({
+        week: `Week ${8 - i}`,
+        patients: count
+      });
+    }
+
+      // Real queue length calculation per hour (8am-5pm)
+  const calculateRealQueuePerHour = () => {
+    const hourlyPeakQueue = Array.from({ length: 10 }, (_, i) => ({
+      hour: formatHour(i + 8),
+      queueLength: 0
+    }));
+
+    // For each hour from 8am to 5pm
+    for (let hour = 8; hour <= 17; hour++) {
+      const hourIndex = hour - 8;
+      
+      // Count how many patients were in queue during this hour
+      let maxQueueAtHour = 0;
+      
+      patients.forEach(p => {
+        if (!p.registeredAt || !p.inQueue || p.isInactive) return;
+        
+        const regDate = new Date(p.registeredAt);
+        const regHour = regDate.getHours();
+        
+        // If patient registered at or before this hour
+        if (regHour <= hour) {
+          // Count all patients who were waiting or in progress at this hour
+          const waitingCount = patients.filter(other => {
+            if (!other.registeredAt || !other.inQueue || other.isInactive) return false;
+            
+            const otherRegDate = new Date(other.registeredAt);
+            const otherRegHour = otherRegDate.getHours();
+            
+            // Patient registered by this hour AND is waiting/in-progress
+            return otherRegHour <= hour && 
+                  (other.status === 'waiting' || other.status === 'in progress');
+          }).length;
+          
+          maxQueueAtHour = Math.max(maxQueueAtHour, waitingCount);
+        }
+      });
+      
+      hourlyPeakQueue[hourIndex].queueLength = maxQueueAtHour;
+    }
+
+    return hourlyPeakQueue;
+  };
+    const queueTrendByHour = calculateRealQueuePerHour();
+
     return {
       patientsPerDay,
       patientsPerHour,
       heatmapData,
+      queueTrendByHour,
+      weeklyData,
       totalToday: todayPatients.length,
       totalWeek: weekPatients.length,
       servedWalkIn,
@@ -401,6 +468,52 @@ const downloadAnalyticsReport = () => {
     head: [['Time', 'Patient Count']],
     body: analytics.patientsPerHour.map(({ hour, patients }) => [hour, patients]),
     headStyles: { fillColor: [59, 130, 246] },
+    styles: { fontSize: 9 },
+    margin: { left: 14 }
+  });
+
+  yPosition = doc.lastAutoTable.finalY + 10;
+
+  // Check if we need a new page
+  if (yPosition > 250) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
+  // Queue Length Trend
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.text('Queue Length Trend by Hour', 14, yPosition);
+  yPosition += 6;
+
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Time', 'Queue Length']],
+    body: analytics.queueTrendByHour.map(({ hour, queueLength }) => [hour, queueLength]),
+    headStyles: { fillColor: [245, 158, 11] },
+    styles: { fontSize: 9 },
+    margin: { left: 14 }
+  });
+
+  yPosition = doc.lastAutoTable.finalY + 10;
+
+  // Check if we need a new page
+  if (yPosition > 250) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
+  // Weekly Patient Trend
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.text('Patient Count Trend (Last 8 Weeks)', 14, yPosition);
+  yPosition += 6;
+
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Week', 'Patient Count']],
+    body: analytics.weeklyData.map(({ week, patients }) => [week, patients]),
+    headStyles: { fillColor: [139, 92, 246] },
     styles: { fontSize: 9 },
     margin: { left: 14 }
   });
@@ -685,6 +798,55 @@ const downloadAnalyticsReport = () => {
             </Card>
           </div>
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Patient Count Trend by Weeks */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Patient Count Trend (8 Weeks)</CardTitle>
+                <CardDescription>Weekly patient volume over time</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={analytics.weeklyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="week" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="patients" stroke="#8b5cf6" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Queue Length Trend */}
+             <Card>
+              <CardHeader>
+                <CardTitle>Queue Length Trend</CardTitle>
+                <CardDescription>When do patients wait the longest?</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={analytics.queueTrendByHour}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="hour" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80}
+                      interval={0}
+                      tick={{ fontSize: 10 }}
+                    />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="queueLength" stroke="#f59e0b" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+
           {/* Symptoms & Services */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
@@ -816,8 +978,8 @@ const downloadAnalyticsReport = () => {
                 </div>
               </CardContent>
             </Card>
-            
-            {/* Heatmap */}
+          </div>
+          {/* Heatmap */}
             <Card>
               <CardHeader>
                 <CardTitle>Peak Registration Hours Heatmap</CardTitle>
@@ -827,7 +989,6 @@ const downloadAnalyticsReport = () => {
                 <HeatmapChart data={analytics.heatmapData} />
               </CardContent>
             </Card>
-          </div>
         </div>
       </div>
     </div>

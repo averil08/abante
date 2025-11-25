@@ -8,6 +8,21 @@ import {  useNavigate } from "react-router-dom";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import logoImage from '@/assets/partner-logo.jpg'; 
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 
 const Analytics = () => {
   const [nav, setNav] = useState(false);
@@ -37,6 +52,48 @@ const Analytics = () => {
     
     const oneWeekAgo = new Date(today);
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    // Patients per day of week
+    const dayOfWeekData = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    patients.forEach(p => {
+      if (p.registeredAt) {
+        const date = new Date(p.registeredAt);
+        const dayName = dayNames[date.getDay()];
+        if (dayOfWeekData.hasOwnProperty(dayName)) {
+          dayOfWeekData[dayName]++;
+        }
+      }
+    });
+
+    const patientsPerDay = Object.entries(dayOfWeekData).map(([day, count]) => ({
+      day,
+      patients: count
+    }));
+
+    // Patients per hour (8am-5pm only)
+    const hourData = Array.from({ length: 10 }, (_, i) => ({ hour: i + 8, patients: 0 })); // 8am to 5pm (8-17)
+    patients.forEach(p => {
+      if (p.registeredAt) {
+        const hour = new Date(p.registeredAt).getHours();
+        if (hour >= 8 && hour <= 17) {
+          const index = hour - 8;
+          hourData[index].patients++;
+        }
+      }
+    });
+
+    const formatHour = (hour) => {
+      if (hour === 12) return '12:00 PM';
+      if (hour < 12) return `${hour}:00 AM`;
+      return `${hour - 12}:00 PM`;
+    };
+
+    const patientsPerHour = hourData.map(({ hour, patients }) => ({
+      hour: formatHour(hour),
+      patients
+    }));
 
     // Today's patients
     const todayPatients = patients.filter(p => {
@@ -116,6 +173,14 @@ const Analytics = () => {
       const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
       return `${hour12}:00 ${period}`;
     };
+
+     // Peak registration heatmap (hour x day of week) - 8am to 5pm only
+    const heatmapData = [];
+    for (let hour = 8; hour <= 17; hour++) { // 8am to 5pm
+      for (let day = 1; day < 7; day++) { // Mon=1, Sat=6
+        heatmapData.push({ hour, day, count: 0 });
+      }
+    }
     
     const peakHours = Object.entries(hourCount)
     .sort((a, b) => b[1] - a[1])
@@ -129,7 +194,22 @@ const Analytics = () => {
       };
     });
 
+    patients.forEach(p => {
+      if (p.registeredAt) {
+        const date = new Date(p.registeredAt);
+        const hour = date.getHours();
+        const day = date.getDay();
+        if (day >= 1 && day <= 6 && hour >= 8 && hour <= 17) { // Mon-Sat, 8am-5pm only
+          const cell = heatmapData.find(h => h.hour === hour && h.day === day);
+          if (cell) cell.count++;
+        }
+      }
+    });
+
     return {
+      patientsPerDay,
+      patientsPerHour,
+      heatmapData,
       totalToday: todayPatients.length,
       totalWeek: weekPatients.length,
       servedWalkIn,
@@ -141,6 +221,60 @@ const Analytics = () => {
       peakHours
     };
   }, [patients]);
+
+  // Colors for charts
+  const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+   // Heatmap component (simplified grid visualization) - 8am to 5pm
+  const HeatmapChart = ({ data }) => {
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const maxCount = Math.max(...data.map(d => d.count));
+      
+      const formatHour = (hour) => {
+        if (hour === 12) return '12PM';
+        if (hour < 12) return `${hour}AM`;
+        return `${hour - 12}PM`;
+      };
+      
+      return (
+        <div className="overflow-x-auto pb-2">
+          <div className="inline-block min-w-full">
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 text-xs">
+              <div></div>
+              {days.map(day => (
+                <div key={day} className="text-center font-semibold p-1 text-[10px] sm:text-xs">{day}</div>
+              ))}
+              
+              {Array.from({ length: 10 }, (_, i) => i + 8).map(hour => (
+                <React.Fragment key={hour}>
+                  <div className="text-right pr-1 sm:pr-2 py-1 sm:py-2 font-medium text-[9px] sm:text-xs whitespace-nowrap">
+                    {formatHour(hour)}
+                  </div>
+                  {days.map((_, dayIdx) => {
+                    const cell = data.find(d => d.hour === hour && d.day === dayIdx + 1);
+                    const intensity = cell ? (cell.count / maxCount) : 0;
+                    const bgColor = intensity === 0 ? 'bg-gray-100' :
+                      intensity < 0.25 ? 'bg-green-100' :
+                      intensity < 0.5 ? 'bg-green-300' :
+                      intensity < 0.75 ? 'bg-green-500' : 'bg-green-700';
+                    
+                    return (
+                      <div
+                        key={`${hour}-${dayIdx}`}
+                        className={`${bgColor} p-2 sm:p-3 md:p-4 rounded text-center text-[9px] sm:text-xs ${intensity > 0.5 ? 'text-white' : 'text-gray-700'}`}
+                        title={`${days[dayIdx]} ${formatHour(hour)} - ${cell?.count || 0} patients`}
+                      >
+                        {cell?.count || 0}
+                      </div>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    };
 
   // Download Analytics Report Function
   // Helper function to get the week period (Monday to current day)
@@ -225,6 +359,52 @@ const downloadAnalyticsReport = () => {
     styles: { fontSize: 9 },
     margin: { left: 14 }
   });
+  yPosition = doc.lastAutoTable.finalY + 10;
+
+  // Check if we need a new page
+  if (yPosition > 250) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
+  // Patients per Day of Week
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.text('Patients per Day of Week', 14, yPosition);
+  yPosition += 6;
+
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Day', 'Patient Count']],
+    body: analytics.patientsPerDay.map(({ day, patients }) => [day, patients]),
+    headStyles: { fillColor: [16, 185, 129] },
+    styles: { fontSize: 9 },
+    margin: { left: 14 }
+  });
+
+  yPosition = doc.lastAutoTable.finalY + 10;
+
+  // Check if we need a new page
+  if (yPosition > 250) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
+  // Patients per Hour
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.text('Patients per Hour (8AM - 5PM)', 14, yPosition);
+  yPosition += 6;
+
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Time', 'Patient Count']],
+    body: analytics.patientsPerHour.map(({ hour, patients }) => [hour, patients]),
+    headStyles: { fillColor: [59, 130, 246] },
+    styles: { fontSize: 9 },
+    margin: { left: 14 }
+  });
+
   yPosition = doc.lastAutoTable.finalY + 10;
 
   // Check if we need a new page
@@ -456,6 +636,54 @@ const downloadAnalyticsReport = () => {
               </CardContent>
             </Card>
           </div>
+          
+          {/* Bar Charts Row 1 */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Patients per Day of Week */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Patients per Day of Week</CardTitle>
+                <CardDescription>Distribution of patient visits by weekday</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics.patientsPerDay}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="day" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="patients" fill="#10b981" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Patients per Hour */}
+             <Card>
+              <CardHeader>
+                <CardTitle>Patients per Hour</CardTitle>
+                <CardDescription>Hourly distribution of patient registrations</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics.patientsPerHour}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="hour" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={80}
+                      interval={0}
+                      tick={{ fontSize: 10 }}
+                    />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="patients" fill="#3b82f6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Symptoms & Services */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -586,6 +814,17 @@ const downloadAnalyticsReport = () => {
                     )}
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+            
+            {/* Heatmap */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Peak Registration Hours Heatmap</CardTitle>
+                <CardDescription>When do patients come the most? (Mon-Sat)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <HeatmapChart data={analytics.heatmapData} />
               </CardContent>
             </Card>
           </div>

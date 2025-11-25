@@ -3,9 +3,12 @@ import Sidebar from "@/components/Sidebar";
 import { Clock, TrendingUp, Users, XCircle, CheckCircle2, Download   } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import logoImage from '@/assets/partner-logo.jpg'
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { PatientContext } from "./PatientContext";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -46,65 +49,202 @@ const Dashboard = () => {
 
   const getServiceLabel = (serviceId) => serviceLabels[serviceId] || serviceId;
 
-  // Download Report Function
+  // Download PDF Report Function
   const downloadReport = () => {
+    const doc = new jsPDF();
     const now = new Date();
-    const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    const timeStr = now.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
 
     // Helper function to format services and symptoms
-    const formatArray = (arr) => arr && arr.length > 0 ? arr.map(item => getServiceLabel(item)).join(', ') : 'None';
+    const formatArray = (arr) => {
+      if (!arr || arr.length === 0) return 'None';
+      return arr.map(item => getServiceLabel(item)).join(', ');
+    };
 
-    // Create CSV content
-    let csvContent = "De Valley Medical Clinic - Dashboard Report\n";
-    csvContent += `Generated: ${dateStr} at ${timeStr}\n`;
-    csvContent += `Doctor: ${doctorName}\n`;
-    csvContent += `Secretary: ${secretaryName}\n`;
-    csvContent += `Current Serving: #${String(currentServing).padStart(3, '0')}\n`;
-    csvContent += `Average Wait Time: ${avgWaitTime} mins\n`;
-    csvContent += `Total Patients Waiting: ${totalWaiting}\n\n`;
+    // Add logo - centered above clinic name
+    const logoWidth = 30;
+    const logoHeight = 30;
+    const logoX = 105 - (logoWidth / 2); // Center the logo
+    const logoY = 10;
+    doc.addImage(logoImage, 'JPEG', logoX, logoY, logoWidth, logoHeight);
+
+    // Clinic Name - positioned below logo
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(14);
+    doc.setFont(undefined, 'bold');
+    doc.text('De Valley Medical Clinic and Diagnostic Center, Inc.', 105, logoY + logoHeight + 10, { align: 'center' });
+    
+    // Report Title
+    doc.setFontSize(13);
+    doc.text('Dashboard Report', 105, logoY + logoHeight + 18, { align: 'center' });
+        
+    // Report Information - Two columns layout
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+
+    // Left column
+    doc.text(`Generated: ${dateStr} at ${timeStr}`, 14, 68);
+    doc.text(`Analysis Period: ${dateStr}`, 14, 74);
+
+    // Right column (aligned to the right)
+    doc.text(`Doctor: ${doctorName}`, 196, 68, { align: 'right' });
+    doc.text(`Secretary: ${secretaryName}`, 196, 74, { align: 'right' });
+
+    // Summary Stats
+    doc.setFont(undefined, 'bold');
+    doc.text('Summary Statistics', 14, 86);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Current Serving: #${String(currentServing).padStart(3, '0')}`, 14, 92);
+    doc.text(`Average Wait Time: ${avgWaitTime} mins`, 14, 98);
+    doc.text(`Total Patients Waiting: ${totalWaiting}`, 14, 104);
+
+    let yPosition = 114;
 
     // Active Queue Patients
-    csvContent += "=== ACTIVE QUEUE PATIENTS ===\n";
-    csvContent += "Queue #,Patient Name,Age,Phone,Type,Symptoms,Services,Status\n";
-    queuePatients.forEach(patient => {
-      csvContent += `#${String(patient.queueNo).padStart(3, '0')},${patient.name},${patient.age},${patient.phoneNum || 'N/A'},${patient.type},"${formatArray(patient.symptoms)}","${formatArray(patient.services)}",${patient.status}\n`;
-    });
-    csvContent += "\n";
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(12);
+    doc.text('Active Queue Patients', 14, yPosition);
+    yPosition += 6;
+
+    if (queuePatients.length > 0) {
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Queue #', 'Name', 'Age', 'Phone', 'Type', 'Status']],
+        body: queuePatients.map(patient => [
+          `#${String(patient.queueNo).padStart(3, '0')}`,
+          patient.name,
+          patient.age,
+          patient.phoneNum || 'N/A',
+          patient.type,
+          patient.status
+        ]),
+        headStyles: { fillColor: [1, 121, 185] },
+        styles: { fontSize: 8 },
+        margin: { left: 14 }
+      });
+      yPosition = doc.lastAutoTable.finalY + 10;
+    } else {
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      doc.text('No active queue patients', 14, yPosition);
+      yPosition += 10;
+    }
+
+    // Check if we need a new page
+    if (yPosition > 250) {
+      doc.addPage();
+      yPosition = 20;
+    }
 
     // Priority Patients
-    csvContent += "=== PRIORITY PATIENTS ===\n";
-    csvContent += "Queue #,Patient Name,Age,Phone,Type,Symptoms,Services,Status,Priority Type\n";
-    priorityPatients.forEach(patient => {
-      csvContent += `#${String(patient.queueNo).padStart(3, '0')},${patient.name},${patient.age},${patient.phoneNum || 'N/A'},${patient.type},"${formatArray(patient.symptoms)}","${formatArray(patient.services)}",${patient.status},${patient.priorityType || 'N/A'}\n`;
-    });
-    csvContent += "\n";
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(12);
+    doc.text('Priority Patients', 14, yPosition);
+    yPosition += 6;
 
-    // Done Patients
-    csvContent += "=== COMPLETED PATIENTS ===\n";
-    csvContent += "Queue #,Patient Name,Age,Phone,Type,Symptoms,Services\n";
-    donePatients.forEach(patient => {
-      csvContent += `#${String(patient.queueNo).padStart(3, '0')},${patient.name},${patient.age},${patient.phoneNum || 'N/A'},${patient.type},"${formatArray(patient.symptoms)}","${formatArray(patient.services)}"\n`;
-    });
-    csvContent += "\n";
+    if (priorityPatients.length > 0) {
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Queue #', 'Name', 'Age', 'Phone', 'Type', 'Status']],
+        body: priorityPatients.map(patient => [
+          `#${String(patient.queueNo).padStart(3, '0')}`,
+          patient.name,
+          patient.age,
+          patient.phoneNum || 'N/A',
+          patient.type,
+          patient.status
+        ]),
+        headStyles: { 
+          fillColor: [180, 138, 34] },
+        styles: { fontSize: 8 },
+        margin: { left: 14 }
+      });
+      yPosition = doc.lastAutoTable.finalY + 10;
+    } else {
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      doc.text('No priority patients', 14, yPosition);
+      yPosition += 10;
+    }
+
+    // Check if we need a new page
+    if (yPosition > 250) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
+    // Completed Patients
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(12);
+    doc.text('Completed Patients', 14, yPosition);
+    yPosition += 6;
+
+    if (donePatients.length > 0) {
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Queue #', 'Name', 'Age', 'Phone', 'Type']],
+        body: donePatients.map(patient => [
+          `#${String(patient.queueNo).padStart(3, '0')}`,
+          patient.name,
+          patient.age,
+          patient.phoneNum || 'N/A',
+          patient.type
+        ]),
+        headStyles: { fillColor: [16, 185, 129] },
+        styles: { fontSize: 8 },
+        margin: { left: 14 }
+      });
+      yPosition = doc.lastAutoTable.finalY + 10;
+    } else {
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      doc.text('No completed patients', 14, yPosition);
+      yPosition += 10;
+    }
+
+    // Check if we need a new page
+    if (yPosition > 250) {
+      doc.addPage();
+      yPosition = 20;
+    }
 
     // Cancelled Patients
-    csvContent += "=== CANCELLED PATIENTS ===\n";
-    csvContent += "Queue #,Patient Name,Age,Phone,Type,Symptoms,Services\n";
-    cancelPatients.forEach(patient => {
-      csvContent += `#${String(patient.queueNo).padStart(3, '0')},${patient.name},${patient.age},${patient.phoneNum || 'N/A'},${patient.type},"${formatArray(patient.symptoms)}","${formatArray(patient.services)}"\n`;
-    });
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(12);
+    doc.text('Cancelled Patients', 14, yPosition);
+    yPosition += 6;
 
-    // Create download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Dashboard_Report_${now.toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    if (cancelPatients.length > 0) {
+      autoTable(doc, {
+        startY: yPosition,
+        head: [['Queue #', 'Name', 'Age', 'Phone', 'Type']],
+        body: cancelPatients.map(patient => [
+          `#${String(patient.queueNo).padStart(3, '0')}`,
+          patient.name,
+          patient.age,
+          patient.phoneNum || 'N/A',
+          patient.type
+        ]),
+        headStyles: { fillColor: [239, 68, 68] },
+        styles: { fontSize: 8 },
+        margin: { left: 14 }
+      });
+    } else {
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      doc.text('No cancelled patients', 14, yPosition);
+    }
+
+    // Save the PDF
+    doc.save(`Dashboard_Report_${now.toISOString().split('T')[0]}.pdf`);
   };
 
   // Add this new function
@@ -360,7 +500,7 @@ const Dashboard = () => {
               {/* Mobile Card View */}
               <div className="block lg:hidden space-y-4">
                 {queuePatients.map(patient => (
-                  <Card key={patient.queueNo} className="border-l-4 border-l-green-600">
+                  <Card key={patient.queueNo} className="border-l-4 border-l-blue-200">
                     <CardContent className="pt-4">
                       <div className="flex justify-between items-start mb-3">
                         <div>
@@ -380,7 +520,7 @@ const Dashboard = () => {
                             patient.status === 'done'
                               ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
                               : patient.status === 'in progress'
-                              ? 'bg-green-100 text-green-700 hover:bg-green-100'
+                              ? 'bg-blue-100 text-blue-700 hover:bg-blue-100'
                               : patient.status === 'cancelled'
                               ? 'bg-red-100 text-red-700 hover:bg-red-100'
                               : ''
@@ -443,7 +583,7 @@ const Dashboard = () => {
               <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-gray-100">
+                    <tr className="bg-blue-100">
                       <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
                       <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Patient Name</th>
                       <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Age</th>
@@ -456,7 +596,7 @@ const Dashboard = () => {
                   </thead>
                   <tbody>
                     {queuePatients.map(patient => (
-                      <tr key={patient.queueNo} className="border-b transition-colors hover:bg-gray-50">
+                      <tr key={patient.queueNo} className="border-b transition-colors hover:bg-blue-50">
                         <td className="p-4 align-middle font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
                         <td className="p-4 align-middle">{patient.name}</td>
                         <td className="p-4 align-middle">{patient.age}</td>
@@ -500,7 +640,7 @@ const Dashboard = () => {
                               patient.status === 'done'
                                 ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
                                 : patient.status === 'in progress'
-                                ? 'bg-green-100 text-green-700 hover:bg-green-100'
+                                ? 'bg-blue-100 text-blue-700 hover:bg-blue-100'
                                 : patient.status === 'cancelled'
                                 ? 'bg-red-100 text-red-700 hover:bg-red-100'
                                 : ''
@@ -622,7 +762,7 @@ const Dashboard = () => {
                   <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
-                        <tr className="bg-yellow-50">
+                        <tr className="bg-yellow-100">
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Patient Name</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Age</th>
@@ -787,7 +927,7 @@ const Dashboard = () => {
                   <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
-                        <tr className="bg-emerald-50">
+                        <tr className="bg-emerald-100">
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Patient Name</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Age</th>
@@ -863,7 +1003,7 @@ const Dashboard = () => {
                   {/* Mobile Card View */}
                   <div className="block lg:hidden space-y-4">
                     {cancelPatients.map(patient => (
-                      <Card key={patient.queueNo} className="border-l-4 border-l-emerald-600">
+                      <Card key={patient.queueNo} className="border-l-4 border-l-red-200">
                         <CardContent className="pt-4">
                           <div className="flex justify-between items-start mb-3">
                             <div>
@@ -872,8 +1012,8 @@ const Dashboard = () => {
                               </p>
                               <p className="text-sm text-gray-600">{patient.name}</p>
                             </div>
-                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                              Completed
+                            <Badge className="bg-red-200 text-red-500 hover:bg-red-200">
+                              Cancelled
                             </Badge>
                           </div>
                           
@@ -930,7 +1070,7 @@ const Dashboard = () => {
                   <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full border-collapse">
                       <thead>
-                        <tr className="bg-emerald-50">
+                        <tr className="bg-red-100">
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Patient Name</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Age</th>
@@ -942,7 +1082,7 @@ const Dashboard = () => {
                       </thead>
                       <tbody>
                         {cancelPatients.map(patient => (
-                          <tr key={patient.queueNo} className="border-b transition-colors hover:bg-emerald-50">
+                          <tr key={patient.queueNo} className="border-b transition-colors hover:bg-red-50">
                             <td className="p-4 align-middle font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
                             <td className="p-4 align-middle">{patient.name}</td>
                             <td className="p-4 align-middle">{patient.age}</td>

@@ -5,6 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from "@/components/ui/badge";
 import { PatientContext } from "./PatientContext";
 import {  useNavigate } from "react-router-dom";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import logoImage from '@/assets/partner-logo.jpg'; 
 
 const Analytics = () => {
   const [nav, setNav] = useState(false);
@@ -105,13 +108,26 @@ const Analytics = () => {
         hourCount[hour] = (hourCount[hour] || 0) + 1;
       }
     });
+
+    // Helper function to convert 24-hour to 12-hour format
+    const formatTo12Hour = (hour) => {
+      const h = parseInt(hour);
+      const period = h >= 12 ? 'PM' : 'AM';
+      const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return `${hour12}:00 ${period}`;
+    };
+    
     const peakHours = Object.entries(hourCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([hour, count]) => ({
-        time: `${hour}:00 - ${parseInt(hour) + 1}:00`,
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([hour, count]) => {
+      const startHour = parseInt(hour);
+      const endHour = startHour + 1;
+      return {
+        time: `${formatTo12Hour(startHour)} - ${formatTo12Hour(endHour)}`,
         count
-      }));
+      };
+    });
 
     return {
       totalToday: todayPatients.length,
@@ -127,67 +143,219 @@ const Analytics = () => {
   }, [patients]);
 
   // Download Analytics Report Function
-  const downloadAnalyticsReport = () => {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  // Helper function to get the week period (Monday to current day)
+const getWeekPeriod = (date) => {
+  const current = new Date(date);
+  const day = current.getDay();
+  const diff = current.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+  const monday = new Date(current.setDate(diff));
+  
+  const formatDate = (d) => {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                    'July', 'August', 'September', 'October', 'November', 'December'];
+    return `${months[d.getMonth()]} ${d.getDate()}`;
+  };
+  
+  return `${formatDate(monday)} - ${formatDate(new Date())}`;
+};
 
-    // Create CSV content
-    let csvContent = "De Valley Medical Clinic - Analytics Report\n";
-    csvContent += `Generated: ${dateStr} at ${timeStr}\n\n`;
+// Download Analytics Report Function (PDF)
+const downloadAnalyticsReport = () => {
+  const doc = new jsPDF();
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  const timeStr = now.toLocaleTimeString('en-US', { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+  const weekPeriod = getWeekPeriod(now);
 
-    // Patient Volume Stats
-    csvContent += "=== PATIENT VOLUME STATISTICS ===\n";
-    csvContent += `Total Patients Today,${analytics.totalToday}\n`;
-    csvContent += `Total Patients This Week,${analytics.totalWeek}\n`;
-    csvContent += `Walk-in Patients Served,${analytics.servedWalkIn}\n`;
-    csvContent += `Appointments Served,${analytics.servedAppointment}\n`;
-    csvContent += `Average Wait Time,${avgWaitTime} mins\n\n`;
+  // Add logo - centered above clinic name
+  const logoWidth = 30;
+  const logoHeight = 30;
+  const logoX = 105 - (logoWidth / 2);
+  const logoY = 10;
+  doc.addImage(logoImage, 'JPEG', logoX, logoY, logoWidth, logoHeight);
 
-    // Most Prevalent Symptoms
-    csvContent += "=== MOST PREVALENT SYMPTOMS (TOP 5) ===\n";
-    csvContent += "Rank,Symptom,Patient Count\n";
-    analytics.topSymptoms.forEach(([symptom, count], idx) => {
-      csvContent += `${idx + 1},${symptom},${count}\n`;
+  // Clinic Name - positioned below logo
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(14);
+  doc.setFont(undefined, 'bold');
+  doc.text('De Valley Medical Clinic and Diagnostic Center, Inc.', 105, logoY + logoHeight + 10, { align: 'center' });
+  
+  // Report Title
+  doc.setFontSize(13);
+  doc.text('Analytics Report', 105, logoY + logoHeight + 18, { align: 'center' });
+      
+  // Report Information - Two columns layout
+  doc.setFontSize(10);
+  doc.setFont(undefined, 'normal');
+
+  // Left column
+  doc.text(`Generated: ${dateStr} at ${timeStr}`, 14, 68);
+  doc.text(`Analysis Period: ${weekPeriod}`, 14, 74);
+
+  // Right column (aligned to the right)
+  doc.text(`Average Wait Time: ${avgWaitTime} mins`, 196, 68, { align: 'right' });
+  doc.text(`Total Patients: ${patients.length}`, 196, 74, { align: 'right' });
+
+  let yPosition = 86;
+
+  // Patient Volume Statistics
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.text('Patient Volume Statistics', 14, yPosition);
+  yPosition += 6;
+
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Metric', 'Count']],
+    body: [
+      ['Total Patients Today', analytics.totalToday],
+      ['Total Patients This Week', analytics.totalWeek],
+      ['Walk-in Patients Served', analytics.servedWalkIn],
+      ['Appointments Served', analytics.servedAppointment],
+      ['Average Wait Time', `${avgWaitTime} mins`]
+    ],
+    headStyles: { fillColor: [34, 139, 34] },
+    styles: { fontSize: 9 },
+    margin: { left: 14 }
+  });
+  yPosition = doc.lastAutoTable.finalY + 10;
+
+  // Check if we need a new page
+  if (yPosition > 250) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
+  // Most Prevalent Symptoms
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.text('Most Prevalent Symptoms (Top 5)', 14, yPosition);
+  yPosition += 6;
+
+  if (analytics.topSymptoms.length > 0) {
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Rank', 'Symptom', 'Patient Count']],
+      body: analytics.topSymptoms.map(([symptom, count], idx) => [
+        idx + 1,
+        symptom,
+        count
+      ]),
+      headStyles: { fillColor: [239, 68, 68] },
+      styles: { fontSize: 9 },
+      margin: { left: 14 }
     });
-    csvContent += "\n";
+    yPosition = doc.lastAutoTable.finalY + 10;
+  } else {
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    doc.text('No symptom data available', 14, yPosition);
+    yPosition += 10;
+  }
 
-    // Most Requested Services
-    csvContent += "=== MOST REQUESTED SERVICES (TOP 5) ===\n";
-    csvContent += "Rank,Service,Request Count\n";
-    analytics.topServices.forEach(([service, count], idx) => {
-      csvContent += `${idx + 1},${service},${count}\n`;
+  // Check if we need a new page
+  if (yPosition > 250) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
+  // Most Requested Services
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.text('Most Requested Services (Top 5)', 14, yPosition);
+  yPosition += 6;
+
+  if (analytics.topServices.length > 0) {
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Rank', 'Service', 'Request Count']],
+      body: analytics.topServices.map(([service, count], idx) => [
+        idx + 1,
+        service,
+        count
+      ]),
+      headStyles: { fillColor: [34, 139, 34] },
+      styles: { fontSize: 9 },
+      margin: { left: 14 }
     });
-    csvContent += "\n";
+    yPosition = doc.lastAutoTable.finalY + 10;
+  } else {
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    doc.text('No service data available', 14, yPosition);
+    yPosition += 10;
+  }
 
-    // Age Distribution
-    csvContent += "=== AGE DISTRIBUTION ===\n";
-    csvContent += "Age Group,Patient Count,Percentage\n";
-    Object.entries(analytics.ageGroups).forEach(([group, count]) => {
+  // Check if we need a new page
+  if (yPosition > 250) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
+  // Age Distribution
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.text('Age Distribution', 14, yPosition);
+  yPosition += 6;
+
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Age Group', 'Patient Count', 'Percentage']],
+    body: Object.entries(analytics.ageGroups).map(([group, count]) => {
       const percentage = patients.length > 0 ? Math.round((count / patients.length) * 100) : 0;
       const isTop = analytics.mostPrevalentAge && group === analytics.mostPrevalentAge[0];
-      csvContent += `${group} years${isTop ? ' (Most Prevalent)' : ''},${count},${percentage}%\n`;
-    });
-    csvContent += "\n";
+      return [
+        `${group} years${isTop ? ' (Most Prevalent)' : ''}`,
+        count,
+        `${percentage}%`
+      ];
+    }),
+    headStyles: { fillColor: [59, 130, 246] },
+    styles: { fontSize: 9 },
+    margin: { left: 14 }
+  });
+  yPosition = doc.lastAutoTable.finalY + 10;
 
-    // Peak Hours
-    csvContent += "=== PEAK REGISTRATION HOURS ===\n";
-    csvContent += "Time Slot,Patient Count\n";
-    analytics.peakHours.forEach(peak => {
-      csvContent += `${peak.time},${peak.count}\n`;
-    });
+  // Check if we need a new page
+  if (yPosition > 250) {
+    doc.addPage();
+    yPosition = 20;
+  }
 
-    // Create download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `Analytics_Report_${now.toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // Peak Registration Hours
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.text('Peak Registration Hours', 14, yPosition);
+  yPosition += 6;
+
+  if (analytics.peakHours.length > 0) {
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Time Slot', 'Patient Count']],
+      body: analytics.peakHours.map(peak => [
+        peak.time,
+        peak.count
+      ]),
+      headStyles: { fillColor: [245, 158, 11] },
+      styles: { fontSize: 9 },
+      margin: { left: 14 }
+    });
+  } else {
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    doc.text('No peak hour data available', 14, yPosition);
+  }
+
+  // Save the PDF
+  doc.save(`Analytics_Report_${now.toISOString().split('T')[0]}.pdf`);
+};
 
   return (
     <div className="flex w-full min-h-screen bg-gray-50">

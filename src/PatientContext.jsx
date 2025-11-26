@@ -5,10 +5,10 @@ export const PatientContext = createContext();
 export const PatientProvider = ({ children }) => {
   const [activePatient, setActivePatient] = useState(null);
   const [patients, setPatients] = useState([
-    { queueNo: 1, name: "Jane Doe", age: 26, type: "Walk-in", symptoms: ["Fever", "Cough"], services: ["cbc", "fbs"], phoneNum: "09171234567", status: "done", registeredAt: new Date().toISOString(), inQueue: true },
-    { queueNo: 2, name: "Mark Cruz", age: 32, type: "Appointment", symptoms: ["Rashes"], services: ["pedia"], phoneNum: "09181234567", status: "in progress", registeredAt: new Date().toISOString(), appointmentDateTime: new Date(Date.now() + 86400000).toISOString(), appointmentStatus: "accepted", inQueue: true },
-    { queueNo: 3, name: "Leah Santos", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["adult"], phoneNum: "09191234567", status: "waiting", registeredAt: new Date().toISOString(), inQueue: true },
-    { queueNo: 4, name: "Analyn Gomez", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["urinalysis"], phoneNum: "09201234567", status: "waiting", registeredAt: new Date().toISOString(), inQueue: true },
+    { queueNo: 1, name: "Jane Doe", age: 26, type: "Walk-in", symptoms: ["Fever", "Cough"], services: ["cbc", "fbs"], phoneNum: "09171234567", status: "done", registeredAt: new Date().toISOString(), inQueue: true,  calledAt: new Date(Date.now() - 3600000).toISOString(), completedAt: new Date(Date.now() - 1800000).toISOString(), queueExitTime: new Date(Date.now() - 1800000).toISOString() },
+    { queueNo: 2, name: "Mark Cruz", age: 32, type: "Appointment", symptoms: ["Rashes"], services: ["pedia"], phoneNum: "09181234567", status: "in progress", registeredAt: new Date().toISOString(), appointmentDateTime: new Date(Date.now() + 86400000).toISOString(), appointmentStatus: "accepted", inQueue: true,  calledAt: new Date().toISOString(),  queueExitTime: null,  completedAt: null },
+    { queueNo: 3, name: "Leah Santos", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["adult"], phoneNum: "09191234567", status: "waiting", registeredAt: new Date().toISOString(), inQueue: true, calledAt: null,  queueExitTime: null,  completedAt: null },
+    { queueNo: 4, name: "Analyn Gomez", age: 21, type: "Walk-in", symptoms: ["Headache"], services: ["urinalysis"], phoneNum: "09201234567", status: "waiting", registeredAt: new Date().toISOString(), inQueue: true, calledAt: null,  queueExitTime: null, completedAt: null },
   ]); 
 
   const [currentServing, setCurrentServing] = useState(2);
@@ -74,21 +74,58 @@ export const PatientProvider = ({ children }) => {
         status: newPatient.status || "waiting",
         registeredAt: new Date().toISOString(),
         inQueue: true,
+        calledAt: null,
+        queueExitTime: null,
+        completedAt: null
       }
     ]);
   };
 
+  // ✅ UPDATED: Track timestamps when status changes
   const updatePatientStatus = (queueNo, newStatus) => {
     setPatients(prev =>
-      prev.map(p => p.queueNo === queueNo ? { ...p, status: newStatus } : p)
+      prev.map(p => {
+        if (p.queueNo !== queueNo) return p;
+        
+        const updates = { status: newStatus };
+        
+        // When patient is called (waiting → in progress)
+        if (newStatus === "in progress" && p.status === "waiting") {
+          updates.calledAt = new Date().toISOString();
+          // Patient leaves the waiting queue when called
+          updates.queueExitTime = new Date().toISOString();
+        }
+        
+        // When patient completes service (in progress → done)
+        if (newStatus === "done" && p.status === "in progress") {
+          updates.completedAt = new Date().toISOString();
+          // If queueExitTime wasn't set yet, set it now
+          if (!p.queueExitTime) {
+            updates.queueExitTime = new Date().toISOString();
+          }
+        }
+        
+        return { ...p, ...updates };
+      })
     );
   };
 
+  // ✅ UPDATED: Track when patient is cancelled
   const cancelPatient = (queueNo) => {
     setPatients(prev =>
-      prev.map(p => p.queueNo === queueNo ? { ...p, status: "cancelled" } : p)
+      prev.map(p => {
+        if (p.queueNo !== queueNo) return p;
+        
+        return {
+          ...p,
+          status: "cancelled",
+          queueExitTime: new Date().toISOString(), // Left queue when cancelled
+          cancelledAt: new Date().toISOString()
+        };
+      })
     );
   };
+
 
   // ✅ Accept appointment - changes status from 'pending' to 'accepted'
   const acceptAppointment = (queueNo) => {
@@ -105,7 +142,8 @@ export const PatientProvider = ({ children }) => {
         appointmentStatus: "rejected", 
         rejectionReason: reason,
         rejectedAt: new Date().toISOString(),
-        inQueue: false 
+        inQueue: false,
+        queueExitTime: new Date().toISOString() // Left queue when rejected
       } : p)
     );
   };
@@ -129,6 +167,9 @@ export const PatientProvider = ({ children }) => {
         requeued: true,
         originalQueueNo: queueNo,
         inQueue: true,
+        calledAt: null,
+        queueExitTime: null,
+        completedAt: null
       };
       
       // Mark old entry as inactive (but keep it in history)
@@ -144,8 +185,22 @@ export const PatientProvider = ({ children }) => {
   const callNextPatient = () => {
     setPatients(prev =>
       prev.map(p => {
-        if (p.queueNo === currentServing) return { ...p, status: "done" };
-        if (p.queueNo === currentServing + 1) return { ...p, status: "in progress" };
+        if (p.queueNo === currentServing) {
+          return { 
+            ...p, 
+            status: "done",
+            completedAt: new Date().toISOString(),
+            queueExitTime: p.queueExitTime || new Date().toISOString()
+          };
+        }
+        if (p.queueNo === currentServing + 1) {
+          return { 
+            ...p, 
+            status: "in progress",
+            calledAt: new Date().toISOString(),
+            queueExitTime: new Date().toISOString()
+          };
+        }
         return p;
       })
     );

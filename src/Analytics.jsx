@@ -227,48 +227,48 @@ const Analytics = () => {
     }
 
       // Real queue length calculation per hour (8am-5pm)
-  const calculateRealQueuePerHour = () => {
-    const hourlyPeakQueue = Array.from({ length: 10 }, (_, i) => ({
-      hour: formatHour(i + 8),
-      queueLength: 0
-    }));
+    const calculateRealQueuePerHour = () => {
+  const hourlyQueueData = Array.from({ length: 10 }, (_, i) => ({
+    hour: formatHour(i + 8),
+    queueLength: 0
+  }));
 
-    // For each hour from 8am to 5pm
-    for (let hour = 8; hour <= 17; hour++) {
-      const hourIndex = hour - 8;
+  // For each hour from 8am to 5pm
+  for (let hour = 8; hour <= 17; hour++) {
+    const hourIndex = hour - 8;
+    
+    // ✅ Create timestamps for the start and end of this hour
+    const hourStart = new Date(today);
+    hourStart.setHours(hour, 0, 0, 0);
+    
+    const hourEnd = new Date(today);
+    hourEnd.setHours(hour, 59, 59, 999);
+    
+    // ✅ Count patients who were IN THE QUEUE during this hour
+    const patientsInQueueThisHour = patients.filter(p => {
+      if (!p.registeredAt || p.isInactive) return false;
       
-      // Count how many patients were in queue during this hour
-      let maxQueueAtHour = 0;
+      const registeredTime = new Date(p.registeredAt);
+      const exitTime = p.queueExitTime ? new Date(p.queueExitTime) : null;
       
-      patients.forEach(p => {
-        if (!p.registeredAt || !p.inQueue || p.isInactive) return;
-        
-        const regDate = new Date(p.registeredAt);
-        const regHour = regDate.getHours();
-        
-        // If patient registered at or before this hour
-        if (regHour <= hour) {
-          // Count all patients who were waiting or in progress at this hour
-          const waitingCount = patients.filter(other => {
-            if (!other.registeredAt || !other.inQueue || other.isInactive) return false;
-            
-            const otherRegDate = new Date(other.registeredAt);
-            const otherRegHour = otherRegDate.getHours();
-            
-            // Patient registered by this hour AND is waiting/in-progress
-            return otherRegHour <= hour && 
-                  (other.status === 'waiting' || other.status === 'in progress');
-          }).length;
-          
-          maxQueueAtHour = Math.max(maxQueueAtHour, waitingCount);
-        }
-      });
+      // ✅ Patient must have registered before or during this hour
+      if (registeredTime > hourEnd) return false;
       
-      hourlyPeakQueue[hourIndex].queueLength = maxQueueAtHour;
-    }
+      // ✅ If patient has exit time, they must have exited AFTER this hour started
+      // If no exit time, they're still in queue
+      if (exitTime) {
+        return exitTime > hourStart;
+      }
+      
+      // ✅ No exit time means still waiting
+      return true;
+    });
+    
+    hourlyQueueData[hourIndex].queueLength = patientsInQueueThisHour.length;
+  }
 
-    return hourlyPeakQueue;
-  };
+  return hourlyQueueData;
+};
     const queueTrendByHour = calculateRealQueuePerHour();
 
     return {
@@ -622,7 +622,7 @@ const downloadAnalyticsReport = () => {
     yPosition = 20;
   }
 
-  // Peak Registration Hours
+    // Peak Registration Hours
   doc.setFont(undefined, 'bold');
   doc.setFontSize(12);
   doc.text('Peak Registration Hours', 14, yPosition);
@@ -640,11 +640,55 @@ const downloadAnalyticsReport = () => {
       styles: { fontSize: 9 },
       margin: { left: 14 }
     });
+    yPosition = doc.lastAutoTable.finalY + 10;
   } else {
     doc.setFont(undefined, 'normal');
     doc.setFontSize(10);
     doc.text('No peak hour data available', 14, yPosition);
+    yPosition += 10;
   }
+
+  // Check if we need a new page
+  if (yPosition > 250) {
+    doc.addPage();
+    yPosition = 20;
+  }
+
+  // Peak Registration Hours Heatmap
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.text('Peak Registration Hours Heatmap (Mon-Sat, 8AM-5PM)', 14, yPosition);
+  yPosition += 6;
+
+  // Prepare heatmap data for table
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const formatHourLabel = (hour) => {
+    if (hour === 12) return '12PM';
+    if (hour < 12) return `${hour}AM`;
+    return `${hour - 12}PM`;
+  };
+
+  const heatmapTableData = [];
+  for (let hour = 8; hour <= 17; hour++) {
+    const rowData = [formatHourLabel(hour)];
+    for (let day = 1; day <= 6; day++) {
+      const cell = analytics.heatmapData.find(d => d.hour === hour && d.day === day);
+      rowData.push(cell?.count || 0);
+    }
+    heatmapTableData.push(rowData);
+  }
+
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Time', ...days]],
+    body: heatmapTableData,
+    headStyles: { fillColor: [16, 185, 129], halign: 'center' },
+    styles: { fontSize: 8, halign: 'center' },
+    margin: { left: 14 },
+    columnStyles: {
+      0: { fontStyle: 'bold', fillColor: [243, 244, 246] }
+    }
+  });
 
   // Save the PDF
   doc.save(`Analytics_Report_${now.toISOString().split('T')[0]}.pdf`);

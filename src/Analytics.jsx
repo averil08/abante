@@ -775,7 +775,6 @@ const downloadAnalyticsReport = () => {
             </Card>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Patient Count Trend by Weeks */}
             <Card>
               <CardHeader>
@@ -795,7 +794,6 @@ const downloadAnalyticsReport = () => {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-          </div>
 
           {/* Symptoms & Services */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

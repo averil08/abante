@@ -257,11 +257,11 @@ const Appointment = () => {
                         <div className="flex items-start gap-3">
                           <MessageSquare className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                           <div className="flex-1">
-                            <p className="text-sm font-semibold text-red-900 mb-1">Cancellation Reason</p>
+                            <p className="text-sm font-semibold text-red-900 mb-1">Reason for Appointment Refusal</p>
                             <p className="text-sm text-red-800">{appointment.rejectionReason}</p>
                             {appointment.rejectedAt && (
                               <p className="text-xs text-red-600 mt-1">
-                                Cancelled on {formatDateTime(appointment.rejectedAt)}
+                                Not Accepted on {formatDateTime(appointment.rejectedAt)}
                               </p>
                             )}
                           </div>
@@ -285,7 +285,7 @@ const Appointment = () => {
                           className="flex-1 text-red-600 border-red-300 hover:bg-red-50"
                         >
                           <XCircle className="w-4 h-4 mr-2" />
-                          Disapprove
+                          Decline Appointment
                         </Button>
                       </div>
                     )}
@@ -301,7 +301,7 @@ const Appointment = () => {
       <Dialog open={rejectionDialog.open} onOpenChange={(open) => setRejectionDialog({...rejectionDialog, open})}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-red-600">Cancel Appointment</DialogTitle>
+            <DialogTitle className="text-red-600">Decline Appointment</DialogTitle>
             <DialogDescription>
               Please provide a reason for not accepting {rejectionDialog.appointment?.name} appointment.
               This will be shared with the patient.
@@ -311,7 +311,7 @@ const Appointment = () => {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
-                Reason for Cancellation *
+                Reason for Appointment Refusal *
               </label>
               <Textarea
                 placeholder="e.g., No available time slots, Requires specialist referral, etc."

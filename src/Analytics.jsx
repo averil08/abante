@@ -226,56 +226,12 @@ const Analytics = () => {
       });
     }
 
-      // Real queue length calculation per hour (8am-5pm)
-    const calculateRealQueuePerHour = () => {
-  const hourlyQueueData = Array.from({ length: 10 }, (_, i) => ({
-    hour: formatHour(i + 8),
-    queueLength: 0
-  }));
-
-  // For each hour from 8am to 5pm
-  for (let hour = 8; hour <= 17; hour++) {
-    const hourIndex = hour - 8;
-    
-    // ✅ Create timestamps for the start and end of this hour
-    const hourStart = new Date(today);
-    hourStart.setHours(hour, 0, 0, 0);
-    
-    const hourEnd = new Date(today);
-    hourEnd.setHours(hour, 59, 59, 999);
-    
-    // ✅ Count patients who were IN THE QUEUE during this hour
-    const patientsInQueueThisHour = patients.filter(p => {
-      if (!p.registeredAt || p.isInactive) return false;
-      
-      const registeredTime = new Date(p.registeredAt);
-      const exitTime = p.queueExitTime ? new Date(p.queueExitTime) : null;
-      
-      // ✅ Patient must have registered before or during this hour
-      if (registeredTime > hourEnd) return false;
-      
-      // ✅ If patient has exit time, they must have exited AFTER this hour started
-      // If no exit time, they're still in queue
-      if (exitTime) {
-        return exitTime > hourStart;
-      }
-      
-      // ✅ No exit time means still waiting
-      return true;
-    });
-    
-    hourlyQueueData[hourIndex].queueLength = patientsInQueueThisHour.length;
-  }
-
-  return hourlyQueueData;
-};
-    const queueTrendByHour = calculateRealQueuePerHour();
+     
 
     return {
       patientsPerDay,
       patientsPerHour,
       heatmapData,
-      queueTrendByHour,
       weeklyData,
       totalToday: todayPatients.length,
       totalWeek: weekPatients.length,
@@ -437,7 +393,7 @@ const downloadAnalyticsReport = () => {
   // Patients per Day of Week
   doc.setFont(undefined, 'bold');
   doc.setFontSize(12);
-  doc.text('Patients per Day of Week', 14, yPosition);
+  doc.text('Patients per Day', 14, yPosition);
   yPosition += 6;
 
   autoTable(doc, {
@@ -468,29 +424,6 @@ const downloadAnalyticsReport = () => {
     head: [['Time', 'Patient Count']],
     body: analytics.patientsPerHour.map(({ hour, patients }) => [hour, patients]),
     headStyles: { fillColor: [59, 130, 246] },
-    styles: { fontSize: 9 },
-    margin: { left: 14 }
-  });
-
-  yPosition = doc.lastAutoTable.finalY + 10;
-
-  // Check if we need a new page
-  if (yPosition > 250) {
-    doc.addPage();
-    yPosition = 20;
-  }
-
-  // Queue Length Trend
-  doc.setFont(undefined, 'bold');
-  doc.setFontSize(12);
-  doc.text('Queue Length Trend by Hour', 14, yPosition);
-  yPosition += 6;
-
-  autoTable(doc, {
-    startY: yPosition,
-    head: [['Time', 'Queue Length']],
-    body: analytics.queueTrendByHour.map(({ hour, queueLength }) => [hour, queueLength]),
-    headStyles: { fillColor: [245, 158, 11] },
     styles: { fontSize: 9 },
     margin: { left: 14 }
   });
@@ -625,7 +558,7 @@ const downloadAnalyticsReport = () => {
     // Peak Registration Hours
   doc.setFont(undefined, 'bold');
   doc.setFontSize(12);
-  doc.text('Peak Registration Hours', 14, yPosition);
+  doc.text('Peak Hours', 14, yPosition);
   yPosition += 6;
 
   if (analytics.peakHours.length > 0) {
@@ -657,7 +590,7 @@ const downloadAnalyticsReport = () => {
   // Peak Registration Hours Heatmap
   doc.setFont(undefined, 'bold');
   doc.setFontSize(12);
-  doc.text('Peak Registration Hours Heatmap (Mon-Sat, 8AM-5PM)', 14, yPosition);
+  doc.text('Peak Hours Heatmap (Mon-Sat, 8AM-5PM)', 14, yPosition);
   yPosition += 6;
 
   // Prepare heatmap data for table
@@ -796,10 +729,10 @@ const downloadAnalyticsReport = () => {
           
           {/* Bar Charts Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Patients per Day of Week */}
+            {/* Patients per Day */}
             <Card>
               <CardHeader>
-                <CardTitle>Patients per Day of Week</CardTitle>
+                <CardTitle>Patients per Day</CardTitle>
                 <CardDescription>Distribution of patient visits by weekday</CardDescription>
               </CardHeader>
               <CardContent>
@@ -819,7 +752,7 @@ const downloadAnalyticsReport = () => {
              <Card>
               <CardHeader>
                 <CardTitle>Patients per Hour</CardTitle>
-                <CardDescription>Hourly distribution of patient registrations</CardDescription>
+                <CardDescription>Hourly distribution of patient</CardDescription>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -858,33 +791,6 @@ const downloadAnalyticsReport = () => {
                     <Tooltip />
                     <Legend />
                     <Line type="monotone" dataKey="patients" stroke="#8b5cf6" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Queue Length Trend */}
-             <Card>
-              <CardHeader>
-                <CardTitle>Queue Length Trend</CardTitle>
-                <CardDescription>When do patients wait the longest?</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={analytics.queueTrendByHour}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="hour" 
-                      angle={-45} 
-                      textAnchor="end" 
-                      height={80}
-                      interval={0}
-                      tick={{ fontSize: 10 }}
-                    />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" dataKey="queueLength" stroke="#f59e0b" strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -1004,7 +910,7 @@ const downloadAnalyticsReport = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <p className="text-sm font-semibold text-gray-700">Peak Registration Hours</p>
+                    <p className="text-sm font-semibold text-gray-700">Peak Hours</p>
                     {analytics.peakHours.length > 0 ? (
                       analytics.peakHours.map((peak, idx) => (
                         <div key={idx} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
@@ -1026,7 +932,7 @@ const downloadAnalyticsReport = () => {
           {/* Heatmap */}
             <Card>
               <CardHeader>
-                <CardTitle>Peak Registration Hours Heatmap</CardTitle>
+                <CardTitle>Peak Hours Heatmap</CardTitle>
                 <CardDescription>When do patients come the most? (Mon-Sat)</CardDescription>
               </CardHeader>
               <CardContent>

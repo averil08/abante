@@ -393,7 +393,7 @@ const QueueStatus = () => {
               <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 text-center">
                 <Badge className="text-sm sm:text-lg mb-4 bg-red-100 text-red-700 hover:bg-red-100">
                   <XCircle className="w-4 h-4 mr-2" />
-                  Appointment Rejected
+                  Appointment Cancelled
                 </Badge>
 
                 <div className="flex justify-center mb-4">
@@ -429,7 +429,7 @@ const QueueStatus = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600 font-normal">Status</span>
-                    <span className="font-medium text-red-600">Rejected</span>
+                    <span className="font-medium text-red-600">Cancelled</span>
                   </div>
 
                   <div className="pt-3 border-t border-gray-200">
@@ -454,13 +454,13 @@ const QueueStatus = () => {
                     <div className="flex items-start gap-3">
                       <MessageSquare className="w-5 sm:w-6 h-5 text-red-700 mt-0.5 flex-shrink-0" />
                       <div className="text-left text-sm sm:text-lg">
-                        <p className="font-semibold text-red-900 mb-2">Reason for Rejection:</p>
+                        <p className="font-semibold text-red-900 mb-2">Reason for Cancellation:</p>
                         <p className="text-xs sm:text-sm text-red-800 mb-2">
                           {currentPatient.rejectionReason}
                         </p>
                         {currentPatient.rejectedAt && (
                           <p className="text-xs text-red-700 italic">
-                            Rejected on {new Date(currentPatient.rejectedAt).toLocaleString('en-US', {
+                            Not approved on {new Date(currentPatient.rejectedAt).toLocaleString('en-US', {
                               month: 'short',
                               day: 'numeric',
                               year: 'numeric',
@@ -524,7 +524,7 @@ const QueueStatus = () => {
             <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 text-center">
               <Badge className="text-sm sm:text-lg mb-4 bg-red-100 text-red-700 hover:bg-red-100">
                 <XCircle className="w-4 h-4 mr-2" />
-                Appointment Rejected
+                Appointment Cancelled
               </Badge>
 
               <div className="flex justify-center mb-4">
@@ -560,7 +560,7 @@ const QueueStatus = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600 font-normal">Status</span>
-                  <span className="font-medium text-red-600">Rejected</span>
+                  <span className="font-medium text-red-600">Cancelled</span>
                 </div>
 
                 <div className="pt-3 border-t border-gray-200">
@@ -591,7 +591,7 @@ const QueueStatus = () => {
                       </p>
                       {currentPatient.rejectedAt && (
                         <p className="text-xs text-red-700 italic">
-                          Rejected on {new Date(currentPatient.rejectedAt).toLocaleString('en-US', {
+                          Not approved on {new Date(currentPatient.rejectedAt).toLocaleString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric',

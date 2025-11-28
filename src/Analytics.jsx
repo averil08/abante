@@ -1,6 +1,6 @@
 import React, { useState, useContext, useMemo } from 'react';
 import Sidebar from "@/components/Sidebar";
-import { Users, ChartNoAxesCombined, TicketCheck, Clock, TrendingUp, Activity, Stethoscope, Calendar, BarChart3, Menu, X, Download  } from 'lucide-react';
+import { Users, ChartNoAxesCombined, TicketCheck, Clock, TrendingUp, Activity, Stethoscope, Calendar, BarChart3, Menu, X, Download, XCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
 import { PatientContext } from "./PatientContext";
@@ -96,20 +96,22 @@ const Analytics = () => {
     }));
 
     // Today's patients
-    const todayPatients = patients.filter(p => {
+    {/*const todayPatients = patients.filter(p => {
       const regDate = p.registeredAt ? new Date(p.registeredAt) : today;
       return regDate >= today;
     });
-
+*/}
     // This week's patients
-    const weekPatients = patients.filter(p => {
+    {/*const weekPatients = patients.filter(p => {
       const regDate = p.registeredAt ? new Date(p.registeredAt) : today;
       return regDate >= oneWeekAgo;
-    });
+    });*/}
 
     // Walk-in vs Appointment counts (served only)
     const servedWalkIn = patients.filter(p => p.type === "Walk-in" && p.status === "done").length;
     const servedAppointment = patients.filter(p => p.type === "Appointment" && p.status === "done").length;
+    // No Show Patients (cancelled)
+    const noShowPatients = patients.filter(p => p.status === "cancelled" && !p.isInactive).length;
 
     // Most prevalent symptoms
     const symptomCount = {};
@@ -226,22 +228,131 @@ const Analytics = () => {
       });
     }
 
-     
+     // Step 2: Calculate average service time per service
+// This goes BEFORE the return statement in the analytics useMemo
+
+// Object to store service time data
+const serviceTimeData = {};
+
+// Loop through all patients
+patients.forEach(p => {
+  // Only look at completed patients with valid timestamps
+  if (p.status === "done" && p.calledAt && p.completedAt && p.services) {
+    
+    // Convert timestamp strings to Date objects
+    const calledTime = new Date(p.calledAt);
+    const completedTime = new Date(p.completedAt);
+    
+    // Calculate the difference in minutes
+    const serviceTimeMinutes = Math.round((completedTime - calledTime) / 60000);
+    
+    // Only count reasonable times (1-240 minutes = 4 hours max)
+    if (serviceTimeMinutes > 0 && serviceTimeMinutes <= 240) {
+      
+      // Each patient can have multiple services, so loop through them
+      p.services.forEach(serviceId => {
+        // Get the friendly service name
+        const label = serviceLabels[serviceId] || serviceId;
+        
+        // If this service doesn't exist in our data yet, create it
+        if (!serviceTimeData[label]) {
+          serviceTimeData[label] = { 
+            totalTime: 0,  // Sum of all service times
+            count: 0       // Number of times this service was done
+          };
+        }
+        
+        // Add this patient's time to the total
+        serviceTimeData[label].totalTime += serviceTimeMinutes;
+        serviceTimeData[label].count += 1;
+      });
+    }
+  }
+});
+
+  // Calculate the average for each service and sort by slowest first
+  const avgServiceTime = Object.entries(serviceTimeData)
+  .map(([service, data]) => ({
+    service: service,// Service name
+    avgTime: Math.round(data.totalTime / data.count), // Average time
+    count: data.count// How many times done
+  }))
+  .sort((a, b) => b.avgTime - a.avgTime)// Sort slowest first
+  .slice(0, 5);// Keep top  only
+
+  // Calculate average queue time (waiting time before being called)
+  const queueTimeData = [];
+
+  patients.forEach(p => {
+    // Only look at patients who have been called (have both registeredAt and calledAt)
+    if (p.registeredAt && p.calledAt) {
+      
+      // Convert timestamp strings to Date objects
+      const registeredTime = new Date(p.registeredAt);
+      const calledTime = new Date(p.calledAt);
+      
+      // Calculate the difference in minutes
+      const queueTimeMinutes = Math.round((calledTime - registeredTime) / 60000);
+      
+      // Only count reasonable times (1-240 minutes = 4 hours max)
+      if (queueTimeMinutes > 0 && queueTimeMinutes <= 240) {
+        queueTimeData.push(queueTimeMinutes);
+      }
+    }
+  });
+
+  // Calculate the average queue time
+    const avgQueueTime = queueTimeData.length > 0 
+    ? Math.round(queueTimeData.reduce((sum, time) => sum + time, 0) / queueTimeData.length)
+    : 0;
+
+  // Service-to-Symptom Correlation
+  const symptomServiceMap = {};
+
+  patients.forEach(p => {
+    if (p.symptoms && p.symptoms.length > 0 && p.services && p.services.length > 0) {
+      p.symptoms.forEach(symptom => {
+        p.services.forEach(service => {
+          const serviceLabel = serviceLabels[service] || service;
+          const key = `${symptom}|${serviceLabel}`; // Create unique key
+          
+          if (!symptomServiceMap[key]) {
+            symptomServiceMap[key] = {
+              symptom: symptom,
+              service: serviceLabel,
+              count: 0
+            };
+          }
+          
+          symptomServiceMap[key].count++;
+        });
+      });
+    }
+  });
+
+  // Convert to array and sort
+  const topCorrelations = Object.values(symptomServiceMap)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
 
     return {
       patientsPerDay,
       patientsPerHour,
       heatmapData,
       weeklyData,
-      totalToday: todayPatients.length,
-      totalWeek: weekPatients.length,
+      //totalToday: todayPatients.length,
+      //totalWeek: weekPatients.length,
       servedWalkIn,
       servedAppointment,
+      noShowPatients,
       topSymptoms,
       topServices,
       mostPrevalentAge,
       ageGroups,
-      peakHours
+      avgServiceTime,
+      avgQueueTime,
+      topCorrelations
+      //peakHours
     };
   }, [patients]);
 
@@ -372,11 +483,10 @@ const downloadAnalyticsReport = () => {
     startY: yPosition,
     head: [['Metric', 'Count']],
     body: [
-      ['Total Patients Today', analytics.totalToday],
-      ['Total Patients This Week', analytics.totalWeek],
       ['Walk-in Patients Served', analytics.servedWalkIn],
       ['Appointments Served', analytics.servedAppointment],
-      ['Average Wait Time', `${avgWaitTime} mins`]
+      ['No-show Patients', analytics.noShowPatients],
+      ['Average Queue Time', `${analytics.avgQueueTime} mins`]
     ],
     headStyles: { fillColor: [34, 139, 34] },
     styles: { fontSize: 9 },
@@ -413,29 +523,40 @@ const downloadAnalyticsReport = () => {
     yPosition = 20;
   }
 
-  // Patients per Hour
+  // Average Service Time per Service
   doc.setFont(undefined, 'bold');
   doc.setFontSize(12);
-  doc.text('Patients per Hour (8AM - 5PM)', 14, yPosition);
+  doc.text('Average Time per Service (Top 5 Slowest)', 14, yPosition);
   yPosition += 6;
 
-  autoTable(doc, {
-    startY: yPosition,
-    head: [['Time', 'Patient Count']],
-    body: analytics.patientsPerHour.map(({ hour, patients }) => [hour, patients]),
-    headStyles: { fillColor: [59, 130, 246] },
-    styles: { fontSize: 9 },
-    margin: { left: 14 }
-  });
-
-  yPosition = doc.lastAutoTable.finalY + 10;
+  if (analytics.avgServiceTime.length > 0) {
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Rank', 'Service', 'Avg Time (mins)', 'Patient Count']],
+      body: analytics.avgServiceTime.map((item, idx) => [
+        idx + 1,                    // Rank number
+        item.service,               // Service name
+        item.avgTime,               // Average time in minutes
+        item.count                  // How many times completed
+      ]),
+      headStyles: { fillColor: [245, 158, 11] },  // Orange header
+      styles: { fontSize: 9 },
+      margin: { left: 14 }
+    });
+    yPosition = doc.lastAutoTable.finalY + 10;
+  } else {
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    doc.text('No service time data available', 14, yPosition);
+    yPosition += 10;
+  }
 
   // Check if we need a new page
   if (yPosition > 250) {
     doc.addPage();
     yPosition = 20;
   }
-
+  
   // Weekly Patient Trend
   doc.setFont(undefined, 'bold');
   doc.setFontSize(12);
@@ -556,7 +677,7 @@ const downloadAnalyticsReport = () => {
   }
 
     // Peak Registration Hours
-  doc.setFont(undefined, 'bold');
+  {/*doc.setFont(undefined, 'bold');
   doc.setFontSize(12);
   doc.text('Peak Hours', 14, yPosition);
   yPosition += 6;
@@ -578,6 +699,44 @@ const downloadAnalyticsReport = () => {
     doc.setFont(undefined, 'normal');
     doc.setFontSize(10);
     doc.text('No peak hour data available', 14, yPosition);
+    yPosition += 10;
+  }
+
+  // Check if we need a new page
+  if (yPosition > 250) {
+    doc.addPage();
+    yPosition = 20;
+}*/}
+
+  // Symptom-to-Service Correlation
+  doc.setFont(undefined, 'bold');
+  doc.setFontSize(12);
+  doc.text('Symptom-to-Service Correlation (Top 10)', 14, yPosition);
+  yPosition += 6;
+
+  if (analytics.topCorrelations.length > 0) {
+    autoTable(doc, {
+      startY: yPosition,
+      head: [['Rank', 'Symptom', 'Service', 'Patient Count']],
+      body: analytics.topCorrelations.map((item, idx) => [
+        idx + 1,
+        item.symptom,
+        item.service,
+        item.count
+      ]),
+      headStyles: { fillColor: [139, 92, 246] },
+      styles: { fontSize: 9 },
+      margin: { left: 14 },
+      columnStyles: {
+        1: { cellWidth: 45 },
+        2: { cellWidth: 60 }
+      }
+    });
+    yPosition = doc.lastAutoTable.finalY + 10;
+  } else {
+    doc.setFont(undefined, 'normal');
+    doc.setFontSize(10);
+    doc.text('No correlation data available', 14, yPosition);
     yPosition += 10;
   }
 
@@ -681,30 +840,6 @@ const downloadAnalyticsReport = () => {
             <Card>
               <CardHeader className="pb-3">
                 <CardDescription className="flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  Total Patients Today
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-green-600">{analytics.totalToday}</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Total This Week
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-blue-600">{analytics.totalWeek}</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription className="flex items-center gap-2">
                   <Activity className="w-4 h-4" />
                   Walk-in Served
                 </CardDescription>
@@ -723,6 +858,31 @@ const downloadAnalyticsReport = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold text-orange-600">{analytics.servedAppointment}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <XCircle className="w-4 h-4" />
+                  No-show Patients
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-red-600">{analytics.noShowPatients}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Avg Queue Time
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-indigo-600">{analytics.avgQueueTime} mins</p>
+                <p className="text-xs text-gray-500 mt-2">Time before service starts</p>
               </CardContent>
             </Card>
           </div>
@@ -748,29 +908,56 @@ const downloadAnalyticsReport = () => {
               </CardContent>
             </Card>
 
-            {/* Patients per Hour */}
-             <Card>
+            {/* Average Service Time per Service */}
+            <Card>
               <CardHeader>
-                <CardTitle>Patients per Hour</CardTitle>
-                <CardDescription>Hourly distribution of patient</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-orange-600" />
+                  Average Time per Service
+                </CardTitle>
+                <CardDescription>
+                  How long a patient’s service takes (Top 5 slowest service)
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={analytics.patientsPerHour}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="hour" 
-                      angle={-45} 
-                      textAnchor="end" 
-                      height={80}
-                      interval={0}
-                      tick={{ fontSize: 10 }}
-                    />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="patients" fill="#3b82f6" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {analytics.avgServiceTime.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={analytics.avgServiceTime}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="service" 
+                        angle={-45}
+                        textAnchor="end"
+                        height={100}
+                        interval={0}
+                      />
+                      <YAxis 
+                        label={{ value: 'Minutes', angle: -90, position: 'insideLeft' }}
+                      />
+                      <Tooltip 
+                        formatter={(value, name) => {
+                          if (name === 'avgTime') return [`${value} mins`, 'Avg Time'];
+                          if (name === 'count') return [`${value} patients`, 'Completed'];
+                          return value;
+                        }}
+                      />
+                      <Legend />
+                      <Bar 
+                        dataKey="avgTime" 
+                        fill="#f59e0b" 
+                        name="Avg Time (mins)"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <Clock className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <p>No service time data available yet</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Complete some patient consultations to see average service times
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -895,35 +1082,50 @@ const downloadAnalyticsReport = () => {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-emerald-600" />
-                  Wait Time & Peak Hours
+                  <ChartNoAxesCombined className="w-5 h-5 text-purple-600" />
+                  Symptom-to-Service Correlation
                 </CardTitle>
-                <CardDescription>Service efficiency metrics</CardDescription>
+                <CardDescription>Which symptoms lead to which services (Top 10)</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <p className="text-sm text-emerald-700 mb-1">Average Wait Time</p>
-                    <p className="text-3xl font-bold text-emerald-600">{avgWaitTime} mins</p>
+                {analytics.topCorrelations.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={analytics.topCorrelations} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis 
+                        type="category" 
+                        dataKey={(entry) => `${entry.symptom} → ${entry.service}`}
+                        width={150}
+                        tick={{ fontSize: 10 }}
+                      />
+                      <Tooltip 
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white p-3 border rounded-lg shadow-lg">
+                                <p className="font-semibold text-sm">{data.symptom}</p>
+                                <p className="text-sm text-gray-600">→ {data.service}</p>
+                                <p className="text-sm font-medium text-purple-600">{data.count} patients</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="count" fill="#8b5cf6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <ChartNoAxesCombined className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <p>No correlation data available yet</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Patient data with both symptoms and services will appear here
+                    </p>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-gray-700">Peak Hours</p>
-                    {analytics.peakHours.length > 0 ? (
-                      analytics.peakHours.map((peak, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg border border-amber-200">
-                          <div className="flex items-center gap-2">
-                            <TrendingUp className="w-4 h-4 text-amber-600" />
-                            <span className="font-medium text-gray-900">{peak.time}</span>
-                          </div>
-                          <Badge className="bg-amber-600">{peak.count} patients</Badge>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-gray-400 text-sm py-2">No peak hour data available</p>
-                    )}
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>

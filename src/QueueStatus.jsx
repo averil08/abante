@@ -35,9 +35,10 @@ const QueueStatus = () => {
   const queueNumber = currentPatient?.queueNo || 0;
   const service = currentPatient?.type || "Walk-in";
   const symptoms = currentPatient?.symptoms || [];
-  
+
+  // ✅ FIXED: Show flat wait time (no calculation based on queue position)
   const peopleAhead = Math.max(queueNumber - currentServing, 0);
-  const estimatedWait = peopleAhead * avgWaitTime;
+  const estimatedWait = avgWaitTime; // Just use the avgWaitTime directly
 
   // ✅ Check if appointment is pending approval
   const isAppointmentPending = currentPatient?.type === 'Appointment' && 
@@ -58,7 +59,7 @@ const QueueStatus = () => {
     
     // Check if cancelled
     if (currentPatient.status === "cancelled") {
-      setNotificationMessage("Your appointment has been cancelled. You didn't show up.");
+      setNotificationMessage("Your queue has been cancelled. You didn't show up.");
       setNotificationType("cancelled");
       setShowNotification(true);
       return;
@@ -136,7 +137,7 @@ const QueueStatus = () => {
             <Bell className="h-5 w-5 mt-0.5" />
             <div>
               <p className="font-semibold mb-1">
-                {isCancelled ? "Appointment Cancelled" : "Queue Update"}
+                {isCancelled ? "Queue Cancelled" : "Queue Update"}
               </p>
               <p className="text-sm leading-relaxed">{notificationMessage}</p>
             </div>

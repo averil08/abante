@@ -22,7 +22,8 @@ const Dashboard = () => {
     updatePatientStatus,
     cancelPatient,
     avgWaitTime,
-    addWaitTime
+    addWaitTime,
+    reduceWaitTime
   } = useContext(PatientContext);
 
   const doctorName = "Dr. Sarah Gonzales";
@@ -469,9 +470,14 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">{avgWaitTime} mins</p>
-                <Button onClick={addWaitTime} variant="outline" className="w-full text-sm sm:text-base">
-                  Add Time (+5 mins)
-                </Button>
+                <div className="space-y-2">
+                  <Button onClick={addWaitTime} variant="outline" className="w-full text-sm sm:text-base">
+                    Add Time (+5 mins)
+                  </Button>
+                  <Button onClick={reduceWaitTime} variant="outline" className="w-full text-sm sm:text-base">
+                    Reduce Time (-5 mins)
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 

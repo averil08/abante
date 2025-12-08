@@ -211,6 +211,10 @@ export const PatientProvider = ({ children }) => {
     setAvgWaitTime(prev => prev + 5);
   };
 
+  const reduceWaitTime = () => {
+  setAvgWaitTime(prev => Math.max(5, prev - 5)); // Minimum 5 mins
+  };
+
   const queueInfo = useMemo(() => {
     const total = patients.filter(p => p.inQueue && !p.isInactive).length;
     const waitingCount = patients.filter(p => p.status === "waiting" && p.inQueue && !p.isInactive).length;
@@ -230,6 +234,7 @@ export const PatientProvider = ({ children }) => {
       callNextPatient,
       avgWaitTime,
       addWaitTime,
+      reduceWaitTime,
       queueInfo,
       getAvailableSlots,
       cancelPatient,

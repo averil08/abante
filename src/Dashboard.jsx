@@ -474,9 +474,9 @@ const Dashboard = () => {
                   <Button onClick={addWaitTime} variant="outline" className="w-full text-sm sm:text-base">
                     Add Time (+5 mins)
                   </Button>
-                  <Button onClick={reduceWaitTime} variant="outline" className="w-full text-sm sm:text-base">
+                  {/*<Button onClick={reduceWaitTime} variant="outline" className="w-full text-sm sm:text-base">
                     Reduce Time (-5 mins)
-                  </Button>
+                  </Button>*/}
                 </div>
               </CardContent>
             </Card>

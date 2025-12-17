@@ -12,7 +12,7 @@ import { PatientProvider } from './PatientContext';
 
 function App() {
   return (
-    <Router>
+    <Router basename="/abante">
       {/* ✅ WRAP ENTIRE APP ONCE - All routes share same context */}
       <PatientProvider>
         <Routes>

@@ -19,25 +19,27 @@ const Navbar = () => {
         <li className='p-4'><a href="#about">About</a></li>
         <li className='p-4'><a href="#prices">Prices</a></li>
         <li className='p-4'><a href="#contact">Contact</a></li>
+        <li className='p-4 text-[#ffff] text-center bg-[#059669] w-[90px] rounded-3xl my-2 mx-auto py-2'><a href="/login">Log In</a></li>
       </ul>
     
       {/* once clicked, setNav will be able to override nav (close icon: Aioutlineclose) it will be true (shows menu icon: AiOutlineMenu) */}
-      <div onClick={handleNav} className='block md:hidden'>
+      <div onClick={handleNav} className='block md:hidden pr-8'>
         {nav ? <AiOutlineClose className='fixed' size={20}/> : <AiOutlineMenu size={20} />}
       </div> 
 
       {/* visibility of sidebar. !nav = not nav so if nav = true, !nav = false vice versa. If menu (nav) = nonvisible(false) place sidebar at left-0 (visible). If menu = visible(true) push it left -100% disappears screen */}
       <div className= {nav ? 'fixed left-0 top-0 w-[70%] h-full border-r border-r-gray-400 bg-[#ffff] ease-in-out duration-500' : 'fixed left-[-100%]'}>
-      <h1 className='w-full text-3xl font-bold m-4'>
+        <h1 className='w-full text-3xl font-bold m-4'>
         <span className='text-[#2e8b57]'>ABA</span>
         <span className='text-[#1c382a]'>NTE</span>
-      </h1>
+        </h1>
 
         <ul className='uppercase p-4'>
             <li className='p-4 border-b border-gray-300'><a href="#home">Home</a></li>
             <li className='p-4 border-b border-gray-300'><a href="#about">About</a></li>
             <li className='p-4 border-b border-gray-300'><a href="#prices">Prices</a></li>
             <li className='p-4 border-b border-gray-300'><a href="#contact">Contact</a></li>
+            <li className='p-4 border-b border-gray-300 text-[#059669] font-medium hover:underline'><a href="/login">Log In</a></li>
         </ul>
       </div>
     </div>

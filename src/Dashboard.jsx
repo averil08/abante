@@ -129,7 +129,11 @@ const Dashboard = () => {
         ]),
         headStyles: { fillColor: [1, 121, 185] },
         styles: { fontSize: 8 },
-        margin: { left: 14 }
+        margin: { left: 14 },
+        columnStyles: {
+          5: { cellWidth: 35 }, // Symptoms column
+          6: { cellWidth: 35 }  // Services column
+        }
       });
       yPosition = doc.lastAutoTable.finalY + 10;
     } else {
@@ -164,9 +168,13 @@ const Dashboard = () => {
           patient.status
         ]),
         headStyles: { 
-          fillColor: [180, 138, 34] },
+        fillColor: [180, 138, 34] },
         styles: { fontSize: 8 },
-        margin: { left: 14 }
+        margin: { left: 14 },
+        columnStyles: {
+          5: { cellWidth: 35 }, // Symptoms column
+          6: { cellWidth: 35 }  // Services column
+        }
       });
       yPosition = doc.lastAutoTable.finalY + 10;
     } else {
@@ -201,7 +209,11 @@ const Dashboard = () => {
         ]),
         headStyles: { fillColor: [16, 185, 129] },
         styles: { fontSize: 8 },
-        margin: { left: 14 }
+        margin: { left: 14 },
+        columnStyles: {
+          5: { cellWidth: 35 }, // Symptoms column
+          6: { cellWidth: 35 }  // Services column
+        }
       });
       yPosition = doc.lastAutoTable.finalY + 10;
     } else {
@@ -236,7 +248,11 @@ const Dashboard = () => {
         ]),
         headStyles: { fillColor: [239, 68, 68] },
         styles: { fontSize: 8 },
-        margin: { left: 14 }
+        margin: { left: 14 },
+        columnStyles: {
+          5: { cellWidth: 35 }, // Symptoms column
+          6: { cellWidth: 35 }  // Services column
+        }
       });
     } else {
       doc.setFont(undefined, 'normal');

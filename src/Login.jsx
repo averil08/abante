@@ -50,7 +50,7 @@ function Login() {
         return;
       }
 
-      // âœ… TEMPORARY: Frontend-only validation (remove when backend is ready)
+      // ✅ TEMPORARY: Frontend-only validation (remove when backend is ready)
       // This will accept any email/password for now
       // Your backend team will replace this with actual Supabase authentication
       
@@ -86,14 +86,17 @@ function Login() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <Card className="w-full max-w-sm shadow-xl border-t-4 border-green-600">
-        <Button 
-          onClick={() => navigate("/")}
-          variant="link"
-          className="text-green-600 text-sm mb-0 pt-5 pr-5 h-auto"
-        >
-          ← Back
-        </Button>
-        <div className="flex justify-center items-center mt-0">
+        <div className="p-4 border-b border-gray-200">
+          <Button 
+            onClick={() => navigate("/checkin?from=login")}
+            variant="outline"
+            size="sm"
+            className="text-green-600 border-green-600 hover:bg-green-50"
+          >
+            ← Register As Patient
+          </Button>
+        </div>
+        <div className="flex justify-center items-center mt-4">
           <img src={Logo} alt="Abante Logo" className="w-[190px] h-25 object-contain" />
         </div>
 

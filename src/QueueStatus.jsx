@@ -4,10 +4,8 @@ import Sidebar from "@/components/Sidebar";
 import { Bell, X, QrCode, User, RefreshCw, XCircle, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useNavigate } from "react-router-dom";
 import { PatientContext } from "./PatientContext";
-import Logo from "./assets/logo-abante.png";
 
 const QueueStatus = () => {
   const navigate = useNavigate();
@@ -15,6 +13,27 @@ const QueueStatus = () => {
   const handleNav = () => setNav(!nav);
   
   const [viewMode, setViewMode] = useState('clinic');
+  // ✅ Check URL parameters to determine if patient accessed directly
+  const getInitialPatientAccess = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('view') === 'patient';
+  };
+
+  const [isPatientAccess, setIsPatientAccess] = useState(getInitialPatientAccess());
+
+  // ✅ Set initial view mode based on access type
+  useEffect(() => {
+    if (isPatientAccess) {
+      setViewMode('patient');
+    }
+  }, [isPatientAccess]);
+
+  // ✅ Force patient access to always stay in patient view
+  useEffect(() => {
+    if (isPatientAccess && viewMode === 'clinic') {
+      setViewMode('patient');
+    }
+  }, [viewMode, isPatientAccess]);
   
   const { 
     patients, 
@@ -249,14 +268,16 @@ const QueueStatus = () => {
                 </div>
 
                 <div className="mt-6 space-y-3">
-                  <Button
-                    onClick={() => setViewMode('patient')}
-                    className="w-full text-sm sm:text-lg bg-green-600 hover:bg-green-700 text-white"
-                    size="lg"
-                  >
-                    <User className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
-                    Switch to Patient View
-                  </Button>
+                  {!isPatientAccess && (
+                    <Button
+                      onClick={() => setViewMode('patient')}
+                      className="w-full text-sm sm:text-lg bg-green-600 hover:bg-green-700 text-white"
+                      size="lg"
+                    >
+                      <User className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
+                      Switch to Patient View
+                    </Button>
+                  )}
                   
                   <Button
                     variant="outline"
@@ -264,7 +285,7 @@ const QueueStatus = () => {
                     size="lg"
                     onClick={() => {
                       setActivePatient(null);
-                      navigate("/checkin");
+                      navigate(`/checkin${isPatientAccess ? '?view=patient' : ''}`);
                     }}
                   >
                     Done
@@ -353,15 +374,17 @@ const QueueStatus = () => {
               </div>
 
               <div className="mt-6 space-y-3">
-                <Button
-                  onClick={() => setViewMode('clinic')}
-                  variant="outline"
-                  className="w-full text-sm sm:text-lg border-green-600 text-green-600 hover:bg-green-50"
-                  size="lg"
-                >
-                  <QrCode className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
-                  Back to Clinic View
-                </Button>
+                {!isPatientAccess && (
+                  <Button
+                    onClick={() => setViewMode('clinic')}
+                    variant="outline"
+                    className="w-full text-sm sm:text-lg border-green-600 text-green-600 hover:bg-green-50"
+                    size="lg"
+                  >
+                    <QrCode className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
+                    Back to Clinic View
+                  </Button>
+                )}
                 
                 <Button
                   variant="outline"
@@ -369,7 +392,7 @@ const QueueStatus = () => {
                   size="lg"
                   onClick={() => {
                     setActivePatient(null);
-                    navigate("/checkin");
+                    navigate(`/checkin${isPatientAccess ? '?view=patient' : ''}`);
                   }}
                 >
                   Done
@@ -489,14 +512,16 @@ const QueueStatus = () => {
                 </div>
 
                 <div className="mt-6 space-y-3">
-                  <Button
-                    onClick={() => setViewMode('patient')}
-                    className="w-full text-sm sm:text-lg bg-green-600 hover:bg-green-700 text-white"
-                    size="lg"
-                  >
-                    <User className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
-                    Switch to Patient View
-                  </Button>
+                  {!isPatientAccess && (
+                    <Button
+                      onClick={() => setViewMode('patient')}
+                      className="w-full text-sm sm:text-lg bg-green-600 hover:bg-green-700 text-white"
+                      size="lg"
+                    >
+                      <User className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
+                      Switch to Patient View
+                    </Button>
+                  )}
                   
                   <Button
                     variant="outline"
@@ -504,7 +529,7 @@ const QueueStatus = () => {
                     size="lg"
                     onClick={() => {
                       setActivePatient(null);
-                      navigate("/checkin");
+                      navigate(`/checkin${isPatientAccess ? '?view=patient' : ''}`);
                     }}
                   >
                     Done
@@ -620,15 +645,17 @@ const QueueStatus = () => {
               </div>
 
               <div className="mt-6 space-y-3">
-                <Button
-                  onClick={() => setViewMode('clinic')}
-                  variant="outline"
-                  className="w-full text-sm sm:text-lg border-green-600 text-green-600 hover:bg-green-50"
-                  size="lg"
-                >
-                  <QrCode className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
-                  Back to Clinic View
-                </Button>
+                {!isPatientAccess && (
+                  <Button
+                    onClick={() => setViewMode('clinic')}
+                    variant="outline"
+                    className="w-full text-sm sm:text-lg border-green-600 text-green-600 hover:bg-green-50"
+                    size="lg"
+                  >
+                    <QrCode className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
+                    Back to Clinic View
+                  </Button>
+                )}
                 
                 <Button
                   variant="outline"
@@ -636,7 +663,7 @@ const QueueStatus = () => {
                   size="lg"
                   onClick={() => {
                     setActivePatient(null);
-                    navigate("/checkin");
+                    navigate(`/checkin${isPatientAccess ? '?view=patient' : ''}`);
                   }}
                 >
                   Done
@@ -741,14 +768,16 @@ const QueueStatus = () => {
               </div>
 
               <div className="mt-6 space-y-3">
-                <Button
-                  onClick={() => setViewMode('patient')}
-                  className="w-full text-sm sm:text-lg bg-green-600 hover:bg-green-700 text-white"
-                  size="lg"
-                >
-                  <User className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
-                  Switch to Patient View
-                </Button>
+                {!isPatientAccess && (
+                  <Button
+                    onClick={() => setViewMode('patient')}
+                    className="w-full text-sm sm:text-lg bg-green-600 hover:bg-green-700 text-white"
+                    size="lg"
+                  >
+                    <User className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
+                    Switch to Patient View
+                  </Button>
+                )}
                 
                 <Button
                   variant="outline"
@@ -756,7 +785,7 @@ const QueueStatus = () => {
                   size="lg"
                   onClick={() => {
                     setActivePatient(null);
-                    navigate("/checkin");
+                    navigate(`/checkin${isPatientAccess ? '?view=patient' : ''}`);
                   }}
                 >
                   Done
@@ -859,15 +888,17 @@ const QueueStatus = () => {
             </div>
 
             <div className="mt-6 space-y-3">
-              <Button
-                onClick={() => setViewMode('clinic')}
-                variant="outline"
-                className="w-full text-sm sm:text-lg border-green-600 text-green-600 hover:bg-green-50"
-                size="lg"
-              >
-                <QrCode className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
-                Back to Clinic View
-              </Button>
+              {!isPatientAccess && (
+                <Button
+                  onClick={() => setViewMode('clinic')}
+                  variant="outline"
+                  className="w-full text-sm sm:text-lg border-green-600 text-green-600 hover:bg-green-50"
+                  size="lg"
+                >
+                  <QrCode className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
+                  Back to Clinic View
+                </Button>
+              )}
               
               <Button
                 variant="outline"
@@ -875,7 +906,7 @@ const QueueStatus = () => {
                 size="lg"
                 onClick={() => {
                   setActivePatient(null);
-                  navigate("/checkin");
+                  navigate(`/checkin${isPatientAccess ? '?view=patient' : ''}`);
                 }}
               >
                 Done

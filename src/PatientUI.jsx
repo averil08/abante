@@ -1,12 +1,10 @@
 import React, { useState, useContext, useEffect } from "react";
 import { PatientContext } from "./PatientContext";
-import Sidebar from "@/components/Sidebar";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { QrCode, User, AlertCircle } from "lucide-react";
-import { QRCodeSVG } from 'qrcode.react';
+import { AlertCircle } from "lucide-react";
 import { useNavigate, Navigate } from "react-router-dom";
 import Logo from "./assets/logo-abante.png";
 import DatePicker from "react-datepicker";
@@ -18,33 +16,14 @@ import {
   checkAppointmentAvailable
 } from "./lib/supabaseClient";
 
-function Checkin() {
+function PatientUI() {
   const navigate = useNavigate();
   const { patients, addPatient, activePatient, setActivePatient, getAvailableSlots } = useContext(PatientContext);
-
-  // ✅ Check URL parameters BEFORE initial render to prevent flash
-  const getInitialViewMode = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const isPatientView = urlParams.get('view') === 'patient';
-    const isFromLogin = urlParams.get('from') === 'login';
-    return (isPatientView || isFromLogin) ? 'patient' : 'clinic';
-  };
-
-  const getInitialPatientAccess = () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const isPatientView = urlParams.get('view') === 'patient';
-    const isFromLogin = urlParams.get('from') === 'login';
-    return isPatientView || isFromLogin;
-  };
-
-  const [viewMode, setViewMode] = useState(getInitialViewMode());
-  const [isPatientAccess, setIsPatientAccess] = useState(getInitialPatientAccess());
-  const [nav, setNav] = useState(false);
-  const handleNav = () => setNav(!nav);
   
   const [selectedPatientType, setSelectedPatientType] = useState(null);
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  //changed from useState(5) to (1)
   const [availableSlots, setAvailableSlots] = useState(1);
   
   const [formData, setFormData] = useState({
@@ -67,6 +46,7 @@ function Checkin() {
   const handlePriorityTypeChange = (value) => {
     setFormData(prev => ({ ...prev, priorityType: value }));
   };
+
 
   // ✅ Update available slots whenever appointment date/time changes
   useEffect(() => {
@@ -182,6 +162,7 @@ function Checkin() {
     setFormData({ ...formData, [id]: value });
   };
 
+  //define priority handlers
   const handleSymptomChange = (symptom, isChecked) => {
     setFormData((prev) => {
       const symptoms = prev.symptoms;
@@ -191,6 +172,7 @@ function Checkin() {
     });
   };
 
+  //define priority handlers
   const handleServiceChange = (serviceId, isChecked) => {
     setFormData((prev) => {
       const services = prev.services;
@@ -224,11 +206,11 @@ function Checkin() {
       daysSinceOnSet: "",
     });
     setExpandedCategory(null);
-    setAvailableSlots(1);
+    setAvailableSlots(1); //Changed from 5 to 1
   };
 
   if (activePatient) {
-    return <Navigate to={`/qstatus${isPatientAccess ? '?view=patient' : ''}`} />;
+    return <Navigate to="/qstatus" />;
   }
 
   const handlePatientSubmit = async (e) => {
@@ -247,15 +229,16 @@ function Checkin() {
           return;
         }
 
+        // Check if slots are available
         if (availableSlots <= 0) {
           showMessage("No Slots Available", "This time slot is fully booked. Please choose another time.", false);
           setIsSubmitting(false);
           return;
         }
-
         result = await registerAppointmentPatient(formData, formData.appointmentDateTime);
       }
 
+      //added priority(ispriority and prioritytype fields)
       if (result.success) {
         const newPatient = {
           name: formData.name,
@@ -270,13 +253,14 @@ function Checkin() {
           priorityType: formData.priorityType,
         };
 
+        // ✅ KEY FIX: Set different initial state based on patient type
         if (selectedPatientType === "Walk-in") {
           newPatient.status = "waiting";
           newPatient.inQueue = true;
         } else if (selectedPatientType === "Appointment") {
           newPatient.status = "waiting";
           newPatient.appointmentStatus = "pending";
-          newPatient.inQueue = false;
+          newPatient.inQueue = false; // ✅ Don't add to queue until accepted
         }
 
         addPatient(newPatient);
@@ -291,8 +275,8 @@ function Checkin() {
         }
 
         setTimeout(() => {
-        navigate(`/qstatus${isPatientAccess ? '?view=patient' : ''}`);
-      }, 1000);
+          navigate("/qstatus");
+        }, 1000);
       } else {
         showMessage("Error", result.error, false);
       }
@@ -303,80 +287,7 @@ function Checkin() {
       setIsSubmitting(false);
     }
   };
-
-  // === CLINIC VIEW - QR CODE ONLY (Only for staff access) ===
-  if (viewMode === 'clinic' && !isPatientAccess) {
-    return (
-      <div className="flex w-full min-h-screen">
-        <Sidebar nav={nav} handleNav={handleNav} />
-
-        <div className="flex-1 min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 ml-0 md:ml-52 flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl shadow-2xl border-t-4 border-green-600">
-            <CardHeader className="text-center pb-2">
-              <div className="flex justify-center mb-4">
-                <img src={Logo} alt="Clinic Logo" className="w-48 h-auto" />
-              </div>
-              <CardTitle className="text-2xl sm:text-3xl text-green-700 mb-2">
-                Patient Check-In System
-              </CardTitle>
-              <p className="text-gray-600 text-sm sm:text-base">
-                De Valley Medical Clinic Queue Management
-              </p>
-            </CardHeader>
-            
-            <CardContent className="space-y-6">
-              <div className="bg-white p-8 rounded-xl border-2 border-green-200 flex flex-col items-center">
-                <div className="bg-white p-4 rounded-lg shadow-inner">
-                  <QRCodeSVG 
-                    value={`${import.meta.env.VITE_APP_URL}/checkin?view=patient`}
-                    size={200}
-                    level="H"
-                    marginSize={4}
-                    className="w-48 h-48 sm:w-64 sm:h-64"
-                  />
-                </div>
-                <p className="text-center text-gray-700 font-medium text-lg mb-2 mt-4">
-                  Scan to Register
-                </p>
-                <p className="text-center text-gray-500 text-sm max-w-md">
-                  Patients can scan this QR code with their mobile device to access the registration form and join the queue.
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
-                <Button 
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                  disabled
-                >
-                  <QrCode className="w-5 h-5 mr-2" />
-                  Clinic View (Current)
-                </Button>
-                <Button 
-                onClick={() => {
-                  setViewMode('patient');
-                  setIsPatientAccess(false); // Mark as staff-initiated
-                }}
-                variant="outline"
-                className="flex-1 border-green-600 text-green-600 hover:bg-green-50"
-              >
-                <User className="w-5 h-5 mr-2" />
-                Switch to Patient View
-              </Button>
-              </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm">
-                <p className="text-amber-800">
-                  <strong>Note:</strong> This is the clinic view showing the QR code for patients to scan. 
-                  Click "Switch to Patient View" to see what patients will interact with.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
-
+  
   // === PATIENT VIEW - REGISTRATION FORMS ===
   
   // Step 1: Patient Type Selection
@@ -386,18 +297,12 @@ function Checkin() {
         <Card className="w-full max-w-md shadow-xl border-t-4 border-green-600">
           <div className="p-4 border-b border-gray-200">
             <Button 
-              onClick={() => {
-                if (isPatientAccess) {
-                  navigate('/');
-                } else {
-                  setViewMode('clinic');
-                }
-              }}
+              onClick={() => navigate('/login')}
               variant="outline"
               size="sm"
               className="text-green-600 border-green-600 hover:bg-green-50"
             >
-              {isPatientAccess ? '← Back to Clinic Login' : '← Back to Clinic View'}
+              ← Back to Clinic Login
             </Button>
           </div>
 
@@ -435,18 +340,12 @@ function Checkin() {
       <Card className="w-full max-w-lg shadow-xl border-t-4 border-green-600 my-8">
         <div className="p-4 border-b border-gray-200">
           <Button 
-            onClick={() => {
-              if (isPatientAccess) {
-                navigate('/');
-              } else {
-                setViewMode('clinic');
-              }
-            }}
+            onClick={() => navigate('/login')}
             variant="outline"
             size="sm"
             className="text-green-600 border-green-600 hover:bg-green-50"
           >
-            {isPatientAccess ? '← Back to Clinic Login' : '← Back to Clinic View'}
+            ← Back to Clinic Login
           </Button>
         </div>
 
@@ -473,6 +372,7 @@ function Checkin() {
                 className="w-full border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-green-600"
               />
               
+              {/* ✅ Show available slots */}
               {formData.appointmentDateTime && (
                 <div className={`flex items-center gap-2 p-3 rounded-md ${availableSlots > 0 ? 'bg-blue-50 border border-blue-200' : 'bg-red-50 border border-red-200'}`}>
                   <AlertCircle className={`w-5 h-5 ${availableSlots > 0 ? 'text-blue-600' : 'text-red-600'}`} />
@@ -506,6 +406,7 @@ function Checkin() {
               <Input id="phoneNum" type="tel" value={formData.phoneNum} onChange={handleInputChange} required />
             </div>
 
+            {/* ✅ NEW: Priority Section (Walk-in Only) */}
             {selectedPatientType === "Walk-in" && (
               <div className="space-y-3 p-4 rounded-lg border-2 border-purple-300 bg-purple-50">
                 <div className="flex items-center justify-between mb-2">
@@ -625,4 +526,4 @@ function Checkin() {
   );
 }
 
-export default Checkin;
+export default PatientUI;

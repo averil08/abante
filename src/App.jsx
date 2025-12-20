@@ -1,6 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import LandingPage from "./LandingPage";
+//import LandingPage from "./LandingPage";
 import Signup from "./Signup";
 import Login from "./Login";
 import QueueStatus from './QueueStatus';
@@ -8,6 +8,8 @@ import Dashboard from './Dashboard';
 import Analytics from './Analytics';
 import Checkin from './Checkin';
 import Appointment from './Appointment';
+import PatientUI from './PatientUI';
+import PatientQueue from './PatientQueue';
 import { PatientProvider } from './PatientContext';
 
 function App() {
@@ -16,9 +18,11 @@ function App() {
       {/* ✅ WRAP ENTIRE APP ONCE - All routes share same context */}
       <PatientProvider>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          {/*<Route path="/" element={<LandingPage />} />*/}
+          <Route path="/patientui" element={<PatientUI />} />
+          <Route path="/patientqueue" element={<PatientQueue />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/checkin" element={<Checkin />} />
           <Route path="/qstatus" element={<QueueStatus />} />

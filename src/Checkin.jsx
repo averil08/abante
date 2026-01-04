@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { QrCode, User, AlertCircle } from "lucide-react";
 import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate, Navigate } from "react-router-dom";
-import Logo from "./assets/logo-abante.png";
+import Logo from "./assets/logo-valley.png";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import "./datepicker.css";

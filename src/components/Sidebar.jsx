@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Users, ChartNoAxesCombined, TicketCheck, Calendar, DoorOpen, NotebookText } from "lucide-react";
 import { AiOutlineMenu, AiOutlineClose } from "react-icons/ai";
-import img1 from '../assets/logo-abante.png';
+import img1 from '../assets/logo-valley.png';
 
 const Sidebar = ({ nav, handleNav }) => {
   const navigate = useNavigate();

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useMemo, useEffect } from "react";
-import { assignDoctor } from './doctorData';
+import { assignDoctor, doctors } from './doctorData';
 
 export const PatientContext = createContext();
 
@@ -451,13 +451,53 @@ export const PatientProvider = ({ children }) => {
   const startDoctorQueue = (doctorId) => {
     setActiveDoctors(prev => {
       if (prev.includes(doctorId)) return prev; // Already active
-      return [...prev, doctorId];
+      const newActiveDoctors = [...prev, doctorId];
+      
+      // Reassign unassigned patients after updating active doctors
+      setTimeout(() => reassignPatientsForDoctor(doctorId), 0);
+      
+      return newActiveDoctors;
     });
   };
 
   // NEW: Stop a doctor's queue
   const stopDoctorQueue = (doctorId) => {
     setActiveDoctors(prev => prev.filter(id => id !== doctorId));
+  };
+
+  // NEW: Reassign unassigned patients when a doctor starts their queue
+  const reassignPatientsForDoctor = (doctorId) => {
+    setPatients(prev => {
+      const doctor = doctors.find(d => d.id === doctorId);
+      if (!doctor) return prev;
+
+      return prev.map(patient => {
+        // Skip if already assigned, inactive, or done/cancelled
+        if (patient.assignedDoctor || patient.isInactive || 
+            patient.status === 'done' || patient.status === 'cancelled') {
+          return patient;
+        }
+
+        // Skip if appointment not accepted yet
+        if (patient.type === 'Appointment' && patient.appointmentStatus !== 'accepted') {
+          return patient;
+        }
+
+        // Check if this doctor can handle the patient's services
+        const primaryService = patient.services?.[0];
+        if (!primaryService) return patient;
+
+        // If doctor specializes in this service, assign them
+        if (doctor.specializations.includes(primaryService)) {
+          return {
+            ...patient,
+            assignedDoctor: doctor
+          };
+        }
+
+        return patient;
+      });
+    });
   };
 
   // NEW: Check if a doctor is active
@@ -494,6 +534,7 @@ export const PatientProvider = ({ children }) => {
       startDoctorQueue,
       stopDoctorQueue,
       isDoctorActive,
+      reassignPatientsForDoctor, // NEW: Add this
     }}>
       {children}
     </PatientContext.Provider>

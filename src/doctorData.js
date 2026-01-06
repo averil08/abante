@@ -70,8 +70,13 @@ export const findDoctorsForService = (serviceId) => {
 
 // Function to assign a doctor based on patient load - ONLY ACTIVE DOCTORS
 export const assignDoctor = (serviceIds, patients, activeDoctors = []) => {
+  // NEW: If no active doctors, return null (not assigned yet)
+  if (activeDoctors.length === 0) {
+    return null;
+  }
+
   if (!serviceIds || serviceIds.length === 0) {
-    // If no services selected, try to assign to any active general practitioner
+    // If no services selected, assign to any active general practitioner
     const activeGeneralDoctors = doctors.filter(d => 
       activeDoctors.includes(d.id) && 
       (d.specializations.includes("pedia") || d.specializations.includes("adult"))
@@ -81,10 +86,8 @@ export const assignDoctor = (serviceIds, patients, activeDoctors = []) => {
       return activeGeneralDoctors[0];
     }
     
-    // If no active general doctors, return the first active doctor or fallback
-    return activeDoctors.length > 0 
-      ? doctors.find(d => d.id === activeDoctors[0]) 
-      : doctors[0];
+    // Return first active doctor
+    return doctors.find(d => d.id === activeDoctors[0]) || null;
   }
 
   // Get the first service to determine specialization
@@ -96,13 +99,9 @@ export const assignDoctor = (serviceIds, patients, activeDoctors = []) => {
     activeDoctors.includes(doctor.id)
   );
   
+  // NEW: If no active doctor specializes in this service, return null
   if (availableDoctors.length === 0) {
-    // No active doctor for this service - assign to any active doctor
-    if (activeDoctors.length > 0) {
-      return doctors.find(d => d.id === activeDoctors[0]) || doctors[0];
-    }
-    // Fallback if no doctors are active
-    return doctors[0];
+    return null;
   }
 
   // Count current patient load for each available doctor

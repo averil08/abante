@@ -5,13 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Clock, Stethoscope, Activity, User, Phone, FileText, AlertCircle } from 'lucide-react';
 
+//THIS IS THE APPOINTMENT HISTORY OF PATIENT UI
 const AppointmentHistory = () => {
   const [nav, setNav] = React.useState(false);
   const handleNav = () => setNav(!nav);
   
   const { patients, activePatient } = useContext(PatientContext);
 
-  // ✅ NEW: Get current logged-in patient's email
+  // Get current logged-in patient's email
   const currentPatientEmail = localStorage.getItem('currentPatientEmail');
 
   // Service labels mapping

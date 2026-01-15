@@ -24,6 +24,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
+//THIS IS THE ANALYTICS PAGE IN CLINIC UI
 const Analytics = () => {
   const [nav, setNav] = useState(false);
   const navigate = useNavigate();

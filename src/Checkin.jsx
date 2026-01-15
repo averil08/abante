@@ -17,6 +17,7 @@ import {
   registerAppointmentPatient
 } from "./lib/supabaseClient";
 
+//THIS IS THE REGISTRATION FORMS: WALK-IN & APPOINTMENT (PATIENT UI AND CLINIC UI)
 function Checkin() {
   //============= CONSTANTS & CONTEXT ==============
   const navigate = useNavigate();

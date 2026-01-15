@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from "@/components/ui/badge";
 import { Search, User, Calendar, Phone, Stethoscope, FileText, Clock, ChevronRight, ArrowLeft } from 'lucide-react';
 
+//THIS IS THE LISTS OF PATIENTS WHO VISITED THE CLINIC 
 const PatientProfile = () => {
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);

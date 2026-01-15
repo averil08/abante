@@ -2,6 +2,7 @@ import React, { useState, useContext } from 'react';
 import PatientSidebar from "@/components/PatientSidebar";
 import { PatientContext } from "./PatientContext";
 
+//THIS IS THE PATIENT DASHBOARD IN PATIENT UI
 const Homepage = () => {
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);

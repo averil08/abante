@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import Logo from "./assets/logo-valley.png";
 import { useNavigate } from "react-router-dom";
 
+//THIS CONTAINS LOGIN FOR PATIENT AND STAFF
 function Login() {
   const navigate = useNavigate();
   

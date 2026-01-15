@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from "@/components/ui/badge";
 import { PatientContext } from "./PatientContext";
 
+//THIS IS THE PATIENT PROFILE IN CLINIC UI
 const Appointment = () => {
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);

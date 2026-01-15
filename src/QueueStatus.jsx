@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { PatientContext } from "./PatientContext";
 
+//THIS SHOWS APPOINTMENT (PENDING, REJECTED) AND QUEUEING STATUS: CLINIC UI (CHECKIN) PATIENT UI, JOIN AS GUEST
 const QueueStatus = () => {
   const navigate = useNavigate();
   const [nav, setNav] = useState(false);

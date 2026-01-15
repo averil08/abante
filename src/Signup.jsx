@@ -7,6 +7,7 @@ import { registerStaff } from "./lib/supabaseClient";
 import Logo from "./assets/logo-abante.png";
 import { useNavigate } from "react-router-dom";
 
+//THIS IS ONLY FOR PATIENTS, NO SIGNUP FOR STAFF
 function Signup() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({

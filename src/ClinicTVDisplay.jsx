@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { PatientContext } from './PatientContext';
 import { doctors } from './doctorData';
 
+//THIS IS THE SHAREABLE QUEUE TABLE OF CLINIC
 const ClinicTVDisplay = () => {
   const { patients, getDoctorCurrentServing } = useContext(PatientContext);
   const [currentTime, setCurrentTime] = useState(new Date());

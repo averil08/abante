@@ -12,6 +12,7 @@ import { PatientContext } from "./PatientContext";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+//THIS CONTAINS QUEUE TABLES FOR ALL & SPECIFIC DOCTORS
 const Dashboard = () => {
   const navigate = useNavigate();
   const [nav, setNav] = useState(false);

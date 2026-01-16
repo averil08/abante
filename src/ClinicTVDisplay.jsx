@@ -1,11 +1,11 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { PatientContext } from './PatientContext';
 import { doctors } from './doctorData';
 
-//THIS IS THE SHAREABLE QUEUE TABLE OF CLINIC
 const ClinicTVDisplay = () => {
-  const { patients, getDoctorCurrentServing } = useContext(PatientContext);
+  const { patients } = useContext(PatientContext);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [syncedPatients, setSyncedPatients] = useState(patients);
 
   // Update time every second
   useEffect(() => {
@@ -14,6 +14,45 @@ const ClinicTVDisplay = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // ✅ CRITICAL: Listen for localStorage changes from Dashboard
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'patients-sync') {
+        try {
+          const updatedPatients = JSON.parse(e.newValue);
+          console.log('🔄 TV Display received update from Dashboard:', updatedPatients);
+          setSyncedPatients(updatedPatients);
+        } catch (error) {
+          console.error('Error parsing patients data:', error);
+        }
+      }
+    };
+
+    // Listen for storage events (from other tabs)
+    window.addEventListener('storage', handleStorageChange);
+
+    // Also check localStorage on mount in case data exists
+    const storedPatients = localStorage.getItem('patients-sync');
+    if (storedPatients) {
+      try {
+        setSyncedPatients(JSON.parse(storedPatients));
+      } catch (error) {
+        console.error('Error loading stored patients:', error);
+      }
+    }
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  // Also sync with context patients (for initial load)
+  useEffect(() => {
+    if (patients && patients.length > 0) {
+      setSyncedPatients(patients);
+    }
+  }, [patients]);
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('en-US', {
@@ -33,21 +72,42 @@ const ClinicTVDisplay = () => {
     });
   };
 
-  // Get current serving and waiting numbers for each doctor
-  const getDoctorInfo = (doctorId) => {
-    const currentServing = getDoctorCurrentServing(doctorId);
-    const doctorPatients = patients.filter(p => 
-      !p.isInactive && 
-      p.assignedDoctor?.id === doctorId &&
-      p.status === "waiting" &&
-      p.inQueue
-    ).sort((a, b) => a.queueNo - b.queueNo);
+  // ✅ Use syncedPatients instead of patients
+  const doctorsInfo = useMemo(() => {
+    console.log('🔄 Recalculating doctor info with', syncedPatients.length, 'patients');
+    
+    return doctors.slice(0, 12).map(doctor => {
+      const currentServingPatient = syncedPatients.find(p => 
+        !p.isInactive && 
+        p.assignedDoctor?.id === doctor.id &&
+        p.status === "in progress" &&
+        p.inQueue
+      );
+      
+      const doctorPatients = syncedPatients
+        .filter(p => 
+          !p.isInactive && 
+          p.assignedDoctor?.id === doctor.id &&
+          p.status === "waiting" &&
+          p.inQueue
+        )
+        .sort((a, b) => a.queueNo - b.queueNo);
 
-    return {
-      currentServing,
-      waitingNumbers: doctorPatients.slice(0, 3).map(p => p.queueNo) // Get first 3 waiting
-    };
-  };
+      const info = {
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        currentServing: currentServingPatient ? currentServingPatient.queueNo : null,
+        waitingNumbers: doctorPatients.slice(0, 3).map(p => p.queueNo)
+      };
+      
+      console.log(`📊 ${doctor.name}:`, {
+        serving: info.currentServing,
+        waiting: info.waitingNumbers
+      });
+      
+      return info;
+    });
+  }, [syncedPatients]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-white to-red-100 p-4">
@@ -60,6 +120,10 @@ const ClinicTVDisplay = () => {
             <div className="font-semibold">{formatTime(currentTime)}</div>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+          <span className="text-sm font-semibold">LIVE</span>
+        </div>
       </div>
 
       {/* Main Content - Clinic Table */}
@@ -71,59 +135,58 @@ const ClinicTVDisplay = () => {
 
         {/* Doctors Grid */}
         <div className="grid grid-cols-4 gap-0">
-          {doctors.slice(0, 12).map((doctor, index) => {
-            const doctorInfo = getDoctorInfo(doctor.id);
-            
-            return (
-              <div 
-                key={doctor.id}
-                className={`${
-                  index % 2 === 0 ? 'bg-green-200/60' : 'bg-white/80'
-                } backdrop-blur-sm border-2 border-green-600/30 p-6 text-center`}
-              >
-                {/* Doctor Name */}
-                <div className="text-gray-900 font-bold text-xl mb-2">
-                  {doctor.name.toUpperCase()}
-                </div>
-
-                {/* Now Serving Label */}
-                <div className="text-gray-700 text-sm font-semibold mb-3">
-                  NOW SERVING
-                </div>
-
-                {/* Current Serving Number */}
-                <div className="mb-6">
-                  {doctorInfo.currentServing ? (
-                    <div className="text-green-700 text-6xl font-bold drop-shadow-lg">
-                      {String(doctorInfo.currentServing).padStart(3, '0')}
-                    </div>
-                  ) : (
-                    <div className="text-gray-400 text-5xl font-bold">
-                      ---
-                    </div>
-                  )}
-                </div>
-
-                {/* Waiting Numbers */}
-                <div className="space-y-2">
-                  {doctorInfo.waitingNumbers.length > 0 ? (
-                    doctorInfo.waitingNumbers.map((queueNo, idx) => (
-                      <div 
-                        key={idx}
-                        className="text-gray-700 text-4xl font-bold drop-shadow-lg"
-                      >
-                        {String(queueNo).padStart(3, '0')}
-                      </div>
-                    ))
-                  ) : (
-                    <div className="text-gray-300 text-3xl font-bold">
-                      - - -
-                    </div>
-                  )}
-                </div>
+          {doctorsInfo.map((doctorInfo, index) => (
+            <div 
+              key={doctorInfo.doctorId}
+              className={`${
+                index % 2 === 0 ? 'bg-green-200/60' : 'bg-white/80'
+              } backdrop-blur-sm border-2 border-green-600/30 p-6 text-center`}
+            >
+              {/* Doctor Name */}
+              <div className="text-gray-900 font-bold text-xl mb-2">
+                {doctorInfo.doctorName.toUpperCase()}
               </div>
-            );
-          })}
+
+              {/* Now Serving Label */}
+              <div className="text-gray-700 text-sm font-semibold mb-3">
+                NOW SERVING
+              </div>
+
+              {/* Current Serving Number */}
+              <div className="mb-6">
+                {doctorInfo.currentServing ? (
+                  <div 
+                    className="text-green-700 text-6xl font-bold drop-shadow-lg transition-all duration-500 animate-pulse"
+                    key={`serving-${doctorInfo.currentServing}`}
+                  >
+                    {String(doctorInfo.currentServing).padStart(3, '0')}
+                  </div>
+                ) : (
+                  <div className="text-gray-400 text-5xl font-bold">
+                    ---
+                  </div>
+                )}
+              </div>
+
+              {/* Waiting Numbers */}
+              <div className="space-y-2">
+                {doctorInfo.waitingNumbers.length > 0 ? (
+                  doctorInfo.waitingNumbers.map((queueNo, idx) => (
+                    <div 
+                      key={`${doctorInfo.doctorId}-${queueNo}-${idx}`}
+                      className="text-gray-700 text-4xl font-bold drop-shadow-lg"
+                    >
+                      {String(queueNo).padStart(3, '0')}
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-gray-300 text-3xl font-bold">
+                    - - -
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

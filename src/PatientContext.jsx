@@ -75,6 +75,13 @@ export const PatientProvider = ({ children }) => {
   },
 ]);
 
+  // Add this useEffect in PatientProvider, after the patients state
+  useEffect(() => {
+    // Broadcast patient changes to other tabs via localStorage
+    localStorage.setItem('patients-sync', JSON.stringify(patients));
+    console.log('📤 Broadcasting patients to other tabs:', patients.length);
+  }, [patients]);
+
   const [currentServing, setCurrentServing] = useState(2);
   const [avgWaitTime, setAvgWaitTime] = useState(15);
   const [activeDoctors, setActiveDoctors] = useState([]); // Array of doctor IDs that are active today
@@ -89,6 +96,17 @@ export const PatientProvider = ({ children }) => {
     });
     return initialServing;
   });
+
+  // NEW: Sync doctorCurrentServing with actual patient statuses
+  useEffect(() => {
+    const currentServing = {};
+    patients.forEach(patient => {
+      if (patient.status === 'in progress' && patient.assignedDoctor && !patient.isInactive) {
+        currentServing[patient.assignedDoctor.id] = patient.queueNo;
+      }
+    });
+    setDoctorCurrentServing(currentServing);
+  }, [patients]); 
   // Example format: { 1: 5, 2: 8, 3: 12 } means Doctor 1 is serving patient #5, Doctor 2 is serving #8, etc.
 
   // ✅ Automatically sync activePatient with patients array

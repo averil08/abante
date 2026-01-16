@@ -359,14 +359,19 @@ const Dashboard = () => {
   };
 
   
-  // ✅ FIXED: Prioritize priority patients, then regular queue
   const handleCallNext = () => {
-    // Mark current patient as done
-    updatePatientStatus(currentServing, 'done');
+    const currentPatient = patients.find(p => 
+      p.status === "in progress" && p.inQueue && !p.isInactive
+    );
+    
+    // Mark current patient as done if they exist
+    if (currentPatient) {
+      updatePatientStatus(currentPatient.queueNo, 'done');
+    }
     
     // First, check if there are any waiting priority patients
     const nextPriorityPatient = patients.find(p => 
-      p.status === "waiting" && p.inQueue && p.isPriority
+      p.status === "waiting" && p.inQueue && p.isPriority && !p.isInactive
     );
     
     if (nextPriorityPatient) {
@@ -378,11 +383,11 @@ const Dashboard = () => {
     
     // If no priority patients, find the next regular waiting patient
     const nextWaitingPatient = patients.find(p => 
-     p.status === "waiting" && p.inQueue && !p.isPriority
+      p.status === "waiting" && p.inQueue && !p.isPriority && !p.isInactive
     );
     
     if (nextWaitingPatient) {
-      // Mark the next waiting patient as in progress  and sync the queue number
+      // Mark the next waiting patient as in progress and sync the queue number
       updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
       setCurrentServing(nextWaitingPatient.queueNo);
     } else {
@@ -406,13 +411,19 @@ const Dashboard = () => {
     setCurrentServing(queueNo);
   };
 
-  // ✅ FIXED: Handle cancel properly
   const handleCancel = () => {
-    // Mark current patient as cancelled
-    cancelPatient(currentServing);
+    const currentPatient = patients.find(p => 
+      p.status === "in progress" && p.inQueue && !p.isInactive
+    );
+    
+    // Mark current patient as cancelled if they exist
+    if (currentPatient) {
+      cancelPatient(currentPatient.queueNo);
+    }
 
+    // First, check if there are any waiting priority patients
     const nextPriorityPatient = patients.find(p => 
-      p.status === "waiting" && p.inQueue && p.isPriority
+      p.status === "waiting" && p.inQueue && p.isPriority && !p.isInactive
     );
 
     if (nextPriorityPatient) {
@@ -423,7 +434,7 @@ const Dashboard = () => {
     
     // Find the next patient who is waiting
     const nextWaitingPatient = patients.find(p => 
-      p.queueNo > currentServing && p.status === "waiting" && p.inQueue
+      p.status === "waiting" && p.inQueue && !p.isInactive
     );
     
     if (nextWaitingPatient) {

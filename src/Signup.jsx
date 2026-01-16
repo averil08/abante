@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { registerStaff } from "./lib/supabaseClient";
-import Logo from "./assets/logo-abante.png";
+import Logo from "./assets/logo-valley.png";
 import { useNavigate } from "react-router-dom";
 
 //THIS IS ONLY FOR PATIENTS, NO SIGNUP FOR STAFF

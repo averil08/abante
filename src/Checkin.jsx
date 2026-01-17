@@ -32,6 +32,15 @@ function Checkin() {
     return (isPatientView || isFromLogin || isFromPatientSidebar) ? 'patient' : 'clinic';
   };
 
+  // Add this NEW function
+  const isFromQRCode = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    // QR code has view=patient but NO 'from' parameter
+    const isPatientView = urlParams.get('view') === 'patient';
+    const hasFromParam = urlParams.get('from') !== null;
+    return isPatientView && !hasFromParam;
+  };
+
   const getInitialPatientAccess = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const isPatientView = urlParams.get('view') === 'patient';
@@ -53,6 +62,7 @@ function Checkin() {
   const [isPatientAccess, setIsPatientAccess] = useState(getInitialPatientAccess());
   const [nav, setNav] = useState(false);
   const [selectedPatientType, setSelectedPatientType] = useState(getInitialPatientType());
+  const [isQRCodeAccess, setIsQRCodeAccess] = useState(isFromQRCode());
   const [isFromPatientSidebar, setIsFromPatientSidebar] = useState(() => {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('from') === 'patient-sidebar';
@@ -375,8 +385,9 @@ function Checkin() {
     return <Navigate to={`/qstatus${params.toString() ? '?' + params.toString() : ''}`} />;
   }
 
-  // === CLINIC VIEW - QR CODE ONLY (Only for staff access) ===
+  // === CLINIC VIEW ===
   if (viewMode === 'clinic' && !isPatientAccess) {
+    //isPatientAccess determines if you're accessing as patient or clinic staff. It controls which sidebar (sidebar or patientsidebar) to show and which nav path to use
     return (
       <div className="flex w-full min-h-screen">
         <Sidebar nav={nav} handleNav={handleNav} />
@@ -398,6 +409,7 @@ function Checkin() {
             <CardContent className="space-y-6">
               <div className="bg-white p-8 rounded-xl border-2 border-green-200 flex flex-col items-center">
                 <div className="bg-white p-4 rounded-lg shadow-inner">
+                {/*when qr code scanned it redirects to /checkin?view=patient&type=walkin (walkin registration form) */}
                   <QRCodeSVG 
                     value={`${import.meta.env.VITE_APP_URL}/checkin?view=patient&type=walkin`}
                     size={200}
@@ -426,6 +438,7 @@ function Checkin() {
                 onClick={() => {
                   setViewMode('patient');
                   setIsPatientAccess(false); // Mark as staff-initiated
+                  setIsQRCodeAccess(false);
                 }}
                 variant="outline"
                 className="flex-1 border-green-600 text-green-600 hover:bg-green-50"
@@ -450,7 +463,7 @@ function Checkin() {
 
   // === PATIENT UI CONTROLS ONLY STARTS HERE === 
   if (!selectedPatientType) {
-    // If coming from patient sidebar, show with PatientSidebar
+    // seelctedPatientType determines which service type is chosen (Appointment or Walk-in) to show whether selection screen or direct registration form
     if (isFromPatientSidebar) {
       return (
         <div className="flex w-full min-h-screen">
@@ -474,12 +487,12 @@ function Checkin() {
                 >
                   Book Appointment
                 </Button>
-                <Button 
+                {/*<Button 
                   className="w-full bg-[#33a37f] hover:bg-[#059669] text-white py-6 text-lg"
                   onClick={() => setSelectedPatientType("Walk-in")}
                 >
                   Walk-in Registration
-                </Button>
+                </Button>*/}
               </CardContent>
             </Card>
           </div>
@@ -524,12 +537,16 @@ function Checkin() {
             >
               Book Appointment
             </Button>
-            <Button 
-              className="w-full bg-[#33a37f] hover:bg-[#059669] text-white py-6 text-lg"
-              onClick={() => setSelectedPatientType("Walk-in")}
-            >
-              Walk-in Registration
-            </Button>
+            
+            {/* Only show Walk-in button if accessed via QR code */}
+            {isQRCodeAccess && (
+              <Button 
+                className="w-full bg-[#33a37f] hover:bg-[#059669] text-white py-6 text-lg"
+                onClick={() => setSelectedPatientType("Walk-in")}
+              >
+                Walk-in Registration
+              </Button>
+            )}
           </CardContent>
         </Card>
       </div>

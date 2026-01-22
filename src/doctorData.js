@@ -1,72 +1,118 @@
 export const doctors = [
   { 
     id: 1, 
-    name: "Dr. Sarah Gonzales", 
-    specializations: ["pedia", "preventive", "follow-up"] 
+    name: "Dr. Melissa B. Edic", 
+    specializations: [
+      "pedia", "follow-up" // Pediatrics
+    ]
   },
   { 
     id: 2, 
-    name: "Dr. John Martinez", 
-    specializations: ["adult", "senior", "preventive", "follow-up"] 
+    name: "Dr. Genevive Bandiwan-Laking", 
+    specializations: [
+      "pedia", "follow-up" // Pediatrics
+    ]
   },
   { 
     id: 3, 
-    name: "Dr. Lisa Chen", 
-    specializations: ["pedia", "adult"] 
+    name: "Dr. Cynthia Moran", 
+    specializations: [
+      "adult", "senior", "preventive", "follow-up", // General Internal Medicine
+      "cbc", "platelet", "esr", "abo",              // Hematology
+      "fbs", "rbs", "hba1c",                        // Diabetes monitoring
+      "lipid", "totalCh", "triglycerides", "hdl", "ldl", // Lipids
+      "alt", "ast", "uric", "creatinine", "bun",    // Liver + Kidney
+      "albumin", "totalProtein", "alp", "phosphorus", // Proteins + Minerals
+      "sodium", "potassium", "chloride", "ionizedCal", "totalCal", "magnesium" // Electrolytes
+    ]
   },
   { 
     id: 4, 
-    name: "Dr. Michael Torres", 
-    specializations: ["cbc", "platelet", "esr", "abo"] 
+    name: "Dr. Edrian O. Geronimo", 
+    specializations: [
+      "adult", "senior", "preventive", "follow-up", // Infectious Disease consults
+      "cbc", "platelet", "esr", "abo",              // Hematology
+      "hbsag", "vdrl", "antiHCV", "hpylori",        // Immunology & Serology
+      "dengueIg", "dengueNs1", "dengueDuo", "typhidot" // Tropical infections
+    ]
   },
   { 
     id: 5, 
-    name: "Dr. Anna Reyes", 
-    specializations: ["hbsag", "vdrl", "antiHCV", "hpylori"] 
+    name: "Dr. Feb Golocan-Alquiza", 
+    specializations: [
+      "fbs", "rbs", "creatinine", "bun", "hba1c" // Nephrology (kidney + diabetes)
+    ]
   },
   { 
     id: 6, 
-    name: "Dr. Robert Kim", 
-    specializations: ["dengueIg", "dengueNs1", "dengueDuo", "typhidot"] 
+    name: "Dr. Tanya Charissa Diomampo", 
+    specializations: [
+      "creatinine", "bun", "hba1c" // Nephrology (kidney + diabetes)
+    ]
   },
   { 
     id: 7, 
-    name: "Dr. Emily Santos", 
-    specializations: ["fbs", "rbs", "lipid", "totalCh", "triglycerides", "hdl", "ldl"] 
+    name: "Dr. Maricar Josephine A. Geronimo", 
+    specializations: [
+      "lipid", "totalCh", "triglycerides", "hdl", "ldl", "fbs", "rbs" // Nephrology (lipids + diabetes)
+    ]
   },
   { 
     id: 8, 
-    name: "Dr. David Lee", 
-    specializations: ["alt", "ast", "uric", "creatinine", "bun", "hba1c"] 
+    name: "Dr. Elvira T. Lampacan", 
+    specializations: [
+      "pregnancyT", "follow-up" // OB-GYN
+    ]
   },
   { 
     id: 9, 
-    name: "Dr. Maria Garcia", 
-    specializations: ["albumin", "magnesium", "totalProtein", "alp", "phosphorus"] 
+    name: "Dr. Clarissa Mae L. Lee", 
+    specializations: [
+      "pregnancyT", "follow-up" // OB-GYN
+    ]
   },
   { 
     id: 10, 
-    name: "Dr. James Wilson", 
-    specializations: ["sodium", "potassium", "ionizedCal", "totalCal", "chloride"] 
+    name: "Dr. Herschel Charisse C. Rivera-Ang", 
+    specializations: [
+      "pregnancyT", "follow-up" // OB-GYN
+    ]
   },
   { 
     id: 11, 
-    name: "Dr. Patricia Brown", 
-    specializations: ["urinalysis", "fecalysis", "pregnancyT", "fecal", "semen"] 
+    name: "Dr. Cecille P. Pating", 
+    specializations: [
+      "pregnancyT", "follow-up" // OB-GYN
+    ]
   },
   { 
     id: 12, 
-    name: "Dr. Thomas Anderson", 
-    specializations: ["tsh", "ft3", "75g", "t4", "t3", "psa", "totalBilirubin"] 
-  }
+    name: "Dr. Richard S. Ang", 
+    specializations: [
+      "follow-up", 
+      "orthopedic", 
+      "psa"        // Prostate screening (fits male health, though usually urology)
+    ]
+  },
+  { id: 13, 
+    name: "Dr. Rajiv D. Laoagan", 
+    specializations: [
+      "general surgery"
+    ] 
+  },
+  { id: 14, 
+    name: "Dr. Jefferson Richmond G. Chomenwey", specializations: [
+      "general surgery"
+    ] 
+  },
+  { id: 15, 
+    name: "Dr. Rhea Jeanne L. Awas", 
+    specializations: [
+      "ent"
+    ] 
+  },
 ];
 
-// Function to find available doctors for a given service
-export const findDoctorsForService = (serviceId) => {
-  return doctors.filter(doctor => 
-    doctor.specializations.includes(serviceId)
-  );
-};
 
 // Function to assign a doctor based on patient load - ONLY ACTIVE DOCTORS
 export const assignDoctor = (serviceIds, patients, activeDoctors = []) => {

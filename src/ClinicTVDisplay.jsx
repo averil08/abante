@@ -74,40 +74,41 @@ const ClinicTVDisplay = () => {
 
   // ✅ Use syncedPatients instead of patients
   const doctorsInfo = useMemo(() => {
-    console.log('🔄 Recalculating doctor info with', syncedPatients.length, 'patients');
+  console.log('🔄 Recalculating doctor info with', syncedPatients.length, 'patients');
+  
+  // ✅ REMOVED .slice(0, 12) to show all doctors
+  return doctors.map(doctor => {
+    const currentServingPatient = syncedPatients.find(p => 
+      !p.isInactive && 
+      p.assignedDoctor?.id === doctor.id &&
+      p.status === "in progress" &&
+      p.inQueue
+    );
     
-    return doctors.slice(0, 12).map(doctor => {
-      const currentServingPatient = syncedPatients.find(p => 
+    const doctorPatients = syncedPatients
+      .filter(p => 
         !p.isInactive && 
         p.assignedDoctor?.id === doctor.id &&
-        p.status === "in progress" &&
+        p.status === "waiting" &&
         p.inQueue
-      );
-      
-      const doctorPatients = syncedPatients
-        .filter(p => 
-          !p.isInactive && 
-          p.assignedDoctor?.id === doctor.id &&
-          p.status === "waiting" &&
-          p.inQueue
-        )
-        .sort((a, b) => a.queueNo - b.queueNo);
+      )
+      .sort((a, b) => a.queueNo - b.queueNo);
 
-      const info = {
-        doctorId: doctor.id,
-        doctorName: doctor.name,
-        currentServing: currentServingPatient ? currentServingPatient.queueNo : null,
-        waitingNumbers: doctorPatients.slice(0, 3).map(p => p.queueNo)
-      };
-      
-      console.log(`📊 ${doctor.name}:`, {
-        serving: info.currentServing,
-        waiting: info.waitingNumbers
-      });
-      
-      return info;
+    const info = {
+      doctorId: doctor.id,
+      doctorName: doctor.name,
+      currentServing: currentServingPatient ? currentServingPatient.queueNo : null,
+      waitingNumbers: doctorPatients.slice(0, 3).map(p => p.queueNo)
+    };
+    
+    console.log(`📊 ${doctor.name}:`, {
+      serving: info.currentServing,
+      waiting: info.waitingNumbers
     });
-  }, [syncedPatients]);
+    
+    return info;
+  });
+}, [syncedPatients]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-white to-red-100 p-4">
@@ -134,7 +135,7 @@ const ClinicTVDisplay = () => {
         </div>
 
         {/* Doctors Grid */}
-        <div className="grid grid-cols-4 gap-0">
+        <div className="grid grid-cols-5 gap-0">
           {doctorsInfo.map((doctorInfo, index) => (
             <div 
               key={doctorInfo.doctorId}

@@ -168,6 +168,15 @@ function Checkin() {
       ],
     },
     {
+      id: "surgery",
+      label: "Surgery",
+      services: [
+        { id: "general surgery", label: "General Surgery Consultation" },
+        { id: "ent", label: "ENT (Ear, Nose, Throat) Consultation" },
+        { id: "orthopedic", label: "Orthopedic Surgery Consultation" }
+      ]
+    },
+    {
       id: "others",
       label: "Others",
       services: [

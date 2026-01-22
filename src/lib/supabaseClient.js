@@ -46,13 +46,9 @@ export const registerAppointmentPatient = async (patientData, appointmentDateTim
       .from('patients')
       .insert([
         {
-          name: patientData.name,
-          age: parseInt(patientData.age),
-          phone_num: patientData.phoneNum,
-          physician: patientData.physician || null,
+          profile_id: patientData.profileId || null,
           symptoms: patientData.symptoms || [],
           services: patientData.services || [],
-          days_since_onset: patientData.daysSinceOnSet ? parseInt(patientData.daysSinceOnSet) : null,
           patient_type: 'appointment'
         }
       ])
@@ -89,44 +85,7 @@ export const registerAppointmentPatient = async (patientData, appointmentDateTim
   }
 };
 
-// ============================================
-// STAFF REGISTRATION FUNCTIONS
-// ============================================
 
-// Register clinic staff with authentication
-export const registerStaff = async (email, password, staffRole) => {
-  try {
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email,
-      password: password,
-    });
-
-    if (authError) throw authError;
-
-    // Insert staff record
-    const { data: staffData, error: staffError } = await supabase
-      .from('clinic_staff')
-      .insert([
-        {
-          email: email,
-          staff_role: staffRole,
-        }
-      ])
-      .select();
-
-    if (staffError) throw staffError;
-
-    return { 
-      success: true, 
-      data: staffData[0],
-      message: 'Registration successful! Please check your email to verify your account.'
-    };
-  } catch (error) {
-    console.error('Error registering staff:', error);
-    return { success: false, error: error.message };
-  }
-};
 
 // ============================================
 // VALIDATION FUNCTIONS
@@ -378,4 +337,77 @@ export const getPatientStats = async () => {
     console.error('Error fetching patient statistics:', error);
     return { success: false, error: error.message };
   }
+};
+
+// ============================================
+// PATIENT LOGIN OR SIGNUP FUNCTIONS
+// ============================================
+
+export const registerUser = async (email, password, fullName, phoneNumber, role = "patient") => {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+        phone_number: phoneNumber,
+        role: role, // 'patient' or 'staff'
+      },
+    },
+  });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, data };
+};
+
+
+
+// lib/supabaseClient.js
+export const loginUser = async (email, password) => {
+  // 1. Clean the email input
+  const cleanEmail = email.trim().toLowerCase();
+
+  // 2. Authenticate with Supabase Auth FIRST
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: cleanEmail,
+    password,
+  });
+
+  // If Auth fails (wrong password/email), stop here
+  if (error) {
+    console.error("Auth Error:", error.message);
+    return { success: false, error: error.message };
+  }
+
+  const user = data.user;
+
+  // 3. CHECK STAFF TABLE
+  const { data: staffProfile } = await supabase
+    .from('clinic_staff')
+    .select('*')
+    .eq('email', cleanEmail)
+    .single();
+
+  if (staffProfile) {
+    console.log("Role Found: Staff");
+    return { success: true, user, role: 'staff' };
+  }
+
+  // 4. CHECK PATIENT TABLE
+  const { data: patientProfile, error: pError } = await supabase
+    .from('patient_profiles')
+    .select('*')
+    .eq('email', cleanEmail) 
+    .single();
+
+  // Debugging logs to help you see what's happening
+  console.log("Searching for Patient:", cleanEmail);
+  console.log("Patient Data found:", patientProfile);
+  if (pError) console.log("Patient Table Error:", pError.message);
+
+  return { 
+    success: true, 
+    user, 
+    role: patientProfile ? 'patient' : 'unknown' 
+  };
 };

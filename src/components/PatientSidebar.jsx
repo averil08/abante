@@ -1,6 +1,6 @@
 import React, { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Users, ChartNoAxesCombined, TicketCheck, Calendar, DoorOpen, NotebookText, CircleUserRound } from "lucide-react";
+import { Users, ChartNoAxesCombined, TicketCheck, Calendar, DoorOpen, NotebookText, CircleUserRound, Settings } from "lucide-react";
 import { AiOutlineMenu, AiOutlineClose } from "react-icons/ai";
 import img1 from '../assets/logo-valley.png';
 import  { PatientContext } from '../PatientContext'; 
@@ -19,10 +19,10 @@ const PatientSidebar = ({ nav, handleNav }) => {
   const handleConfirmLogout = () => {
     setShowLogoutModal(false);
     
-    // ✅ NEW: Clear patient identity data on logout
+    // Clear patient identity data on logout
     localStorage.removeItem('currentPatientEmail');
     localStorage.removeItem('isPatientLoggedIn');
-     // ✅ ADD THIS: Clear active patient session
+    localStorage.removeItem('userProfile');
     setActivePatient(null);
     
     // Navigate to home
@@ -51,10 +51,18 @@ const PatientSidebar = ({ nav, handleNav }) => {
             <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" /> 
             Book Appointment
           </li>
-
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointmenthistory")}>
+          <li 
+            className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+            onClick={() => navigate("/appointmenthistory")}>
             <NotebookText className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Patient Profile
+            Appointment History
+          </li>
+          {/* 🆕 NEW: Profile Settings Link */}
+          <li 
+            className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+            onClick={() => navigate("/patient-settings")}>
+            <Settings className="w-5 h-5 text-green-600 group-hover:text-white" />
+            Profile Settings
           </li>
           <li
             className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
@@ -90,9 +98,18 @@ const PatientSidebar = ({ nav, handleNav }) => {
             <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" /> 
             Book Appointment
           </li>
-          <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointmenthistory")}>
+          <li 
+            className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+            onClick={() => navigate("/appointmenthistory")}>
             <NotebookText className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Patient Profile
+            Appointment History
+          </li>
+          {/* 🆕 NEW: Profile Settings Link */}
+          <li 
+            className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" 
+            onClick={() => navigate("/patient-settings")}>
+            <Settings className="w-5 h-5 text-green-600 group-hover:text-white" />
+            Profile Settings
           </li>
           <li
             className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"

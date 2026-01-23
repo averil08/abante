@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from "@/components/ui/badge";
-import { Search, User, Calendar, Phone, Stethoscope, FileText, Clock, ChevronRight, ArrowLeft } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Search, User, Calendar, Phone, Stethoscope, FileText, Clock, ChevronRight, ArrowLeft, Edit2, Save, X, AlertCircle, Activity } from 'lucide-react';
 
-//THIS IS THE LISTS OF PATIENTS WHO VISITED THE CLINIC 
 const PatientProfile = () => {
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
@@ -15,6 +15,9 @@ const PatientProfile = () => {
   const { patients } = useContext(PatientContext);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [diagnoses, setDiagnoses] = useState({});
+  const [editingVisit, setEditingVisit] = useState(null);
+  const [diagnosisInput, setDiagnosisInput] = useState("");
 
   const serviceLabels = {
     pedia: "Pediatric", adult: "Adult", senior: "Senior (65+)",
@@ -37,56 +40,68 @@ const PatientProfile = () => {
 
   const getServiceLabel = (serviceId) => serviceLabels[serviceId] || serviceId;
 
- // Normalize name for exact matching (case-insensitive, trim whitespace)
+  const saveDiagnosis = (queueNo, diagnosis) => {
+    setDiagnoses(prev => ({
+      ...prev,
+      [queueNo]: diagnosis
+    }));
+  };
+
+  const handleSaveDiagnosis = () => {
+    if (!editingVisit || !diagnosisInput.trim()) return;
+    
+    saveDiagnosis(editingVisit, diagnosisInput.trim());
+    setEditingVisit(null);
+    setDiagnosisInput("");
+  };
+
+  const handleEditDiagnosis = (queueNo) => {
+    setEditingVisit(queueNo);
+    setDiagnosisInput(diagnoses[queueNo] || "");
+  };
+
+  const handleCancelEdit = () => {
+    setEditingVisit(null);
+    setDiagnosisInput("");
+  };
+
   const normalizeName = (name) => {
     if (!name) return '';
     return name.toLowerCase().trim();
   };
 
-  // Group patients by unique patient with SIMPLIFIED matching logic
   const uniquePatients = useMemo(() => {
     const patientMap = new Map();
     
     patients.forEach(visit => {
-    // Skip inactive patients
-    if (visit.isInactive) return;
-    
-    // Skip pending or rejected appointments from patient profile
-    if (visit.type === 'Appointment' && 
-        (visit.appointmentStatus === 'pending' || visit.appointmentStatus === 'rejected')) {
-      return;
-    }
+      if (visit.isInactive) return;
       
-      // For returning patients, use exact name match as the key
-      // For new patients, use name + first visit date to ensure uniqueness
+      if (visit.type === 'Appointment' && 
+          (visit.appointmentStatus === 'pending' || visit.appointmentStatus === 'rejected')) {
+        return;
+      }
+      
       const normalizedName = normalizeName(visit.name);
-      
-      // Use normalized name as the primary key
       const key = normalizedName;
             
-    if (!patientMap.has(key)) {
-        // Create new patient profile
+      if (!patientMap.has(key)) {
         patientMap.set(key, {
-          name: visit.name, // Use the actual name with proper casing from first visit
+          name: visit.name,
           phoneNum: visit.phoneNum,
           age: visit.age,
           visits: []
         });
       } else {
-        // Update patient info with most recent data
         const existing = patientMap.get(key);
         
-        // Always update to the latest phone number if provided
         if (visit.phoneNum) {
           existing.phoneNum = visit.phoneNum;
         }
         
-        // Always update to the latest age
         if (visit.age) {
           existing.age = visit.age;
         }
         
-        // Update name to the most complete version (prefer proper casing)
         const hasMoreCapitals = (visit.name.match(/[A-Z]/g) || []).length > 
                                (existing.name.match(/[A-Z]/g) || []).length;
         
@@ -95,26 +110,22 @@ const PatientProfile = () => {
         }
       }
 
-    // Add visit to patient's history
-    patientMap.get(key).visits.push(visit);
-  });
+      patientMap.get(key).visits.push(visit);
+    });
   
-  // Convert to array and sort visits by date
-  return Array.from(patientMap.values()).map(patient => ({
-    ...patient,
-    visits: patient.visits.sort((a, b) => 
-      new Date(b.registeredAt) - new Date(a.registeredAt)
-    ),
-    totalVisits: patient.visits.length,
-    lastVisit: patient.visits[0],
-    firstVisit: patient.visits[patient.visits.length - 1]
-  })).sort((a, b) => 
-    // Sort by most recent visit
-    new Date(b.lastVisit.registeredAt) - new Date(a.lastVisit.registeredAt)
-  );
-}, [patients]);
+    return Array.from(patientMap.values()).map(patient => ({
+      ...patient,
+      visits: patient.visits.sort((a, b) => 
+        new Date(b.registeredAt) - new Date(a.registeredAt)
+      ),
+      totalVisits: patient.visits.length,
+      lastVisit: patient.visits[0],
+      firstVisit: patient.visits[patient.visits.length - 1]
+    })).sort((a, b) => 
+      new Date(b.lastVisit.registeredAt) - new Date(a.lastVisit.registeredAt)
+    );
+  }, [patients]);
 
-  // Filter patients based on search
   const filteredPatients = uniquePatients.filter(patient =>
     patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (patient.phoneNum && patient.phoneNum.includes(searchTerm))
@@ -151,11 +162,11 @@ const PatientProfile = () => {
         <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52">
           <div className="bg-white shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
-              <div className="flex items-center gap-3 mb-4  pt-12 lg:pt-3">
+              <div className="flex items-center gap-3 mb-4 pt-12 lg:pt-3">
                 <User className="w-6 h-6 text-green-600" />
                 <div>
                   <h1 className="text-xl font-bold text-gray-900">Patient Profiles</h1>
-                  <p className="text-sm text-gray-600">View patient visit history and information</p>
+                  <p className="text-sm text-gray-600">View patient visit history and diagnosis information</p>
                 </div>
               </div>
 
@@ -176,7 +187,7 @@ const PatientProfile = () => {
             <Card>
               <CardHeader>
                 <CardTitle>All Patients ({filteredPatients.length})</CardTitle>
-                <CardDescription>Click on a patient to view their complete profile</CardDescription>
+                <CardDescription>Click on a patient to view their complete profile and diagnoses</CardDescription>
               </CardHeader>
               <CardContent>
                 {filteredPatients.length === 0 ? (
@@ -187,57 +198,73 @@ const PatientProfile = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredPatients.map((patient, idx) => (
-                      <Card 
-                        key={idx}
-                        className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-green-600"
-                        onClick={() => setSelectedPatient(patient)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="text-lg font-bold text-gray-900">{patient.name}</h3>
-                                <Badge variant="outline" className="text-xs">
-                                  {patient.totalVisits} {patient.totalVisits === 1 ? 'visit' : 'visits'}
-                                </Badge>
-                                {patient.totalVisits > 1 && (
-                                  <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-300">
-                                    Returning Patient
+                    {filteredPatients.map((patient, idx) => {
+                      const lastDiagnosis = diagnoses[patient.lastVisit.queueNo];
+                      
+                      return (
+                        <Card 
+                          key={idx}
+                          className="cursor-pointer hover:shadow-md transition-shadow border-l-4 border-l-green-600"
+                          onClick={() => setSelectedPatient(patient)}
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <h3 className="text-lg font-bold text-gray-900">{patient.name}</h3>
+                                  <Badge variant="outline" className="text-xs">
+                                    {patient.totalVisits} {patient.totalVisits === 1 ? 'visit' : 'visits'}
                                   </Badge>
+                                  {patient.totalVisits > 1 && (
+                                    <Badge className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                                      Returning Patient
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
+                                  <div className="flex items-center gap-2">
+                                    <User className="w-4 h-4" />
+                                    <span>Age: {patient.age}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="w-4 h-4" />
+                                    <span>{patient.phoneNum || 'No phone'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="w-4 h-4" />
+                                    <span>Last visit: {formatDate(patient.lastVisit.registeredAt).split(',')[0]}</span>
+                                  </div>
+                                </div>
+
+                                {lastDiagnosis && (
+                                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                    <div className="flex items-start gap-2">
+                                      <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-medium text-blue-700 mb-1">Last Diagnosis:</p>
+                                        <p className="text-sm text-blue-900 line-clamp-2">{lastDiagnosis}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {patient.lastVisit.assignedDoctor && (
+                                  <div className="mt-2 flex items-center gap-2 text-sm">
+                                    <Stethoscope className="w-4 h-4 text-green-600" />
+                                    <span className="font-medium text-green-700">
+                                      {patient.lastVisit.assignedDoctor.name}
+                                    </span>
+                                  </div>
                                 )}
                               </div>
                               
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
-                                <div className="flex items-center gap-2">
-                                  <User className="w-4 h-4" />
-                                  <span>Age: {patient.age}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Phone className="w-4 h-4" />
-                                  <span>{patient.phoneNum || 'No phone'}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="w-4 h-4" />
-                                  <span>Last visit: {formatDate(patient.lastVisit.registeredAt).split(',')[0]}</span>
-                                </div>
-                              </div>
-
-                              {patient.lastVisit.assignedDoctor && (
-                                <div className="mt-2 flex items-center gap-2 text-sm">
-                                  <Stethoscope className="w-4 h-4 text-green-600" />
-                                  <span className="font-medium text-green-700">
-                                    {patient.lastVisit.assignedDoctor.name}
-                                  </span>
-                                </div>
-                              )}
+                              <ChevronRight className="w-6 h-6 text-gray-400" />
                             </div>
-                            
-                            <ChevronRight className="w-6 h-6 text-gray-400" />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
@@ -248,7 +275,7 @@ const PatientProfile = () => {
     );
   }
 
-  // Patient Detail View
+  // Patient Detail View - SINGLE COLUMN
   return (
     <div className="flex w-full min-h-screen">
       <Sidebar nav={nav} handleNav={handleNav} />
@@ -276,26 +303,134 @@ const PatientProfile = () => {
                     </Badge>
                   )}
                 </div>
-                <p className="text-sm text-gray-600">Patient Profile & Visit History</p>
+                <p className="text-sm text-gray-600">Patient Profile & Medical Records</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
-          {/* Patient Basic Information */}
+        <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
+          
+          {/* 1. DIAGNOSIS HISTORY - TOP PRIORITY */}
+          <Card className="border-2 border-blue-400 shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
+              <CardTitle className="flex items-center gap-2 text-blue-900">
+                <AlertCircle className="w-6 h-6" />
+                Diagnosis History
+              </CardTitle>
+              <CardDescription className="text-blue-700">Medical diagnoses for each visit - Click Edit/Add to update</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6">
+              {(() => {
+                const diagnosisHistory = selectedPatient.visits.map((visit, idx) => ({
+                  visit,
+                  diagnosis: diagnoses[visit.queueNo],
+                  visitNumber: selectedPatient.visits.length - idx,
+                  isEditing: editingVisit === visit.queueNo
+                }));
+
+                return (
+                  <div className="space-y-4">
+                    {diagnosisHistory.map(({ visit, diagnosis, visitNumber, isEditing }) => (
+                      <div key={visit.queueNo} className="p-5 border-2 border-gray-200 rounded-lg bg-white hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-bold text-lg text-gray-900">Visit #{visitNumber}</h4>
+                              <Badge className={getStatusBadge(visit.status)}>
+                                {visit.status}
+                              </Badge>
+                              <Badge variant="outline" className={
+                                visit.type === 'Walk-in' ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-purple-50 text-purple-700 border-purple-300'
+                              }>
+                                {visit.type}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-600">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="w-4 h-4" />
+                                <span>{formatDate(visit.registeredAt)}</span>
+                              </div>
+                              {visit.assignedDoctor && (
+                                <div className="flex items-center gap-1">
+                                  <Stethoscope className="w-4 h-4 text-green-600" />
+                                  <span className="text-green-700 font-medium">Dr. {visit.assignedDoctor.name}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {!isEditing && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEditDiagnosis(visit.queueNo)}
+                              className="h-9 px-4"
+                            >
+                              <Edit2 className="w-4 h-4 mr-1" />
+                              {diagnosis ? 'Edit' : 'Add'}
+                            </Button>
+                          )}
+                        </div>
+
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            <Textarea
+                              value={diagnosisInput}
+                              onChange={(e) => setDiagnosisInput(e.target.value)}
+                              placeholder="Enter diagnosis for this visit..."
+                              className="min-h-[120px] text-base"
+                              autoFocus
+                            />
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={handleSaveDiagnosis}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <Save className="w-4 h-4 mr-1" />
+                                Save Diagnosis
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleCancelEdit}
+                              >
+                                <X className="w-4 h-4 mr-1" />
+                                Cancel
+                              </Button>
+                            </div>
+                          </div>
+                        ) : diagnosis ? (
+                          <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-md mt-3">
+                            <p className="text-sm font-semibold text-blue-800 mb-2">DIAGNOSIS:</p>
+                            <p className="text-base text-blue-900 whitespace-pre-wrap leading-relaxed">{diagnosis}</p>
+                          </div>
+                        ) : (
+                          <div className="p-4 bg-gray-50 border border-gray-200 rounded-md mt-3">
+                            <p className="text-sm text-gray-500 italic text-center">No diagnosis recorded for this visit</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
+          {/* 2. BASIC INFORMATION */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-green-600" />
+                <User className="w-5 h-5 text-green-600" />
                 Basic Information
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Full Name</p>
-                  <p className="font-semibold text-gray-900">{selectedPatient.name}</p>
+                  <p className="font-semibold text-gray-900 text-lg">{selectedPatient.name}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Current Age</p>
@@ -311,7 +446,7 @@ const PatientProfile = () => {
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="mt-6 pt-6 border-t grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">First Visit</p>
                   <p className="font-semibold text-gray-900">{formatDate(selectedPatient.firstVisit.registeredAt)}</p>
@@ -323,10 +458,10 @@ const PatientProfile = () => {
               </div>
 
               {selectedPatient.lastVisit.assignedDoctor && (
-                <div className="mt-4 pt-4 border-t">
-                  <p className="text-sm text-gray-600 mb-1">Current/Last Assigned Doctor</p>
-                  <div className="flex items-center gap-2">
-                    <Stethoscope className="w-5 h-5 text-green-600" />
+                <div className="mt-6 pt-6 border-t">
+                  <p className="text-sm text-gray-600 mb-2">Current/Last Assigned Doctor</p>
+                  <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-md">
+                    <Stethoscope className="w-6 h-6 text-green-600" />
                     <p className="font-semibold text-green-700 text-lg">
                       {selectedPatient.lastVisit.assignedDoctor.name}
                     </p>
@@ -336,17 +471,17 @@ const PatientProfile = () => {
             </CardContent>
           </Card>
 
-          {/* Visit History */}
+          {/* 3. VISIT HISTORY DETAILS */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-green-600" />
-                Visit History ({selectedPatient.visits.length})
+                Visit History Details
               </CardTitle>
-              <CardDescription>Complete record of all patient visits</CardDescription>
+              <CardDescription>Complete timeline of all patient visits ({selectedPatient.visits.length} total)</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {selectedPatient.visits.map((visit, idx) => (
                   <Card key={visit.queueNo} className={`border-l-4 ${
                     visit.status === 'done' ? 'border-l-emerald-600' :
@@ -377,29 +512,41 @@ const PatientProfile = () => {
                         </Badge>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mb-3">
+                      <div className="space-y-2 text-sm">
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-gray-500" />
-                          <div>
-                            <p className="text-gray-600">Registered</p>
-                            <p className="font-medium">{formatDate(visit.registeredAt)}</p>
-                          </div>
+                          <span className="text-gray-600">Registered:</span>
+                          <span className="font-medium">{formatDate(visit.registeredAt)}</span>
                         </div>
                         
                         {visit.assignedDoctor && (
                           <div className="flex items-center gap-2">
                             <Stethoscope className="w-4 h-4 text-green-600" />
-                            <div>
-                              <p className="text-gray-600">Doctor</p>
-                              <p className="font-medium text-green-700">{visit.assignedDoctor.name}</p>
-                            </div>
+                            <span className="text-gray-600">Doctor:</span>
+                            <span className="font-medium text-green-700">{visit.assignedDoctor.name}</span>
+                          </div>
+                        )}
+
+                        {visit.completedAt && (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-emerald-600" />
+                            <span className="text-gray-600">Completed:</span>
+                            <span className="font-medium text-emerald-700">{formatDate(visit.completedAt)}</span>
+                          </div>
+                        )}
+
+                        {visit.cancelledAt && (
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-red-600" />
+                            <span className="text-gray-600">Cancelled:</span>
+                            <span className="font-medium text-red-700">{formatDate(visit.cancelledAt)}</span>
                           </div>
                         )}
                       </div>
 
                       {visit.symptoms && visit.symptoms.length > 0 && (
-                        <div className="mb-3">
-                          <p className="text-sm text-gray-600 mb-1">Symptoms:</p>
+                        <div className="mt-3 pt-3 border-t">
+                          <p className="text-sm text-gray-600 mb-2 font-medium">Symptoms:</p>
                           <div className="flex flex-wrap gap-1">
                             {visit.symptoms.map((symptom, i) => (
                               <Badge key={i} variant="outline" className="text-xs bg-red-50 text-red-700 border-red-200">
@@ -411,8 +558,8 @@ const PatientProfile = () => {
                       )}
 
                       {visit.services && visit.services.length > 0 && (
-                        <div className="mb-3">
-                          <p className="text-sm text-gray-600 mb-1">Services Requested:</p>
+                        <div className="mt-3 pt-3 border-t">
+                          <p className="text-sm text-gray-600 mb-2 font-medium">Services:</p>
                           <div className="flex flex-wrap gap-1">
                             {visit.services.map((serviceId, i) => (
                               <Badge key={i} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
@@ -426,21 +573,7 @@ const PatientProfile = () => {
                       {visit.type === 'Appointment' && visit.appointmentDateTime && (
                         <div className="mt-3 pt-3 border-t">
                           <p className="text-sm text-gray-600">Appointment Date:</p>
-                          <p className="font-medium">{formatDate(visit.appointmentDateTime)}</p>
-                        </div>
-                      )}
-
-                      {visit.completedAt && (
-                        <div className="mt-3 pt-3 border-t">
-                          <p className="text-sm text-gray-600">Completed:</p>
-                          <p className="font-medium text-emerald-700">{formatDate(visit.completedAt)}</p>
-                        </div>
-                      )}
-
-                      {visit.cancelledAt && (
-                        <div className="mt-3 pt-3 border-t">
-                          <p className="text-sm text-gray-600">Cancelled:</p>
-                          <p className="font-medium text-red-700">{formatDate(visit.cancelledAt)}</p>
+                          <p className="font-medium text-sm">{formatDate(visit.appointmentDateTime)}</p>
                         </div>
                       )}
                     </CardContent>
@@ -450,12 +583,12 @@ const PatientProfile = () => {
             </CardContent>
           </Card>
 
-          {/* Service History Summary */}
+          {/* 4. SERVICE HISTORY SUMMARY */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-green-600" />
-                Service History Summary
+                <Activity className="w-5 h-5 text-green-600" />
+                Services Availed Summary
               </CardTitle>
               <CardDescription>All services requested across all visits</CardDescription>
             </CardHeader>
@@ -480,7 +613,7 @@ const PatientProfile = () => {
                       <Badge 
                         key={serviceId} 
                         variant="outline" 
-                        className="bg-green-50 text-green-700 border-green-300"
+                        className="bg-green-50 text-green-700 border-green-300 text-sm py-1"
                       >
                         {getServiceLabel(serviceId)} <span className="ml-1 font-bold">×{count}</span>
                       </Badge>

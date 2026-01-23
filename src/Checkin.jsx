@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { QrCode, User, AlertCircle } from "lucide-react";
+import { QrCode, User, AlertCircle, Edit2 } from "lucide-react";
 import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate, Navigate } from "react-router-dom";
 import Logo from "./assets/logo-valley.png";
@@ -264,6 +264,18 @@ function Checkin() {
     setIsSubmitting(true);
 
     try {
+      // 🆕 ADD THIS VALIDATION for logged-in users
+      if (isFromPatientSidebar) {
+        if (!formData.name || !formData.age || !formData.phoneNum) {
+          showMessage(
+            "Profile Incomplete", 
+            "Please complete your profile in Settings before booking an appointment.", 
+            false
+          );
+          setIsSubmitting(false);
+          return;
+        }
+      }
       let result;
 
       if (selectedPatientType === "Walk-in") {
@@ -385,6 +397,30 @@ function Checkin() {
       setAvailableSlots(slots);
     }
   }, [formData.appointmentDateTime, getAvailableSlots, patients]);
+
+  // 🆕 ADD THIS: Auto-load user profile for logged-in patients
+  useEffect(() => {
+    if (isFromPatientSidebar && selectedPatientType) {
+      try {
+        const userProfileStr = localStorage.getItem('userProfile');
+        if (userProfileStr) {
+          const userProfile = JSON.parse(userProfileStr);
+          
+          console.log('📋 Loading profile data:', userProfile);
+          
+          // Auto-fill form data silently (will be submitted but not shown)
+          setFormData(prev => ({
+            ...prev,
+            name: userProfile.fullName || prev.name,
+            age: userProfile.age || prev.age,
+            phoneNum: userProfile.phoneNumber || prev.phoneNum,
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+      }
+    }
+  }, [isFromPatientSidebar, selectedPatientType]);
 
   //conditional returns
   if (activePatient) {
@@ -589,21 +625,69 @@ function Checkin() {
               )}
 
               <form onSubmit={handlePatientSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name *</Label>
-                    <Input id="name" type="text" value={formData.name} onChange={handleInputChange} required />
+                {/* 🆕 PROFILE INFO - Only show for logged-in users */}
+                {isFromPatientSidebar && (
+                  <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="bg-green-600 p-2 rounded-full">
+                        <User className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-green-800 mb-1">Booking For:</h3>
+                        <p className="text-sm text-green-700">Your profile information will be used for this appointment</p>
+                      </div>
+                    </div>
+                    
+                    {formData.name && formData.age && formData.phoneNum ? (
+                      <div className="space-y-2 bg-white p-4 rounded-md border border-green-200">
+                        <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                          <span className="text-sm text-gray-600 font-medium">Name:</span>
+                          <span className="font-semibold text-gray-900">{formData.name}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                          <span className="text-sm text-gray-600 font-medium">Age:</span>
+                          <span className="font-semibold text-gray-900">{formData.age} years</span>
+                        </div>
+                        <div className="flex justify-between items-center py-2">
+                          <span className="text-sm text-gray-600 font-medium">Phone:</span>
+                          <span className="font-semibold text-gray-900">{formData.phoneNum}</span>
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-green-600 border-green-600 hover:bg-green-50"
+                            onClick={() => navigate('/patient-settings?from=patient-sidebar')}
+                          >
+                            <Edit2 className="w-4 h-4 mr-2" />
+                            Update Profile Information
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-yellow-50 border border-yellow-300 rounded-md p-4">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-yellow-800 mb-2">Profile Not Complete</p>
+                            <p className="text-xs text-yellow-700 mb-3">
+                              Please complete your profile to book appointments quickly and easily.
+                            </p>
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                              onClick={() => navigate('/patient-settings?from=patient-sidebar')}
+                            >
+                              Complete Profile Now
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="age">Age *</Label>
-                    <Input id="age" type="number" value={formData.age} onChange={handleInputChange} required />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNum">Phone Number *</Label>
-                  <Input id="phoneNum" type="tel" value={formData.phoneNum} onChange={handleInputChange} required />
-                </div>
+                )}
 
                 {/* NEW OR RETURNING PATIENT QUESTION */}
                 <div className="space-y-3 p-4 rounded-lg border-2 border-blue-300 bg-blue-50">

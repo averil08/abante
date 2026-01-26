@@ -30,6 +30,9 @@ function PatientSettings() {
     loadProfile();
   }, []);
 
+  //================================
+  //🔴 REPLACE FROM HERE
+  //==============================
   const loadProfile = () => {
     try {
       const userProfileStr = localStorage.getItem('userProfile');
@@ -51,6 +54,9 @@ function PatientSettings() {
       console.error('Error loading profile:', error);
     }
   };
+  //=========================================
+  //🔴 REPLACE TO HERE
+  //=========================================
 
   const handleInputChange = (e) => {
     const { id, value } = e.target;
@@ -83,7 +89,9 @@ function PatientSettings() {
         return;
       }
 
-      // Password validation (if changing password)
+      //==========================================
+      // 🔴 REPLACE FROM HERE Password validation 
+      //==========================================
       if (formData.newPassword || formData.confirmPassword) {
         if (!formData.currentPassword) {
           setMessage({ text: 'Current password is required to change password', type: 'error' });
@@ -107,7 +115,13 @@ function PatientSettings() {
         // For now, just show message
         setMessage({ text: 'Password change will be implemented with backend', type: 'info' });
       }
+      //=========================
+      //🔴 REPLACE TO HERE
+      //==========================
 
+      //===================================
+      //🔴 REPLACE FROM HERE updatedProfile
+      //===================================
       const updatedProfile = {
         email: formData.email,
         fullName: formData.fullName.trim(),
@@ -124,6 +138,9 @@ function PatientSettings() {
       
       setMessage({ text: 'Profile updated successfully!', type: 'success' });
       setHasChanges(false);
+      //===================================
+      //🔴 REPLACE TO HERE
+      //===================================
 
       // Clear password fields
       setFormData(prev => ({

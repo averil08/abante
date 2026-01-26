@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { registerStaff } from "./lib/supabaseClient";
 import Logo from "./assets/logo-valley.png";
 import { useNavigate } from "react-router-dom";
+//import { registerUser } from "./lib/supabaseClient";
 
 //THIS IS ONLY FOR PATIENTS, NO SIGNUP FOR STAFF
 function Signup() {

@@ -47,8 +47,10 @@ const QueueStatus = () => {
     setActivePatient,
     requeuePatient,
   } = useContext(PatientContext);
-
-  // ✅ Listen for localStorage changes from OTHER tabs/windows
+  
+  // ======================================
+  //🔴 REPLACE FROM HERE (use effect block)
+  // ======================================
   useEffect(() => {
     const handleStorageChange = (e) => {
       // Check if the patients data was updated (match the key from PatientContext)
@@ -73,8 +75,13 @@ const QueueStatus = () => {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, [activePatient, setActivePatient]);
+  //===========================
+  // 🔴 REPLACE TO HERE
+  //===========================
 
-  // ✅ Poll localStorage periodically for SAME-tab updates
+  //=================================
+  // 🔴 REPLACE FROM HERE POLL BLOCK
+  //=================================
   useEffect(() => {
     const pollInterval = setInterval(() => {
       try {
@@ -129,6 +136,9 @@ const QueueStatus = () => {
 
     return () => clearInterval(pollInterval);
   }, [activePatient, setActivePatient]);
+  //===========================
+  // 🔴 REPLACE TO HERE
+  //===========================
 
   useEffect(() => {
     if (isFromPatientSidebar) {
@@ -148,6 +158,9 @@ const QueueStatus = () => {
     }
   }, [viewMode, isFromPatientSidebar]);
 
+//=========================
+//🔴 REPLACE FROM HERE isMyAppointment block
+//========================
 const isMyAppointment = React.useMemo(() => {
   if (!activePatient || !isPatientLoggedIn || !currentPatientEmail) {
     return true; 
@@ -161,6 +174,9 @@ const isMyAppointment = React.useMemo(() => {
   const normalizedCurrentEmail = currentPatientEmail.toLowerCase().trim();
   return normalizedActiveEmail === normalizedCurrentEmail;
 }, [activePatient, isPatientLoggedIn, currentPatientEmail]);
+//=========================================
+//🔴 REPLACE TO HERE
+//==========================================
 
   const currentPatient = patients.find(p => p.queueNo === activePatient?.queueNo);
 

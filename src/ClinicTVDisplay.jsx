@@ -15,6 +15,7 @@ const ClinicTVDisplay = () => {
     return () => clearInterval(timer);
   }, []);
 
+  //🔴 REPLACE FROM HERE
   // ✅ CRITICAL: Listen for localStorage changes from Dashboard
   useEffect(() => {
     const handleStorageChange = (e) => {
@@ -46,13 +47,16 @@ const ClinicTVDisplay = () => {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
+  //🔴 REPLACE TO HERE
 
+  //🔴 REPLACE FROM HERE
   // Also sync with context patients (for initial load)
   useEffect(() => {
     if (patients && patients.length > 0) {
       setSyncedPatients(patients);
     }
   }, [patients]);
+  //🔴 REPLACE TO HERE
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('en-US', {

@@ -70,8 +70,12 @@ function Checkin() {
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableSlots, setAvailableSlots] = useState(1);
+  
+  //🔴 REPLACE FROM HERE
   const currentPatientEmail = localStorage.getItem('currentPatientEmail');
   const isPatientLoggedIn = localStorage.getItem('isPatientLoggedIn') === 'true';
+  //🔴 REPLACE TO HERE
+
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -400,6 +404,7 @@ function Checkin() {
     }
   }, [formData.appointmentDateTime, getAvailableSlots, patients]);
 
+  //🔴 REPLACE FROM HERE
   // 🆕 ADD THIS: Auto-load user profile for logged-in patients
   useEffect(() => {
     if (isFromPatientSidebar && selectedPatientType) {
@@ -423,7 +428,9 @@ function Checkin() {
       }
     }
   }, [isFromPatientSidebar, selectedPatientType]);
+  //🔴 REPLACE TO HERE
 
+  //🔴 REPLACE FROM HERE
   // 🆕 CHECK FOR EXISTING APPOINTMENT - Redirect if found
   useEffect(() => {
     if (isFromPatientSidebar && !selectedPatientType && isPatientLoggedIn) {
@@ -447,6 +454,7 @@ function Checkin() {
       }
     }
   }, [isFromPatientSidebar, selectedPatientType, isPatientLoggedIn, patients, setActivePatient]);
+  //🔴 REPLACE TO HERE
 
   useEffect(() => {
     if (viewMode === 'clinic' && !isPatientAccess && !isFromPatientSidebar && activePatient?.patientEmail) {

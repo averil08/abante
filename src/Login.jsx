@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import Logo from "./assets/logo-valley.png";
 import { useNavigate } from "react-router-dom";
+//import { loginUser } from "./lib/supabaseClient"; 
 
 //THIS CONTAINS LOGIN FOR PATIENT AND STAFF
 function Login() {
@@ -56,27 +57,36 @@ function Login() {
         return;
       }
 
-      // ✅ TEMPORARY: Frontend-only validation (remove when backend is ready)
-      // This will accept any email/password for now
-      // Your backend team will replace this with actual Supabase authentication
+      // ═════════════════════════════════════════════════════════════════
+      // 🔴 REPLACE FROM HERE - FAKE LOGIN
+      // ═════════════════════════════════════════════════════════════════
       
       // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // For demo purposes - accepts any credentials
-      // TODO: Replace with actual loginStaff() or loginPatient() function when backend is ready
+      // Fake login - accepts any credentials
       const result = { success: true };
+      
+      // ═════════════════════
+      // 🔴 REPLACE TO HERE 
+      // ════════════════════
 
       if (result.success) {
-        // ✅ NEW: Store patient identifier in localStorage for filtering
+        // ═════════════════════════════════════════════════════════════════
+        // 🔴 REPLACE FROM HERE - localStorage SESSION
+        // ═════════════════════════════════════════════════════════════════
+        
         if (isPatientLogin) {
           localStorage.setItem('currentPatientEmail', formData.email.toLowerCase().trim());
           localStorage.setItem('isPatientLoggedIn', 'true');
         } else {
-          // Clear patient data for staff login
           localStorage.removeItem('currentPatientEmail');
           localStorage.removeItem('isPatientLoggedIn');
         }
+        
+        // ═════════════════════
+        // 🔴 REPLACE TO HERE 
+        // ════════════════════
 
         showMessage(
           "Login Successful!",

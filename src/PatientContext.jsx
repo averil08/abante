@@ -4,6 +4,7 @@ import { assignDoctor, doctors } from './doctorData';
 export const PatientContext = createContext();
 
 export const PatientProvider = ({ children }) => {
+  //🔴 REPLACE FROM HERE 
   const [activePatient, setActivePatient] = useState(() => {
     try {
       const savedActivePatient = localStorage.getItem('active-patient');
@@ -17,7 +18,9 @@ export const PatientProvider = ({ children }) => {
     }
     return null;
   });
+  //🔴 REPLACE TO HERE 
 
+  // 🔴 REPLACE FROM HERE
   //✅ ADD THIS: Save activePatient to localStorage whenever it changes
   useEffect(() => {
     try {
@@ -32,7 +35,9 @@ export const PatientProvider = ({ children }) => {
       console.error('❌ Error saving active patient to localStorage:', error);
     }
   }, [activePatient]);
+  // 🔴 REPLACE TO HERE 
   
+  // 🔴 REPLACE FROM HERE 
   // ✅ Load patients from localStorage on initial load
   const [patients, setPatients] = useState(() => {
     try {
@@ -117,7 +122,9 @@ export const PatientProvider = ({ children }) => {
       },
     ];
   });
+  // 🔴 REPLACE TO HERE 
 
+  // 🔴 REPLACE FROM HERE
   // ✅ Save patients to localStorage whenever they change
   useEffect(() => {
     try {
@@ -127,7 +134,9 @@ export const PatientProvider = ({ children }) => {
       console.error('❌ Error saving patients to localStorage:', error);
     }
   }, [patients]);
+  // 🔴 REPLACE TO HERE
 
+  // 🔴 REPLACE FROM HERE
   // ✅ Sync from localStorage in the SAME tab (every 1 second)
   useEffect(() => {
     const syncInterval = setInterval(() => {
@@ -149,7 +158,9 @@ export const PatientProvider = ({ children }) => {
 
     return () => clearInterval(syncInterval);
   }, [patients]);
+  // 🔴 REPLACE TO HERE
 
+  // 🔴 REPLACE FROM HERE
   // ✅ Listen for storage events from OTHER tabs
   useEffect(() => {
     const handleStorageChange = (e) => {
@@ -167,6 +178,7 @@ export const PatientProvider = ({ children }) => {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+  // 🔴 REPLACE TO HERE
 
   const [currentServing, setCurrentServing] = useState(null);
   const [avgWaitTime, setAvgWaitTime] = useState(15);

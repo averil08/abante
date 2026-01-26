@@ -11,9 +11,9 @@ const AppointmentHistory = () => {
   const handleNav = () => setNav(!nav);
   
   const { patients, activePatient } = useContext(PatientContext);
-
-  // Get current logged-in patient's email
+  //🔴 REPLACE FROM HERE
   const currentPatientEmail = localStorage.getItem('currentPatientEmail');
+  //🔴 REPLACE TO HERE
 
   // Service labels mapping
   const serviceLabels = {
@@ -42,6 +42,7 @@ console.log('🔍 Current Email:', currentPatientEmail);
 console.log('📋 All Patients:', patients);
 console.log('✅ My Appointments:', patients.filter(p => p.patientEmail === currentPatientEmail));
 
+  //🔴 REPLACE FROM HERE
   const myAppointments = React.useMemo(() => {
     if (!currentPatientEmail) return [];
 
@@ -65,6 +66,7 @@ console.log('✅ My Appointments:', patients.filter(p => p.patientEmail === curr
       })
       .sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
   }, [patients, currentPatientEmail]); // ✅ REMOVED activePatient from dependencies
+  //🔴 REPLACE TO HERE
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -272,8 +274,10 @@ console.log('✅ My Appointments:', patients.filter(p => p.patientEmail === curr
             </CardHeader>
             <CardContent>
               {(() => {
+                //🔴 REPLACE FROM HERE
                 // ✅ Get profile from localStorage
                 const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+                //🔴 REPLACE TO HERE
                 return (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">

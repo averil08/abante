@@ -340,7 +340,7 @@ function Checkin() {
           priorityType: formData.priorityType,
           isReturningPatient: formData.isReturningPatient,
           // Store patient email to link this registration to logged-in user
-          patientEmail: currentPatientEmail || null,
+          patientEmail: isFromPatientSidebar ? currentPatientEmail : null,
         };
 
         if (existingPatient && formData.isReturningPatient) {
@@ -448,12 +448,27 @@ function Checkin() {
     }
   }, [isFromPatientSidebar, selectedPatientType, isPatientLoggedIn, patients, setActivePatient]);
 
-  //conditional returns
+  useEffect(() => {
+    if (viewMode === 'clinic' && !isPatientAccess && !isFromPatientSidebar && activePatient?.patientEmail) {
+      setActivePatient(null);
+    }
+  }, [viewMode, isPatientAccess, isFromPatientSidebar, activePatient, setActivePatient]);
+
   if (activePatient) {
-    const params = new URLSearchParams();
-    if (isPatientAccess) params.append('view', 'patient');
-    if (isFromPatientSidebar) params.append('from', 'patient-sidebar');
-    return <Navigate to={`/qstatus${params.toString() ? '?' + params.toString() : ''}`} />;
+    const shouldRedirect = 
+      isFromPatientSidebar || 
+      isPatientAccess || 
+      !activePatient.patientEmail;
+
+    if (shouldRedirect) {
+      const params = new URLSearchParams();
+      if (isPatientAccess) params.append('view', 'patient');
+      if (isFromPatientSidebar) params.append('from', 'patient-sidebar');
+      return <Navigate to={`/qstatus${params.toString() ? '?' + params.toString() : ''}`} />;
+    }
+    
+    // ✅ DON'T redirect - just show the normal clinic view
+    // The activePatient exists but it's a patient-booked appointment, so ignore it for staff
   }
 
   // === CLINIC VIEW ===

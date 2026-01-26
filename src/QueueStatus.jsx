@@ -148,19 +148,19 @@ const QueueStatus = () => {
     }
   }, [viewMode, isFromPatientSidebar]);
 
-  const isMyAppointment = React.useMemo(() => {
-    if (!activePatient || !isPatientLoggedIn || !currentPatientEmail) {
-      return true;
-    }
+const isMyAppointment = React.useMemo(() => {
+  if (!activePatient || !isPatientLoggedIn || !currentPatientEmail) {
+    return true; 
+  }
 
-    if (activePatient.patientEmail) {
-      const normalizedActiveEmail = activePatient.patientEmail.toLowerCase().trim();
-      const normalizedCurrentEmail = currentPatientEmail.toLowerCase().trim();
-      return normalizedActiveEmail === normalizedCurrentEmail;
-    }
+  if (!activePatient.patientEmail) {
+    return true; 
+  }
 
-    return false;
-  }, [activePatient, isPatientLoggedIn, currentPatientEmail]);
+  const normalizedActiveEmail = activePatient.patientEmail.toLowerCase().trim();
+  const normalizedCurrentEmail = currentPatientEmail.toLowerCase().trim();
+  return normalizedActiveEmail === normalizedCurrentEmail;
+}, [activePatient, isPatientLoggedIn, currentPatientEmail]);
 
   const currentPatient = patients.find(p => p.queueNo === activePatient?.queueNo);
 
@@ -408,6 +408,8 @@ const QueueStatus = () => {
       </div>
     );
   }
+
+  
   //Pending Appointment - Clinic View (Sidebar/Patient Sidebar)
   if (isAppointmentPending) {
     // Clinic View

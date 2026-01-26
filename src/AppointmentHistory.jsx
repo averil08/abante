@@ -183,6 +183,85 @@ console.log('✅ My Appointments:', patients.filter(p => p.patientEmail === curr
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+          {/* Current Active Visit Summary Card */}
+          {(() => {
+            // Show the most recent appointment (first in the sorted array)
+            const activeVisit = myAppointments[0];
+
+            if (!activeVisit) return null;
+
+            return (
+              <Card className="border-t-4 border-t-blue-600">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-blue-600" />
+                    Most Recent Visit Summary
+                  </CardTitle>
+                  <CardDescription>
+                    Queue #{String(activeVisit.queueNo).padStart(3, '0')} • {activeVisit.type}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* Assigned Doctor */}
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <Stethoscope className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-gray-500 mb-1">Assigned Doctor</p>
+                        <p className="font-semibold text-gray-900">
+                          {activeVisit.assignedDoctor ? activeVisit.assignedDoctor.name : 'Not assigned'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Symptoms */}
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <Activity className="w-5 h-5 text-red-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 mb-1">Symptoms ({activeVisit.symptoms?.length || 0})</p>
+                        <div className="flex flex-wrap gap-1">
+                          {activeVisit.symptoms && activeVisit.symptoms.length > 0 ? (
+                            activeVisit.symptoms.slice(0, 2).map((symptom, i) => (
+                              <Badge key={i} variant="outline" className="text-xs bg-white text-red-700 border-red-200">
+                                {symptom}
+                              </Badge>
+                            ))
+                          ) : (
+                            <p className="font-semibold text-gray-900">None</p>
+                          )}
+                          {activeVisit.symptoms && activeVisit.symptoms.length > 2 && (
+                            <span className="text-xs text-gray-600">+{activeVisit.symptoms.length - 2} more</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Services Requested */}
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <FileText className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 mb-1">Services ({activeVisit.services?.length || 0})</p>
+                        <div className="flex flex-wrap gap-1">
+                          {activeVisit.services && activeVisit.services.length > 0 ? (
+                            activeVisit.services.slice(0, 2).map((serviceId, i) => (
+                              <Badge key={i} variant="outline" className="text-xs bg-white text-purple-700 border-purple-200">
+                                {getServiceLabel(serviceId)}
+                              </Badge>
+                            ))
+                          ) : (
+                            <p className="font-semibold text-gray-900">None</p>
+                          )}
+                          {activeVisit.services && activeVisit.services.length > 2 && (
+                            <span className="text-xs text-gray-600">+{activeVisit.services.length - 2} more</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
           {/* Patient Info Card */}
           <Card className="border-t-4 border-t-green-600">
             <CardHeader>

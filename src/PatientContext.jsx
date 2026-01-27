@@ -67,7 +67,7 @@ export const PatientProvider = ({ children }) => {
         calledAt: new Date(Date.now() - 90000000).toISOString(),
         completedAt: new Date(Date.now() - 88200000).toISOString(),
         queueExitTime: new Date(Date.now() - 88200000).toISOString(),
-        assignedDoctor: { id: 4, name: "Dr. Michael Torres" },
+        assignedDoctor: { id: 4, name: "Dr.  Edrian O. Geronimo" },
         isReturningPatient: false
       },
       { 
@@ -86,7 +86,7 @@ export const PatientProvider = ({ children }) => {
         calledAt: null,
         queueExitTime: null,  
         completedAt: null,
-        assignedDoctor: { id: 1, name: "Dr. Sarah Gonzales" }
+        assignedDoctor: { id: 1, name: "Dr. Genevive Bandiwan-Laking" }
       },
       { 
         queueNo: 3, 
@@ -102,7 +102,7 @@ export const PatientProvider = ({ children }) => {
         calledAt: null,  
         queueExitTime: null,  
         completedAt: null,
-        assignedDoctor: { id: 2, name: "Dr. John Martinez" }
+        assignedDoctor: { id: 2, name: "Dr. Cynthia Moran" }
       },
       { 
         queueNo: 4, 
@@ -118,7 +118,7 @@ export const PatientProvider = ({ children }) => {
         calledAt: null,  
         queueExitTime: null, 
         completedAt: null,
-        assignedDoctor: { id: 11, name: "Dr. Patricia Brown" }
+        assignedDoctor: { id: 11, name: "Dr. Melissa B. Edic" }
       },
     ];
   });

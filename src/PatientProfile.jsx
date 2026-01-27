@@ -311,7 +311,7 @@ const PatientProfile = () => {
 
         <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
           
-          {/* 1. DIAGNOSIS HISTORY - TOP PRIORITY */}
+          {/* 1. DIAGNOSIS HISTORY - TOP */}
           <Card className="border-2 border-blue-400 shadow-lg">
             <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
               <CardTitle className="flex items-center gap-2 text-blue-900">
@@ -418,7 +418,123 @@ const PatientProfile = () => {
             </CardContent>
           </Card>
 
-          {/* 2. BASIC INFORMATION */}
+          {/* 🆕 2. MOST RECENT VISIT SUMMARY */}
+          {selectedPatient.visits.length > 0 && (
+            <Card className="border-t-4 border-t-blue-600 shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
+                <CardTitle className="flex items-center gap-2 text-blue-900">
+                  <Activity className="w-6 h-6" />
+                  Most Recent Visit Summary
+                </CardTitle>
+                <CardDescription className="text-blue-700">
+                  Queue #{String(selectedPatient.lastVisit.queueNo).padStart(3, '0')} • {selectedPatient.lastVisit.type}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Assigned Doctor */}
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <Stethoscope className="w-5 h-5 text-green-600 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Assigned Doctor</p>
+                      <p className="font-semibold text-gray-900">
+                        {selectedPatient.lastVisit.assignedDoctor 
+                          ? selectedPatient.lastVisit.assignedDoctor.name 
+                          : 'Not assigned'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Symptoms */}
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <Activity className="w-5 h-5 text-red-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 mb-1">
+                        Symptoms ({selectedPatient.lastVisit.symptoms?.length || 0})
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedPatient.lastVisit.symptoms && selectedPatient.lastVisit.symptoms.length > 0 ? (
+                          selectedPatient.lastVisit.symptoms.slice(0, 2).map((symptom, i) => (
+                            <Badge 
+                              key={i} 
+                              variant="outline" 
+                              className="text-xs bg-white text-red-700 border-red-200"
+                            >
+                              {symptom}
+                            </Badge>
+                          ))
+                        ) : (
+                          <p className="font-semibold text-gray-900">None</p>
+                        )}
+                        {selectedPatient.lastVisit.symptoms && selectedPatient.lastVisit.symptoms.length > 2 && (
+                          <span className="text-xs text-gray-600">
+                            +{selectedPatient.lastVisit.symptoms.length - 2} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Services Requested */}
+                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <FileText className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 mb-1">
+                        Services ({selectedPatient.lastVisit.services?.length || 0})
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedPatient.lastVisit.services && selectedPatient.lastVisit.services.length > 0 ? (
+                          selectedPatient.lastVisit.services.slice(0, 2).map((serviceId, i) => (
+                            <Badge 
+                              key={i} 
+                              variant="outline" 
+                              className="text-xs bg-white text-purple-700 border-purple-200"
+                            >
+                              {getServiceLabel(serviceId)}
+                            </Badge>
+                          ))
+                        ) : (
+                          <p className="font-semibold text-gray-900">None</p>
+                        )}
+                        {selectedPatient.lastVisit.services && selectedPatient.lastVisit.services.length > 2 && (
+                          <span className="text-xs text-gray-600">
+                            +{selectedPatient.lastVisit.services.length - 2} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visit Date & Status */}
+                <div className="mt-4 pt-4 border-t grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-gray-500" />
+                    <div>
+                      <p className="text-xs text-gray-500">Visit Date</p>
+                      <p className="font-semibold text-gray-900">
+                        {formatDate(selectedPatient.lastVisit.registeredAt)}
+                      </p>
+                    </div>
+                  </div>                 
+                </div>
+
+                {/* Last Diagnosis */}
+                {diagnoses[selectedPatient.lastVisit.queueNo] && (
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="p-4 bg-blue-50 border-l-4 border-blue-500 rounded-md">
+                      <p className="text-xs font-semibold text-blue-800 mb-2">LAST DIAGNOSIS:</p>
+                      <p className="text-sm text-blue-900 whitespace-pre-wrap leading-relaxed">
+                        {diagnoses[selectedPatient.lastVisit.queueNo]}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 3. BASIC INFORMATION */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

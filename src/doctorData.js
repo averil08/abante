@@ -3,14 +3,16 @@ export const doctors = [
     id: 1, 
     name: "Dr. Melissa B. Edic", 
     specializations: [
-      "pedia", "follow-up" // Pediatrics
+      "pedia", "follow-up", // Pediatrics
+      "urinalysis", "fecalysis" // Basic lab work for pediatrics
     ]
   },
   { 
     id: 2, 
     name: "Dr. Genevive Bandiwan-Laking", 
     specializations: [
-      "pedia", "follow-up" // Pediatrics
+      "pedia", "follow-up", // Pediatrics
+      "urinalysis", "fecalysis" // Basic lab work for pediatrics
     ]
   },
   { 
@@ -23,7 +25,10 @@ export const doctors = [
       "lipid", "totalCh", "triglycerides", "hdl", "ldl", // Lipids
       "alt", "ast", "uric", "creatinine", "bun",    // Liver + Kidney
       "albumin", "totalProtein", "alp", "phosphorus", // Proteins + Minerals
-      "sodium", "potassium", "chloride", "ionizedCal", "totalCal", "magnesium" // Electrolytes
+      "sodium", "potassium", "chloride", "ionizedCal", "totalCal", "magnesium", // Electrolytes
+      "urinalysis", "fecalysis", "fecal",           // Clinical Microscopy
+      "tsh", "ft3", "t4", "t3",                     // Thyroid function tests
+      "totalBilirubin"                              // Liver function
     ]
   },
   { 
@@ -33,56 +38,71 @@ export const doctors = [
       "adult", "senior", "preventive", "follow-up", // Infectious Disease consults
       "cbc", "platelet", "esr", "abo",              // Hematology
       "hbsag", "vdrl", "antiHCV", "hpylori",        // Immunology & Serology
-      "dengueIg", "dengueNs1", "dengueDuo", "typhidot" // Tropical infections
+      "dengueIg", "dengueNs1", "dengueDuo", "typhidot", // Tropical infections
+      "urinalysis", "fecalysis", "fecal"            // Clinical Microscopy
     ]
   },
   { 
     id: 5, 
     name: "Dr. Feb Golocan-Alquiza", 
     specializations: [
-      "fbs", "rbs", "creatinine", "bun", "hba1c" // Nephrology (kidney + diabetes)
+      "fbs", "rbs", "creatinine", "bun", "hba1c", // Nephrology (kidney + diabetes)
+      "urinalysis",                                // Kidney function assessment
+      "75g"                                        // Glucose tolerance test for diabetes
     ]
   },
   { 
     id: 6, 
     name: "Dr. Tanya Charissa Diomampo", 
     specializations: [
-      "creatinine", "bun", "hba1c" // Nephrology (kidney + diabetes)
+      "creatinine", "bun", "hba1c", // Nephrology (kidney + diabetes)
+      "urinalysis",                  // Kidney function assessment
+      "75g"                          // Glucose tolerance test for diabetes
     ]
   },
   { 
     id: 7, 
     name: "Dr. Maricar Josephine A. Geronimo", 
     specializations: [
-      "lipid", "totalCh", "triglycerides", "hdl", "ldl", "fbs", "rbs" // Nephrology (lipids + diabetes)
+      "lipid", "totalCh", "triglycerides", "hdl", "ldl", "fbs", "rbs", // Nephrology (lipids + diabetes)
+      "urinalysis",                                                      // Kidney assessment
+      "75g"                                                              // Glucose tolerance test
     ]
   },
   { 
     id: 8, 
     name: "Dr. Elvira T. Lampacan", 
     specializations: [
-      "pregnancyT", "follow-up" // OB-GYN
+      "pregnancyT", "follow-up", // OB-GYN
+      "urinalysis",              // Prenatal screening
+      "fecalysis"                // General health screening
     ]
   },
   { 
     id: 9, 
     name: "Dr. Clarissa Mae L. Lee", 
     specializations: [
-      "pregnancyT", "follow-up" // OB-GYN
+      "pregnancyT", "follow-up", // OB-GYN
+      "urinalysis",              // Prenatal screening
+      "fecalysis"                // General health screening
     ]
   },
   { 
     id: 10, 
     name: "Dr. Herschel Charisse C. Rivera-Ang", 
     specializations: [
-      "pregnancyT", "follow-up" // OB-GYN
+      "pregnancyT", "follow-up", // OB-GYN
+      "urinalysis",              // Prenatal screening
+      "fecalysis"                // General health screening
     ]
   },
   { 
     id: 11, 
     name: "Dr. Cecille P. Pating", 
     specializations: [
-      "pregnancyT", "follow-up" // OB-GYN
+      "pregnancyT", "follow-up", // OB-GYN
+      "urinalysis",              // Prenatal screening
+      "fecalysis"                // General health screening
     ]
   },
   { 
@@ -91,24 +111,30 @@ export const doctors = [
     specializations: [
       "follow-up", 
       "orthopedic", 
-      "psa"        // Prostate screening (fits male health, though usually urology)
+      "psa",        // Prostate screening (male health/urology)
+      "semen",      // Semen analysis (urology/male fertility)
+      "urinalysis"  // Urinary system assessment
     ]
   },
   { id: 13, 
     name: "Dr. Rajiv D. Laoagan", 
     specializations: [
-      "general surgery"
+      "general surgery",
+      "urinalysis", "fecalysis", "fecal" // Pre-surgical screening
     ] 
   },
   { id: 14, 
-    name: "Dr. Jefferson Richmond G. Chomenwey", specializations: [
-      "general surgery"
+    name: "Dr. Jefferson Richmond G. Chomenwey", 
+    specializations: [
+      "general surgery",
+      "urinalysis", "fecalysis", "fecal" // Pre-surgical screening
     ] 
   },
   { id: 15, 
     name: "Dr. Rhea Jeanne L. Awas", 
     specializations: [
-      "ent"
+      "ent",
+      "urinalysis", "fecalysis" // General screening
     ] 
   },
 ];

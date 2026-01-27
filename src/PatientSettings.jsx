@@ -35,20 +35,31 @@ function PatientSettings() {
   //==============================
   const loadProfile = () => {
     try {
-      const userProfileStr = localStorage.getItem('userProfile');
       const currentEmail = localStorage.getItem('currentPatientEmail');
       
-      if (userProfileStr) {
-        const profile = JSON.parse(userProfileStr);
-        setFormData(prev => ({
-          ...prev,
-          email: profile.email || currentEmail || '',
-          fullName: profile.fullName || '',
-          age: profile.age || '',
-          phoneNumber: profile.phoneNumber || ''
-        }));
-      } else if (currentEmail) {
-        setFormData(prev => ({ ...prev, email: currentEmail }));
+      if (currentEmail) {
+        // Load profile specific to this email
+        const userProfileStr = localStorage.getItem(`userProfile_${currentEmail}`);
+        
+        if (userProfileStr) {
+          const profile = JSON.parse(userProfileStr);
+          console.log('📋 Loading profile for:', currentEmail);
+          console.log('📋 Profile data:', profile);
+          
+          setFormData(prev => ({
+            ...prev,
+            email: profile.email || currentEmail,
+            fullName: profile.fullName || '',
+            age: profile.age || '',
+            phoneNumber: profile.phoneNumber || ''
+          }));
+        } else {
+          console.log('⚠️ No profile found for:', currentEmail);
+          // Set email even if no profile exists yet
+          setFormData(prev => ({ ...prev, email: currentEmail }));
+        }
+      } else {
+        console.error('❌ No email found in session');
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -122,20 +133,27 @@ function PatientSettings() {
       //===================================
       //🔴 REPLACE FROM HERE updatedProfile
       //===================================
+      const currentEmail = localStorage.getItem('currentPatientEmail');
+      if (!currentEmail) {
+        setMessage({ text: 'Session expired. Please login again.', type: 'error' });
+        setIsSaving(false);
+        return;
+      }
+
       const updatedProfile = {
-        email: formData.email,
+        email: currentEmail, // Use the logged-in email, not the form email
         fullName: formData.fullName.trim(),
         age: formData.age,
         phoneNumber: formData.phoneNumber.trim()
       };
-      
-      // Save to localStorage with email key (for future logins)
-      const profileKey = `userProfile_${formData.email.toLowerCase().trim()}`;
+
+      // Save to localStorage with email key
+      const profileKey = `userProfile_${currentEmail}`;
       localStorage.setItem(profileKey, JSON.stringify(updatedProfile));
-      
-      // Also update the current session profile
-      localStorage.setItem('userProfile', JSON.stringify(updatedProfile));
-      
+
+      console.log('✅ Profile saved for:', currentEmail);
+      console.log('✅ Profile data:', updatedProfile);
+
       setMessage({ text: 'Profile updated successfully!', type: 'success' });
       setHasChanges(false);
       //===================================

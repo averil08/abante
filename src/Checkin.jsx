@@ -409,19 +409,26 @@ function Checkin() {
   useEffect(() => {
     if (isFromPatientSidebar && selectedPatientType) {
       try {
-        const userProfileStr = localStorage.getItem('userProfile');
-        if (userProfileStr) {
-          const userProfile = JSON.parse(userProfileStr);
-          
-          console.log('📋 Loading profile data:', userProfile);
-          
-          // Auto-fill form data silently (will be submitted but not shown)
-          setFormData(prev => ({
-            ...prev,
-            name: userProfile.fullName || prev.name,
-            age: userProfile.age || prev.age,
-            phoneNum: userProfile.phoneNumber || prev.phoneNum,
-          }));
+        const email = localStorage.getItem('currentPatientEmail');
+        if (email) {
+          // Load profile specific to this email
+          const userProfileStr = localStorage.getItem(`userProfile_${email}`);
+          if (userProfileStr) {
+            const userProfile = JSON.parse(userProfileStr);
+            
+            console.log('📋 Loading profile data for:', email);
+            console.log('📋 Profile data:', userProfile);
+            
+            // Auto-fill form data
+            setFormData(prev => ({
+              ...prev,
+              name: userProfile.fullName || prev.name,
+              age: userProfile.age || prev.age,
+              phoneNum: userProfile.phoneNumber || prev.phoneNum,
+            }));
+          } else {
+            console.log('⚠️ No profile found for:', email);
+          }
         }
       } catch (error) {
         console.error('Error loading user profile:', error);

@@ -86,7 +86,7 @@ export const PatientProvider = ({ children }) => {
         calledAt: null,
         queueExitTime: null,  
         completedAt: null,
-        assignedDoctor: { id: 1, name: "Dr. Genevive Bandiwan-Laking" }
+        assignedDoctor: { id: 2, name: "Dr. Genevive Bandiwan-Laking" }
       },
       { 
         queueNo: 3, 
@@ -102,7 +102,7 @@ export const PatientProvider = ({ children }) => {
         calledAt: null,  
         queueExitTime: null,  
         completedAt: null,
-        assignedDoctor: { id: 2, name: "Dr. Cynthia Moran" }
+        assignedDoctor: { id: 3, name: "Dr. Cynthia Moran" }
       },
       { 
         queueNo: 4, 
@@ -118,7 +118,7 @@ export const PatientProvider = ({ children }) => {
         calledAt: null,  
         queueExitTime: null, 
         completedAt: null,
-        assignedDoctor: { id: 11, name: "Dr. Melissa B. Edic" }
+        assignedDoctor: { id: 1, name: "Dr. Melissa B. Edic" }
       },
     ];
   });

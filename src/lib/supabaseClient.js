@@ -39,52 +39,59 @@ export const registerWalkInPatient = async (patientData) => {
 };
 
 // Register an appointment patient
-export const registerAppointmentPatient = async (patientData, appointmentDateTime) => {
+export const registerAppointmentPatient = async (formData, appointmentDateTime) => {
   try {
-    // First, create the patient record
-    const { data: patientResult, error: patientError } = await supabase
+    // STEP 1: Create the Patient record
+    // We use snake_case keys (phone_num, patient_type) to match your SQL schema
+    const { data: patientData, error: patientError } = await supabase
       .from('patients')
       .insert([
-        {
-          profile_id: patientData.profileId || null,
-          symptoms: patientData.symptoms || [],
-          services: patientData.services || [],
-          patient_type: 'appointment'
+        { 
+          name: formData.name || "Guest Patient",
+          age: formData.age ? parseInt(formData.age) : 0,
+          phone_num: formData.phoneNum, // DB is phone_num
+          patient_type: "appointment",  // DB is patient_type (fixes your error)
+          physician: formData.physician || null,
+          symptoms: formData.symptoms || [],
+          services: formData.services || [],
+          status: 'waiting',
+          appointment_status: 'pending', // DB is appointment_status
+          appointment_datetime: appointmentDateTime, // DB is appointment_datetime
+          is_priority: formData.isPriority || false,
+          priority_type: formData.priorityType || null // DB is priority_type
         }
       ])
-      .select();
+      .select()
+      .single();
 
-    if (patientError) throw patientError;
+    if (patientError) {
+      console.error("Step 1 (Patient) failed:", patientError);
+      throw patientError;
+    }
 
-    const patient = patientResult[0];
-
-    // Then, create the appointment record
-    const { data: appointmentResult, error: appointmentError } = await supabase
+    // STEP 2: Create the Appointment record linked via patient_id
+    const { data: apptData, error: apptError } = await supabase
       .from('appointments')
       .insert([
-        {
-          patient_id: patient.id,
+        { 
+          patient_id: patientData.id, 
           appointment_datetime: appointmentDateTime,
-          status: 'scheduled'
+          status: 'scheduled',
+          notes: formData.notes || null
         }
-      ])
-      .select();
+      ]);
 
-    if (appointmentError) throw appointmentError;
+    if (apptError) {
+      console.error("Step 2 (Appointment) failed:", apptError);
+      throw apptError;
+    }
 
-    return { 
-      success: true, 
-      data: {
-        patient: patient,
-        appointment: appointmentResult[0]
-      }
-    };
+    return { success: true, data: apptData };
   } catch (error) {
-    console.error('Error registering appointment patient:', error);
-    return { success: false, error: error.message };
+    console.error("Detailed Error Object:", error);
+    return { success: false, error: error.message || "An unexpected error occurred" };
   }
 };
-
 
 
 // ============================================

@@ -8,100 +8,205 @@ const Homepage = () => {
   const handleNav = () => setNav(!nav);
   const { patients, activePatient } = useContext(PatientContext);
 
-  // Calculate pending appointments (pending approval)
-  const pendingAppointments = patients.filter(patient => 
-    !patient.isInactive && 
-    patient.type === 'Appointment' && 
-    patient.appointmentStatus === 'pending'
-  ).length;
+  // Get current day of the week
+  const getCurrentDay = () => {
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    return days[new Date().getDay()];
+  };
 
-  // Calculate upcoming appointments (approved/accepted)
-  const upcomingAppointments = patients.filter(patient => 
-    !patient.isInactive && 
-    patient.type === 'Appointment' && 
-    patient.appointmentStatus === 'accepted'
-  ).length;
-
-  // Check if current logged-in patient has active appointments
-  const myPendingAppointments = activePatient && activePatient.type === 'Appointment' && 
-    activePatient.appointmentStatus === 'pending' ? 1 : 0;
-
-  const myUpcomingAppointments = activePatient && activePatient.type === 'Appointment' && 
-    activePatient.appointmentStatus === 'accepted' ? 1 : 0;
+  // Updated function to check if doctor is available today
+  const isDoctorAvailableToday = (scheduleArray) => {
+    const currentDay = getCurrentDay();
+    
+    // If no schedule array, return false
+    if (!scheduleArray || scheduleArray.length === 0) return false;
+    
+    // Check each schedule entry
+    for (const entry of scheduleArray) {
+      // If it's an appointment-only doctor, return false (not walk-in available)
+      if (entry.type === "byAppointment") return false;
+      
+      // If no days property, skip
+      if (!entry.days) continue;
+      
+      const scheduleDays = entry.days.toLowerCase();
+      
+      // Handle "Mon - Sat" or "Mon - Fri" format
+      if (scheduleDays.includes('-')) {
+        if (scheduleDays.includes('mon - sat')) {
+          if (currentDay !== 'Sunday') return true;
+        }
+        if (scheduleDays.includes('mon - fri')) {
+          if (currentDay !== 'Saturday' && currentDay !== 'Sunday') return true;
+        }
+        if (scheduleDays.includes('mon - wed')) {
+          if (['Monday', 'Tuesday', 'Wednesday'].includes(currentDay)) return true;
+        }
+        if (scheduleDays.includes('thu - fri')) {
+          if (['Thursday', 'Friday'].includes(currentDay)) return true;
+        }
+      }
+      
+      // Handle specific days like "Mon, Wed, Fri" or "Tue, Thu, Sat"
+      const dayAbbreviations = {
+        'Monday': 'mon',
+        'Tuesday': 'tue',
+        'Wednesday': 'wed',
+        'Thursday': 'thu',
+        'Friday': 'fri',
+        'Saturday': 'sat',
+        'Sunday': 'sun'
+      };
+      
+      const currentDayAbbr = dayAbbreviations[currentDay];
+      if (scheduleDays.includes(currentDayAbbr)) return true;
+    }
+    
+    return false;
+  };
 
   // Doctor data with schedules
   const doctors = [
     { 
       id: 1, 
-      name: "Dr. Sarah Gonzales", 
-      specializations: ["Pediatric", "Preventive Care", "Follow-up"],
-      schedule: { days: "Mon, Wed, Fri", time: "8:00 AM - 5:00 PM" }
+      name: "Dr. Melissa B. Edic", 
+      specializations: ["pedia", "follow-up"],
+      schedule: [
+        { days: "Thu - Fri", time: "9:00 AM - 11:00 PM" },
+        { days: "Thu - Fri", time: "2:00 AM - 5:00 PM" },
+        { days: "Wednesday", frequency: "2nd and 4th", time: "9:00 AM - 3:00 PM" },
+        { days: "Saturday", frequency: "1st and 3rd", time: "9:00 AM - 3:00 PM" }
+      ]
     },
     { 
       id: 2, 
-      name: "Dr. John Martinez", 
-      specializations: ["Adult Medicine", "Senior Care", "Preventive Care"],
-      schedule: { days: "Tue, Thu, Sat", time: "9:00 AM - 6:00 PM" }
+      name: "Dr. Genevive Bandiwan-Laking", 
+      specializations: ["pedia", "follow-up"],
+      schedule: [
+        { type: "byAppointment", note: "Book an appointment to arrange" }
+      ]
     },
     { 
       id: 3, 
-      name: "Dr. Lisa Chen", 
-      specializations: ["Pediatric", "Adult Medicine"],
-      schedule: { days: "Mon, Wed, Fri", time: "10:00 AM - 7:00 PM" }
+      name: "Dr. Cynthia Moran", 
+      specializations: [
+        "adult", "senior", "preventive", "follow-up",
+        "cbc", "platelet", "esr", "abo",
+        "fbs", "rbs", "hba1c",
+        "lipid", "totalCh", "triglycerides", "hdl", "ldl",
+        "alt", "ast", "uric", "creatinine", "bun",
+        "albumin", "totalProtein", "alp", "phosphorus",
+        "sodium", "potassium", "chloride", "ionizedCal", "totalCal", "magnesium"
+      ],
+      schedule: [
+        { days: "Wed", time: "9:00 AM - 12:00 PM" }
+      ]
     },
     { 
       id: 4, 
-      name: "Dr. Michael Torres", 
-      specializations: ["Hematology", "CBC", "Blood Testing"],
-      schedule: { days: "Mon - Sat", time: "7:00 AM - 3:00 PM" }
+      name: "Dr. Edrian O. Geronimo", 
+      specializations: [
+        "adult", "senior", "preventive", "follow-up",
+        "cbc", "platelet", "esr", "abo",
+        "hbsag", "vdrl", "antiHCV", "hpylori",
+        "dengueIg", "dengueNs1", "dengueDuo", "typhidot"
+      ],
+      schedule: [
+        { days: "Tue, Thu", time: "9:00 AM - 12:00 PM" }
+      ]
     },
     { 
       id: 5, 
-      name: "Dr. Anna Reyes", 
-      specializations: ["Infectious Disease", "Hepatitis Testing", "STD Screening"],
-      schedule: { days: "Tue, Thu, Sat", time: "8:00 AM - 4:00 PM" }
+      name: "Dr. Feb Golocan-Alquiza", 
+      specializations: ["fbs", "rbs", "creatinine", "bun", "hba1c"],
+      schedule: [
+        { days: "Mon, Tue, Thu", time: "1:00 PM - 5:00 PM" }
+      ]
     },
     { 
       id: 6, 
-      name: "Dr. Robert Kim", 
-      specializations: ["Tropical Medicine", "Dengue Testing", "Typhoid Testing"],
-      schedule: { days: "Mon, Wed, Fri", time: "8:00 AM - 5:00 PM" }
+      name: "Dr. Tanya Charissa Diomampo", 
+      specializations: ["creatinine", "bun", "hba1c"],
+      schedule: [
+        { days: "Wed", time: "1:00 PM - 5:00 PM" },
+        { days: "Sat", time: "10:00 AM - 1:00 PM" }
+      ]
     },
     { 
       id: 7, 
-      name: "Dr. Emily Santos", 
-      specializations: ["Endocrinology", "Diabetes Care", "Lipid Profile"],
-      schedule: { days: "Mon - Fri", time: "9:00 AM - 5:00 PM" }
+      name: "Dr. Maricar Josephine A. Geronimo", 
+      specializations: ["lipid", "totalCh", "triglycerides", "hdl", "ldl", "fbs", "rbs"],
+      schedule: [
+        { days: "Fri", time: "1:00 PM - 5:00 PM" }
+      ]
     },
     { 
       id: 8, 
-      name: "Dr. David Lee", 
-      specializations: ["Internal Medicine", "Liver Function", "Kidney Function"],
-      schedule: { days: "Tue, Thu, Sat", time: "8:00 AM - 4:00 PM" }
+      name: "Dr. Elvira T. Lampacan", 
+      specializations: ["pregnancyT", "follow-up"],
+      schedule: [
+        { days: "Wed, Fri", time: "9:30 AM - 12:00 PM" },
+        { days: "Thu", time: "1:00 PM - 3:00 PM" }
+      ]
     },
     { 
       id: 9, 
-      name: "Dr. Maria Garcia", 
-      specializations: ["Clinical Chemistry", "Protein Testing", "Mineral Analysis"],
-      schedule: { days: "Mon, Wed, Fri", time: "7:00 AM - 3:00 PM" }
+      name: "Dr. Clarissa Mae L. Lee", 
+      specializations: ["pregnancyT", "follow-up"],
+      schedule: [
+        { days: "Mon, Tue", time: "9:30 AM - 12:00 PM" },
+        { days: "Sat", time: "1:00 PM - 3:00 PM" }
+      ]
     },
     { 
       id: 10, 
-      name: "Dr. James Wilson", 
-      specializations: ["Electrolyte Testing", "Metabolic Panel", "Calcium Testing"],
-      schedule: { days: "Mon - Sat", time: "8:00 AM - 5:00 PM" }
+      name: "Dr. Herschel Charisse C. Rivera-Ang", 
+      specializations: ["pregnancyT", "follow-up"],
+      schedule: [
+        { days: "Mon - Wed", time: "1:00 PM - 3:00 PM" }
+      ]
     },
     { 
       id: 11, 
-      name: "Dr. Patricia Brown", 
-      specializations: ["Urinalysis", "Pregnancy Testing", "Reproductive Health"],
-      schedule: { days: "Tue, Thu, Sat", time: "9:00 AM - 6:00 PM" }
+      name: "Dr. Cecille P. Pating", 
+      specializations: ["pregnancyT", "follow-up"],
+      schedule: [
+        { days: "Thu, Sat", time: "9:30 AM - 12:00 PM" },
+        { days: "Fri", time: "1:00 PM - 3:00 PM" }
+      ]
     },
     { 
       id: 12, 
-      name: "Dr. Thomas Anderson", 
-      specializations: ["Thyroid Specialist", "Hormone Testing", "Endocrine Disorders"],
-      schedule: { days: "Mon - Fri", time: "8:00 AM - 5:00 PM" }
+      name: "Dr. Richard S. Ang", 
+      specializations: ["follow-up", "psa"],
+      schedule: [
+        { days: "Mon - Fri", time: "8:00 AM - 5:00 PM" }
+      ]
+    },
+    { 
+      id: 13, 
+      name: "Dr. Rajiv D. Laoagan", 
+      specializations: ["generalSurgery"],
+      schedule: [
+        { days: "Thu", time: "8:00 AM - 5:00 PM" },
+        { days: "Fri, Sat", time: "8:00 AM - 12:00 PM" }
+      ]
+    },
+    { 
+      id: 14, 
+      name: "Dr. Jefferson Richmond G. Chomenwey",
+      specializations: ["generalSurgery"],
+      schedule: [
+        { type: "byAppointment", note: "Book an appointment to arrange" }
+      ]
+    },
+    { 
+      id: 15, 
+      name: "Dr. Rhea Jeanne L. Awas", 
+      specializations: ["ent"],
+      schedule: [
+        { days: "Mon, Tue, Wed", time: "8:00 AM - 5:00 PM" }
+      ]
     }
   ];
 
@@ -134,75 +239,6 @@ const Homepage = () => {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto p-4 sm:p-6">
-          {/* Appointment Overview Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
-            {/* Upcoming Appointments */}
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow-md p-6 border border-blue-200">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-500 rounded-lg">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-blue-900 uppercase tracking-wide">Upcoming Appointments</h3>
-                    <p className="text-xs text-blue-700 mt-0.5">Confirmed appointments</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-5xl font-bold text-blue-900">{myUpcomingAppointments}</p>
-                <p className="text-sm text-blue-700 font-medium">scheduled</p>
-              </div>
-              <div className="mt-4 pt-4 border-t border-blue-300">
-                <p className="text-xs text-blue-800">
-                  {myUpcomingAppointments === 0 
-                    ? "You have no upcoming appointments at this time." 
-                    : myUpcomingAppointments === 1 
-                    ? "You have 1 confirmed appointment scheduled." 
-                    : `You have ${myUpcomingAppointments} confirmed appointments scheduled.`}
-                </p>
-              </div>
-            </div>
-
-            {/* Pending Appointments */}
-            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg shadow-md p-6 border border-amber-200">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-amber-500 rounded-lg relative">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {myPendingAppointments > 0 && (
-                      <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-amber-900 uppercase tracking-wide">Pending Appointments</h3>
-                    <p className="text-xs text-amber-700 mt-0.5">Awaiting confirmation</p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-baseline gap-2">
-                <p className="text-5xl font-bold text-amber-900">{myPendingAppointments}</p>
-                <p className="text-sm text-amber-700 font-medium">waiting</p>
-              </div>
-              <div className="mt-4 pt-4 border-t border-amber-300">
-                <p className="text-xs text-amber-800">
-                  {myPendingAppointments === 0 
-                    ? "No appointments pending confirmation." 
-                    : myPendingAppointments === 1 
-                    ? "You have 1 appointment awaiting approval." 
-                    : `You have ${myPendingAppointments} appointments awaiting approval.`}
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Doctor Duty Schedule */}
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Doctor Duty Schedule</h2>
@@ -215,10 +251,18 @@ const Homepage = () => {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <h3 className="font-bold text-lg text-gray-900 mb-1">{doctor.name}</h3>
-                      <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span>Available</span>
-                      </div>
+                      {/* FIXED: Pass doctor.schedule array instead of doctor.schedule.days */}
+                      {isDoctorAvailableToday(doctor.schedule) ? (
+                        <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span>Available</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-sm text-gray-400 font-medium">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                          <span>Not Available</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -234,21 +278,41 @@ const Homepage = () => {
                       </div>
                     </div>
                     
+                    {/* FIXED: Map through schedule array */}
                     <div className="pt-3 border-t border-gray-200">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Schedule</p>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <span className="text-gray-700 font-medium">{doctor.schedule.days}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <span className="text-gray-700 font-medium">{doctor.schedule.time}</span>
-                        </div>
+                      <div className="space-y-2">
+                        {doctor.schedule.map((entry, idx) => (
+                          <div key={idx} className="space-y-1">
+                            {entry.type === "byAppointment" ? (
+                              <div className="text-sm text-gray-700 italic">
+                                <span className="font-medium">{entry.note}</span>
+                              </div>
+                            ) : (
+                              <>
+                                {entry.days && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    <span className="text-gray-700 font-medium">
+                                      {entry.days}
+                                      {entry.frequency && <span className="text-xs text-gray-500 ml-1">({entry.frequency})</span>}
+                                    </span>
+                                  </div>
+                                )}
+                                {entry.time && (
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span className="text-gray-700 font-medium">{entry.time}</span>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -263,10 +327,18 @@ const Homepage = () => {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-bold text-base text-gray-900">{doctor.name}</h3>
-                      <div className="flex items-center gap-2 text-xs text-green-600 font-medium mt-1">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        <span>Available</span>
-                      </div>
+                      {/* FIXED: Pass doctor.schedule array instead of doctor.schedule.days */}
+                      {isDoctorAvailableToday(doctor.schedule) ? (
+                        <div className="flex items-center gap-2 text-xs text-green-600 font-medium mt-1">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span>Available</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 text-xs text-gray-400 font-medium mt-1">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                          <span>Not Available</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                   
@@ -282,11 +354,23 @@ const Homepage = () => {
                       </div>
                     </div>
                     
+                    {/* FIXED: Map through schedule array */}
                     <div className="pt-2 border-t border-gray-100">
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Schedule</p>
-                      <div className="text-sm text-gray-700">
-                        <p className="font-medium">{doctor.schedule.days}</p>
-                        <p className="text-gray-600">{doctor.schedule.time}</p>
+                      <div className="space-y-2">
+                        {doctor.schedule.map((entry, idx) => (
+                          <div key={idx} className="text-sm text-gray-700">
+                            {entry.type === "byAppointment" ? (
+                              <p className="italic">{entry.note}</p>
+                            ) : (
+                              <>
+                                {entry.days && <p className="font-medium">{entry.days}</p>}
+                                {entry.time && <p className="text-gray-600">{entry.time}</p>}
+                                {entry.frequency && <p className="text-xs text-gray-500">({entry.frequency})</p>}
+                              </>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>

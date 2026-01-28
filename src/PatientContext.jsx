@@ -75,6 +75,8 @@ export const PatientProvider = ({ children }) => {
   },
 ]);
 
+// Listen for storage events to sync patients across tabs
+
   // Add this useEffect in PatientProvider, after the patients state
   useEffect(() => {
     // Broadcast patient changes to other tabs via localStorage

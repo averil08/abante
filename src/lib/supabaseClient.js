@@ -16,19 +16,18 @@ export const registerWalkInPatient = async (patientData) => {
   try {
     const { data, error } = await supabase
       .from('patients')
-      .upsert(
+      .insert([
         {
           name: patientData.name,
           age: parseInt(patientData.age),
-          phone_num: patientData.phoneNum, // This is the "unique" key
+          phone_num: patientData.phoneNum,
           physician: patientData.physician || null,
           symptoms: patientData.symptoms || [],
           services: patientData.services || [],
           days_since_onset: patientData.daysSinceOnSet ? parseInt(patientData.daysSinceOnSet) : null,
           patient_type: 'walk-in'
-        },
-        { onConflict: 'phone_num' } // Tell Supabase to check the phone_num for duplicates
-      )
+        }
+      ])
       .select();
 
     if (error) throw error;

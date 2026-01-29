@@ -48,6 +48,12 @@ const Analytics = () => {
 
   // Calculate analytics
   const analytics = useMemo(() => {
+    if (!patients) return {
+      patientsPerDay: [], patientsPerHour: [], heatmapData: [],
+      weeklyData: [], servedWalkIn: 0, servedAppointment: 0,
+      noShowPatients: 0, topSymptoms: [], topServices: [],
+      ageGroups: {}, avgServiceTime: [], avgQueueTime: 0, topCorrelations: []
+    };
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     

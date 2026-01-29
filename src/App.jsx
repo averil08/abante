@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { supabase } from "./lib/supabaseClient";
 import LandingPage from "./LandingPage";
 import Signup from "./Signup";
 import Login from "./Login";
@@ -16,16 +17,46 @@ import ClinicTVDisplay from "./ClinicTVDisplay";
 
 
 
+
 function App() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // 1. Check for existing session on refresh
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    // 2. Listen for login/logout changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Prevents the "Blank Screen" while checking auth
+  if (loading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>Loading System...</div>;
+  }
+
   return (
     <Router>
-      {/* ✅ WRAP ENTIRE APP ONCE - All routes share same context */}
       <PatientProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          
+          {/* Example of Protected Route: If no session, send them to login */}
+          <Route 
+            path="/dashboard" 
+            element={session ? <Dashboard /> : <Navigate to="/login" />} 
+          />
+          
+          {/* Add your other routes below */}
+          <Route path="/signup" element={<Signup />} />
           <Route path="/checkin" element={<Checkin />} />
           <Route path="/qstatus" element={<QueueStatus />} />
           <Route path="/analytics" element={<Analytics />} />

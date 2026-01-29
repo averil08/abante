@@ -450,28 +450,26 @@ const Dashboard = () => {
   
   // Filter to only show patients in active queue
   // Exclude appointment patients that haven't been accepted yet
-  const queuePatients = patients.filter(p => {
+  // ✅ ADDED SAFETY CHECKS: Use ?. and || [] to prevent crashes on refresh
+  const queuePatients = (patients || []).filter(p => {
     if (p.isInactive) return false;
     if (p.type === "Appointment" && p.appointmentStatus !== "accepted") return false;
-    if (p.status === "done" || p.status === "cancelled") return false; // Exclude done and cancelled
-    if (p.isPriority) return false; // Exclude priority patients from active queue
+    if (p.status === "done" || p.status === "cancelled") return false; 
+    if (p.isPriority) return false; 
     return p.inQueue;
   });
 
-  // ✅ Filter done patients - only "done" status
-  const donePatients = patients.filter(p => {
+  const donePatients = (patients || []).filter(p => {
     if (p.isInactive) return false;
     return p.status === "done" && p.inQueue;
   });
 
-  // ✅ Filter cancel patients - only "cancel" status
-  const cancelPatients = patients.filter(p => {
+  const cancelPatients = (patients || []).filter(p => {
     if (p.isInactive) return false;
     return p.status === "cancelled" && p.inQueue;
   });
 
-  // Priority patients (PWD, Pregnant, Senior)
-  const priorityPatients = patients.filter(p => {
+  const priorityPatients = (patients || []).filter(p => {
     if (p.isInactive) return false;
     if (p.status === "done" || p.status === "cancelled") return false;
     return p.isPriority && p.inQueue;
@@ -492,7 +490,8 @@ const Dashboard = () => {
   const filteredDonePatients = getFilteredPatients(donePatients);
   const filteredCancelPatients = getFilteredPatients(cancelPatients);
 
-  const totalWaiting = queuePatients.filter(p => p.status === "waiting").length;
+    // Line 453 Fix: Added safety check
+  const totalWaiting = queuePatients?.filter(p => p.status === "waiting").length || 0;
 
   // Helper function to check if a doctor has active or priority patients
   const getDoctorPatientCount = (doctorId) => {

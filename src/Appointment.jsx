@@ -18,7 +18,7 @@ const Appointment = () => {
   const { patients, acceptAppointment, rejectAppointment } = useContext(PatientContext);
   
   // Filter appointments (patients with type "Appointment")
-  const appointments = patients.filter(p => p.type === "Appointment");
+  const appointments = (patients || []).filter(p => p.type === "Appointment");
   
   // Service labels mapping
   const serviceLabels = {

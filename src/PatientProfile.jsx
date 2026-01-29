@@ -45,6 +45,7 @@ const PatientProfile = () => {
 
   // Group patients by unique patient with SIMPLIFIED matching logic
   const uniquePatients = useMemo(() => {
+    if (!patients || !Array.isArray(patients)) return [];
     const patientMap = new Map();
     
     patients.forEach(visit => {

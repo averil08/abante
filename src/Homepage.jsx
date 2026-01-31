@@ -14,9 +14,32 @@ const Homepage = () => {
     return days[new Date().getDay()];
   };
 
-  // Updated function to check if doctor is available today
+  // ADDED 1/31/26
+  const parseTime = (timeStr) => {
+    if (!timeStr) return null;
+    
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return null;
+    
+    let hours = parseInt(match[1]);
+    const minutes = parseInt(match[2]);
+    const period = match[3].toUpperCase();
+    
+    // Convert to 24-hour format
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    
+    return hours * 60 + minutes; // Return total minutes since midnight
+  };
+
+  // Updated function to check if doctor is available NOW (both day and time)
   const isDoctorAvailableToday = (scheduleArray) => {
     const currentDay = getCurrentDay();
+    const now = new Date();
+    const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
     
     // If no schedule array, return false
     if (!scheduleArray || scheduleArray.length === 0) return false;
@@ -24,45 +47,67 @@ const Homepage = () => {
     // Check each schedule entry
     for (const entry of scheduleArray) {
       // If it's an appointment-only doctor, return false (not walk-in available)
-      if (entry.type === "byAppointment") return false;
+      if (entry.type === "byAppointment") continue;
       
       // If no days property, skip
       if (!entry.days) continue;
       
       const scheduleDays = entry.days.toLowerCase();
+      let isDayMatch = false;
       
       // Handle "Mon - Sat" or "Mon - Fri" format
       if (scheduleDays.includes('-')) {
         if (scheduleDays.includes('mon - sat')) {
-          if (currentDay !== 'Sunday') return true;
+          isDayMatch = currentDay !== 'Sunday';
+        } else if (scheduleDays.includes('mon - fri')) {
+          isDayMatch = currentDay !== 'Saturday' && currentDay !== 'Sunday';
+        } else if (scheduleDays.includes('mon - wed')) {
+          isDayMatch = ['Monday', 'Tuesday', 'Wednesday'].includes(currentDay);
+        } else if (scheduleDays.includes('thu - fri')) {
+          isDayMatch = ['Thursday', 'Friday'].includes(currentDay);
         }
-        if (scheduleDays.includes('mon - fri')) {
-          if (currentDay !== 'Saturday' && currentDay !== 'Sunday') return true;
-        }
-        if (scheduleDays.includes('mon - wed')) {
-          if (['Monday', 'Tuesday', 'Wednesday'].includes(currentDay)) return true;
-        }
-        if (scheduleDays.includes('thu - fri')) {
-          if (['Thursday', 'Friday'].includes(currentDay)) return true;
-        }
+      } else {
+        // Handle specific days like "Mon, Wed, Fri" or "Tue, Thu, Sat"
+        const dayAbbreviations = {
+          'Monday': 'mon',
+          'Tuesday': 'tue',
+          'Wednesday': 'wed',
+          'Thursday': 'thu',
+          'Friday': 'fri',
+          'Saturday': 'sat',
+          'Sunday': 'sun'
+        };
+        
+        const currentDayAbbr = dayAbbreviations[currentDay];
+        isDayMatch = scheduleDays.includes(currentDayAbbr);
       }
       
-      // Handle specific days like "Mon, Wed, Fri" or "Tue, Thu, Sat"
-      const dayAbbreviations = {
-        'Monday': 'mon',
-        'Tuesday': 'tue',
-        'Wednesday': 'wed',
-        'Thursday': 'thu',
-        'Friday': 'fri',
-        'Saturday': 'sat',
-        'Sunday': 'sun'
-      };
+      // If day doesn't match, skip this entry
+      if (!isDayMatch) continue;
       
-      const currentDayAbbr = dayAbbreviations[currentDay];
-      if (scheduleDays.includes(currentDayAbbr)) return true;
+      // Day matches! Now check the time
+      if (entry.time) {
+        // Parse time range (e.g., "9:00 AM - 5:00 PM")
+        const timeMatch = entry.time.match(/(.+?)\s*-\s*(.+)/);
+        
+        if (timeMatch) {
+          const startTime = parseTime(timeMatch[1].trim());
+          const endTime = parseTime(timeMatch[2].trim());
+          
+          if (startTime !== null && endTime !== null) {
+            // Check if current time is within the schedule
+            if (currentTimeInMinutes >= startTime && currentTimeInMinutes <= endTime) {
+              return true; // Doctor is available NOW
+            }
+          }
+        }
+      } else {
+        // If no time specified but day matches, consider available
+        return true;
+      }
     }
     
-    return false;
+    return false; // No matching schedule found
   };
 
   // Doctor data with schedules

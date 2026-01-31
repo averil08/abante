@@ -182,7 +182,20 @@ export const PatientProvider = ({ children }) => {
 
   const [currentServing, setCurrentServing] = useState(null);
   const [avgWaitTime, setAvgWaitTime] = useState(15);
-  const [activeDoctors, setActiveDoctors] = useState([]);
+  // ADDED change 1/30/26
+  const [activeDoctors, setActiveDoctors] = useState(() => {
+    try {
+      const savedActiveDoctors = localStorage.getItem('active-doctors');
+      if (savedActiveDoctors) {
+        const parsed = JSON.parse(savedActiveDoctors);
+        console.log('✅ Loaded active doctors from localStorage:', parsed);
+        return parsed;
+      }
+    } catch (error) {
+      console.error('❌ Error loading active doctors from localStorage:', error);
+    }
+    return [];
+  });
   
   const [doctorCurrentServing, setDoctorCurrentServing] = useState(() => {
     const initialServing = {};
@@ -193,6 +206,16 @@ export const PatientProvider = ({ children }) => {
     });
     return initialServing;
   });
+
+  // ADDED change 1/30/26
+useEffect(() => {
+  try {
+    localStorage.setItem('active-doctors', JSON.stringify(activeDoctors));
+    console.log('💾 Saved active doctors to localStorage:', activeDoctors);
+  } catch (error) {
+    console.error('❌ Error saving active doctors to localStorage:', error);
+  }
+}, [activeDoctors]);
 
   useEffect(() => {
     const currentServing = {};
@@ -307,6 +330,51 @@ export const PatientProvider = ({ children }) => {
       ];
     });
   };
+
+  // ADDED auto assign dr to unassigned patients 1/30/26
+  useEffect(() => {
+    const unassignedPatients = patients.filter(p => 
+      !p.assignedDoctor && 
+      !p.isInactive && 
+      p.status !== 'done' && 
+      p.status !== 'cancelled' &&
+      (p.type !== 'Appointment' || p.appointmentStatus === 'accepted')
+    );
+
+    if (unassignedPatients.length > 0 && activeDoctors.length > 0) {
+      console.log(`🔄 Found ${unassignedPatients.length} unassigned patients - attempting to assign...`);
+      
+      setPatients(prev => {
+        return prev.map(patient => {
+          // Skip if already has a doctor or is inactive/done/cancelled
+          if (patient.assignedDoctor || 
+              patient.isInactive || 
+              patient.status === 'done' || 
+              patient.status === 'cancelled') {
+            return patient;
+          }
+
+          // Skip pending/rejected appointments
+          if (patient.type === 'Appointment' && patient.appointmentStatus !== 'accepted') {
+            return patient;
+          }
+
+          // Try to assign a doctor
+          const doctor = assignDoctor(patient.services || [], prev, activeDoctors);
+          
+          if (doctor) {
+            console.log(`✅ Auto-assigned ${patient.name} (Queue #${patient.queueNo}) to ${doctor.name}`);
+            return {
+              ...patient,
+              assignedDoctor: doctor
+            };
+          }
+
+          return patient;
+        });
+      });
+    }
+  }, [patients, activeDoctors]); // Runs whenever patients or activeDoctors change
 
   const updatePatientStatus = (queueNo, newStatus) => {
     setPatients(prev =>
@@ -540,25 +608,51 @@ export const PatientProvider = ({ children }) => {
     setActiveDoctors(prev => prev.filter(id => id !== doctorId));
   };
 
+  //ADDED changed block of code: 1/30/26
   const reassignPatientsForDoctor = (doctorId) => {
     setPatients(prev => {
       const doctor = doctors.find(d => d.id === doctorId);
-      if (!doctor) return prev;
+      if (!doctor) {
+        console.log(`❌ Doctor with ID ${doctorId} not found`);
+        return prev;
+      }
 
-      return prev.map(patient => {
-        if (patient.assignedDoctor || patient.isInactive || 
-            patient.status === 'done' || patient.status === 'cancelled') {
+      console.log(`🔍 Checking patients for Dr. ${doctor.name}...`);
+      let assignedCount = 0;
+
+      const updatedPatients = prev.map(patient => {
+        // Skip if patient already has a doctor assigned
+        if (patient.assignedDoctor) {
           return patient;
         }
 
+        // Skip inactive, done, or cancelled patients
+        if (patient.isInactive || patient.status === 'done' || patient.status === 'cancelled') {
+          return patient;
+        }
+
+        // Skip pending/rejected appointments
         if (patient.type === 'Appointment' && patient.appointmentStatus !== 'accepted') {
           return patient;
         }
 
-        const primaryService = patient.services?.[0];
-        if (!primaryService) return patient;
+        // Check if patient has any services
+        const patientServices = patient.services || [];
+        if (patientServices.length === 0) {
+          return patient;
+        }
 
-        if (doctor.specializations.includes(primaryService)) {
+        // ADDED change to match doctorData.js: 1/30/26
+        const hasMatchingService = patientServices.some(patientService => 
+          doctor.specializations?.includes(patientService)  // ✅ Correct property
+        );
+
+        if (hasMatchingService) {
+          assignedCount++;
+          console.log(`✅ Assigned ${patient.name} (Queue #${patient.queueNo}) to Dr. ${doctor.name}`);
+          console.log(`   Patient services: ${patientServices.join(', ')}`);
+          console.log(`   Doctor specializations: ${doctor.specializations?.join(', ')}`);
+          
           return {
             ...patient,
             assignedDoctor: doctor
@@ -567,6 +661,14 @@ export const PatientProvider = ({ children }) => {
 
         return patient;
       });
+
+      if (assignedCount > 0) {
+        console.log(`✅ Successfully assigned ${assignedCount} patient(s) to Dr. ${doctor.name}`);
+      } else {
+        console.log(`ℹ️ No unassigned patients found matching Dr. ${doctor.name}'s services`);
+      }
+
+      return updatedPatients;
     });
   };
 

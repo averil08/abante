@@ -62,6 +62,32 @@ const AppointmentPicker = ({
     }
   }, [selectedDate, selectedTime]);
 
+  // ADDED 1/31/26
+  useEffect(() => {
+    if (selectedDateTime && !selectedDate) {
+      // Only restore if we don't already have a selection
+      try {
+        const dateTime = new Date(selectedDateTime);
+        
+        // Set the date
+        setSelectedDate(dateTime);
+        
+        // Set the time in HH:MM format
+        const hours = dateTime.getHours().toString().padStart(2, '0');
+        const minutes = dateTime.getMinutes().toString().padStart(2, '0');
+        const timeValue = `${hours}:${minutes}`;
+        setSelectedTime(timeValue);
+        
+        console.log('📅 Restored appointment date/time:', {
+          date: dateTime.toLocaleDateString(),
+          time: timeValue
+        });
+      } catch (error) {
+        console.error('Error restoring date/time:', error);
+      }
+    }
+  }, [selectedDateTime]);
+
   const handleDateChange = (date) => {
     setSelectedDate(date);
     setSelectedTime(""); // Reset time when date changes

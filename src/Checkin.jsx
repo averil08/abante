@@ -32,6 +32,62 @@ function Checkin() {
     return (isPatientView || isFromLogin || isFromPatientSidebar) ? 'patient' : 'clinic';
   };
 
+  //ADDED to preserve data when users navigate to complete their profile 1/31/26
+  const saveFormDataToTemp = () => {
+    const currentEmail = localStorage.getItem('currentPatientEmail');
+    if (currentEmail && isFromPatientSidebar) {
+      const tempData = {
+        symptoms: formData.symptoms,
+        services: formData.services,
+        appointmentDateTime: formData.appointmentDateTime,
+        isPriority: formData.isPriority,
+        priorityType: formData.priorityType,
+        isReturningPatient: formData.isReturningPatient,
+        expandedCategory: expandedCategory,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(`tempFormData_${currentEmail}`, JSON.stringify(tempData));
+      console.log('💾 Saved form data temporarily:', tempData);
+    }
+  };
+
+  const loadFormDataFromTemp = () => {
+    const currentEmail = localStorage.getItem('currentPatientEmail');
+    if (currentEmail && isFromPatientSidebar) {
+      const tempDataStr = localStorage.getItem(`tempFormData_${currentEmail}`);
+      if (tempDataStr) {
+        const tempData = JSON.parse(tempDataStr);
+        
+        // Only restore if data is less than 1 hour old
+        const oneHour = 60 * 60 * 1000;
+        if (Date.now() - tempData.timestamp < oneHour) {
+          console.log('📥 Restoring form data from temp storage:', tempData);
+          
+          setFormData(prev => ({
+            ...prev,
+            symptoms: tempData.symptoms || [],
+            services: tempData.services || [],
+            appointmentDateTime: tempData.appointmentDateTime || '',
+            isPriority: tempData.isPriority || false,
+            priorityType: tempData.priorityType || null,
+            isReturningPatient: tempData.isReturningPatient || false,
+          }));
+          
+          if (tempData.expandedCategory) {
+            setExpandedCategory(tempData.expandedCategory);
+          }
+          
+          return true;
+        } else {
+          // Data is too old, remove it
+          localStorage.removeItem(`tempFormData_${currentEmail}`);
+          console.log('🗑️ Temp form data expired, removed');
+        }
+      }
+    }
+    return false;
+  };
+
   // Add this NEW function
   const isFromQRCode = () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -343,8 +399,8 @@ function Checkin() {
           isPriority: formData.isPriority,
           priorityType: formData.priorityType,
           isReturningPatient: formData.isReturningPatient,
-          // Store patient email to link this registration to logged-in user
-          patientEmail: isFromPatientSidebar ? currentPatientEmail : null,
+          //ADDED CHANGE patientEmail: 1/30/26
+          patientEmail: isFromPatientSidebar && currentPatientEmail ? currentPatientEmail : null,
         };
 
         if (existingPatient && formData.isReturningPatient) {
@@ -378,14 +434,21 @@ function Checkin() {
         } else {
           showMessage("Success", `Appointment request submitted for ${formData.name}. Please wait for confirmation.`, true);
         }
-
+        {/*ADDED 1/31/26*/}
         setTimeout(() => {
+          const currentEmail = localStorage.getItem('currentPatientEmail');
+          if (currentEmail) {
+            localStorage.removeItem(`tempFormData_${currentEmail}`);
+            console.log('🗑️ Cleared temp form data after successful submission');
+          }
+          
           const params = new URLSearchParams();
           if (isPatientAccess) params.append('view', 'patient');
           if (isFromPatientSidebar) params.append('from', 'patient-sidebar');
           navigate(`/qstatus${params.toString() ? '?' + params.toString() : ''}`);
         }, 1000);
-      } else {
+      } 
+      else {
         showMessage("Error", result.error, false);
       }
     } catch (err) {
@@ -403,6 +466,16 @@ function Checkin() {
       setAvailableSlots(slots);
     }
   }, [formData.appointmentDateTime, getAvailableSlots, patients]);
+
+  // ADDED RESTORE FORM DATA when returning from settings 1/31/26
+  useEffect(() => {
+    if (isFromPatientSidebar && selectedPatientType) {
+      const restored = loadFormDataFromTemp();
+      if (restored) {
+        console.log('✅ Successfully restored previous form selections');
+      }
+    }
+  }, [isFromPatientSidebar, selectedPatientType]);
 
   //🔴 REPLACE FROM HERE
   // 🆕 ADD THIS: Auto-load user profile for logged-in patients
@@ -709,12 +782,16 @@ function Checkin() {
                           <span className="font-semibold text-gray-900">{formData.phoneNum}</span>
                         </div>
                         <div className="mt-3 pt-3 border-t border-gray-200">
+                          {/*ADDED 1/31/26*/}
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             className="w-full text-green-600 border-green-600 hover:bg-green-50"
-                            onClick={() => navigate('/patient-settings?from=patient-sidebar')}
+                            onClick={() => {
+                              saveFormDataToTemp();
+                              navigate('/patient-settings?from=patient-sidebar');
+                            }}
                           >
                             <Edit2 className="w-4 h-4 mr-2" />
                             Update Profile Information
@@ -730,11 +807,15 @@ function Checkin() {
                             <p className="text-xs text-yellow-700 mb-3">
                               Please complete your profile to book appointments quickly and easily.
                             </p>
+                            {/*ADDED change 1/31/26 */}
                             <Button
                               type="button"
                               size="sm"
                               className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                              onClick={() => navigate('/patient-settings?from=patient-sidebar')}
+                              onClick={() => {
+                                saveFormDataToTemp();
+                                navigate('/patient-settings?from=patient-sidebar');
+                              }}
                             >
                               Complete Profile Now
                             </Button>

@@ -140,39 +140,66 @@ export const doctors = [
 ];
 
 
-// Function to assign a doctor based on patient load - ONLY ACTIVE DOCTORS
+//ADDED change 1/30/26
 export const assignDoctor = (serviceIds, patients, activeDoctors = []) => {
+  console.log('🔍 assignDoctor called with:', { serviceIds, activeDoctorsCount: activeDoctors.length });
+  
   // NEW: If no active doctors, return null (not assigned yet)
   if (activeDoctors.length === 0) {
+    console.log('⚠️ No active doctors - patient will be unassigned');
     return null;
   }
 
+  //ADDED 1/31/26
   if (!serviceIds || serviceIds.length === 0) {
-    // If no services selected, assign to any active general practitioner
-    const activeGeneralDoctors = doctors.filter(d => 
-      activeDoctors.includes(d.id) && 
-      (d.specializations.includes("pedia") || d.specializations.includes("adult"))
-    );
+    console.log('⚠️ No services selected - assigning to least busy active doctor');
     
-    if (activeGeneralDoctors.length > 0) {
-      return activeGeneralDoctors[0];
+    // Get all active doctors
+    const activeDoctorsList = doctors.filter(d => activeDoctors.includes(d.id));
+    
+    if (activeDoctorsList.length === 0) {
+      console.log('⚠️ No active doctors available');
+      return null;
     }
     
-    // Return first active doctor
-    return doctors.find(d => d.id === activeDoctors[0]) || null;
+    // Calculate patient load for each active doctor
+    const doctorLoads = activeDoctorsList.map(doctor => {
+      const load = patients.filter(p => 
+        p.assignedDoctor?.id === doctor.id && 
+        p.status !== 'done' && 
+        p.status !== 'cancelled' &&
+        !p.isInactive
+      ).length;
+      
+      return { doctor, load };
+    });
+
+    // Sort by load (ascending) and assign to doctor with least patients
+    doctorLoads.sort((a, b) => a.load - b.load);
+    
+    console.log(`✅ No services selected - Assigned to ${doctorLoads[0].doctor.name} (current load: ${doctorLoads[0].load} patients)`);
+    return doctorLoads[0].doctor;
   }
 
-  // Get the first service to determine specialization
-  const primaryService = serviceIds[0];
+  // ✅ FIX: Find all doctors who can handle ANY of the patient's services AND are active
+  const availableDoctors = doctors.filter(doctor => {
+    if (!activeDoctors.includes(doctor.id)) {
+      return false; // Doctor not active
+    }
+    
+    // Check if doctor can handle ANY of the patient's services
+    const canHandleService = serviceIds.some(serviceId => 
+      doctor.specializations.includes(serviceId)
+    );
+    
+    return canHandleService;
+  });
   
-  // Find all doctors who can handle this service AND are active
-  const availableDoctors = doctors.filter(doctor => 
-    doctor.specializations.includes(primaryService) && 
-    activeDoctors.includes(doctor.id)
-  );
+  console.log(`📋 Found ${availableDoctors.length} active doctors for services: ${serviceIds.join(', ')}`);
   
-  // NEW: If no active doctor specializes in this service, return null
+  // NEW: If no active doctor specializes in any of these services, return null
   if (availableDoctors.length === 0) {
+    console.log('⚠️ No active doctor can handle these services - patient will be unassigned');
     return null;
   }
 
@@ -191,5 +218,6 @@ export const assignDoctor = (serviceIds, patients, activeDoctors = []) => {
   // Sort by load (ascending) and assign to doctor with least patients
   doctorLoads.sort((a, b) => a.load - b.load);
   
+  console.log(`✅ Assigned to ${doctorLoads[0].doctor.name} (current load: ${doctorLoads[0].load} patients)`);
   return doctorLoads[0].doctor;
 };

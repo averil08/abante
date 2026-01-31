@@ -264,50 +264,6 @@ console.log('✅ My Appointments:', patients.filter(p => p.patientEmail === curr
               </Card>
             );
           })()}
-          {/* Patient Info Card */}
-          <Card className="border-t-4 border-t-green-600">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-green-600" />
-                Personal Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {(() => {
-                //🔴 REPLACE FROM HERE
-                // ✅ Get profile from localStorage
-                const userProfile = JSON.parse(localStorage.getItem('userProfile') || '{}');
-                //🔴 REPLACE TO HERE
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <User className="w-5 h-5 text-green-600 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Full Name</p>
-                        <p className="font-semibold text-gray-900">{userProfile.fullName || 'Not set'}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <User className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Age</p>
-                        <p className="font-semibold text-gray-900">{userProfile.age ? `${userProfile.age} years old` : 'Not set'}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <Phone className="w-5 h-5 text-purple-600 flex-shrink-0" />
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Phone Number</p>
-                        <p className="font-semibold text-gray-900">{userProfile.phoneNumber || 'Not set'}</p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
 
           {/* Statistics Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -168,11 +168,12 @@ function PatientSettings() {
         confirmPassword: ''
       }));
 
-      // Check if redirected from booking page
+      // ADDED 1/31/26
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('from') === 'patient-sidebar') {
         setTimeout(() => {
-          navigate('/checkin?from=patient-sidebar&type=appointment');
+          // Add a flag to indicate returning from settings
+          navigate('/checkin?from=patient-sidebar&type=appointment&restored=true');
         }, 1500);
       }
     } catch (error) {

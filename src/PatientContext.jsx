@@ -415,9 +415,37 @@ useEffect(() => {
     );
   };
 
+  //ADDED change 1/31/26
   const acceptAppointment = (queueNo) => {
     setPatients(prev =>
-      prev.map(p => p.queueNo === queueNo ? { ...p, appointmentStatus: "accepted", inQueue: true } : p)
+      prev.map(p => {
+        if (p.queueNo !== queueNo) return p;
+        
+        // Base updates
+        const updates = { 
+          appointmentStatus: "accepted", 
+          inQueue: true 
+        };
+        
+        // ✅ NEW: If patient requested a specific doctor, assign them immediately
+        if (p.preferredDoctor && p.bookingMode === 'doctor') {
+          const requestedDoctor = doctors.find(d => d.id === p.preferredDoctor.id);
+          
+          if (requestedDoctor) {
+            updates.assignedDoctor = requestedDoctor;
+            console.log(`✅ Auto-assigned ${p.name} to their requested doctor: ${requestedDoctor.name}`);
+          } else {
+            console.log(`⚠️ Requested doctor not found, will assign based on services`);
+            // Fall back to service-based assignment
+            updates.assignedDoctor = assignDoctor(p.services || [], prev, activeDoctors);
+          }
+        } else {
+          // Patient booked by service - assign based on services and active doctors
+          updates.assignedDoctor = assignDoctor(p.services || [], prev, activeDoctors);
+        }
+        
+        return { ...p, ...updates };
+      })
     );
   };
 

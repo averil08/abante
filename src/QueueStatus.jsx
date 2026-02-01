@@ -1250,7 +1250,11 @@ const QueueStatus = () => {
               )}
 
               <h2 className="text-lg md:text-xl text-gray-600 mb-2">Your Queue Number</h2>
-              <div className="text-5xl sm:text-6xl font-bold text-green-600 mb-6">{queueNumber}</div>
+              <div className="text-5xl sm:text-6xl font-bold text-green-600 mb-4">{queueNumber}</div>
+              {/*ADDED 1/31/26*/}
+              <p className="text-sm text-gray-600 mb-6 italic">
+                Your queue details will be given beforehand. Arrive at clinic at least 10 mins.
+              </p>
 
               <div className="space-y-3 text-left bg-gray-50 rounded-xl p-4 text-sm sm:text-lg">
                 <div className="flex justify-between">
@@ -1276,10 +1280,6 @@ const QueueStatus = () => {
                 <div className="flex justify-between">
                   <span className="text-gray-600 font-normal">Estimated Wait</span>
                   <span className="font-medium text-gray-900">{estimatedWait} mins</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 font-normal">People Ahead</span>
-                  <span className="font-medium text-gray-900">{peopleAhead}</span>
                 </div>
 
                 <div className="pt-3 border-t border-gray-200">
@@ -1600,7 +1600,11 @@ const QueueStatus = () => {
             )}
 
             <h2 className="text-lg md:text-xl text-gray-600 mb-2">Your Queue Number</h2>
-            <div className="text-5xl sm:text-6xl font-bold text-green-600 mb-6">{queueNumber}</div>
+            <div className="text-5xl sm:text-6xl font-bold text-green-600 mb-4">{queueNumber}</div>
+            {/*ADDED 1/31/26*/}
+            <p className="text-sm text-gray-600 mb-6 italic">
+              Your queue details will be given beforehand. Arrive at clinic at least 10 mins.
+            </p>
 
             <div className="space-y-3 text-left bg-gray-50 rounded-xl p-4 text-sm sm:text-lg">
               <div className="flex justify-between">
@@ -1626,10 +1630,6 @@ const QueueStatus = () => {
               <div className="flex justify-between">
                 <span className="text-gray-600 font-normal">Estimated Wait</span>
                 <span className="font-medium text-gray-900">{estimatedWait} mins</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 font-normal">People Ahead</span>
-                <span className="font-medium text-gray-900">{peopleAhead}</span>
               </div>
 
               <div className="pt-3 border-t border-gray-200">

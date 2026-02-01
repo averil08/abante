@@ -36,6 +36,7 @@ function Checkin() {
   const saveFormDataToTemp = () => {
     const currentEmail = localStorage.getItem('currentPatientEmail');
     if (currentEmail && isFromPatientSidebar) {
+      //ADDED change tempData 1/31/26
       const tempData = {
         symptoms: formData.symptoms,
         services: formData.services,
@@ -44,6 +45,8 @@ function Checkin() {
         priorityType: formData.priorityType,
         isReturningPatient: formData.isReturningPatient,
         expandedCategory: expandedCategory,
+        bookingMode: bookingMode, // ✅ ADD THIS
+        selectedDoctor: selectedDoctor, // ✅ ADD THIS
         timestamp: Date.now()
       };
       localStorage.setItem(`tempFormData_${currentEmail}`, JSON.stringify(tempData));
@@ -62,7 +65,7 @@ function Checkin() {
         const oneHour = 60 * 60 * 1000;
         if (Date.now() - tempData.timestamp < oneHour) {
           console.log('📥 Restoring form data from temp storage:', tempData);
-          
+          //ADDED change from here 1/31/26
           setFormData(prev => ({
             ...prev,
             symptoms: tempData.symptoms || [],
@@ -72,10 +75,20 @@ function Checkin() {
             priorityType: tempData.priorityType || null,
             isReturningPatient: tempData.isReturningPatient || false,
           }));
-          
+
           if (tempData.expandedCategory) {
             setExpandedCategory(tempData.expandedCategory);
           }
+
+          // ✅ ADD THIS - Restore booking mode
+          if (tempData.bookingMode) {
+            setBookingMode(tempData.bookingMode);
+          }
+
+          if (tempData.selectedDoctor) {
+            setSelectedDoctor(tempData.selectedDoctor);
+          }
+          //UNTIL HERE
           
           return true;
         } else {
@@ -126,6 +139,10 @@ function Checkin() {
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableSlots, setAvailableSlots] = useState(1);
+  //ADDED FROM HERE 1/31/26
+  const [bookingMode, setBookingMode] = useState('service');
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  //UNTIL HERE
   
   //🔴 REPLACE FROM HERE
   const currentPatientEmail = localStorage.getItem('currentPatientEmail');
@@ -252,8 +269,185 @@ function Checkin() {
       ],
     },
   ];
+  
+  //ADDED availableDoctors code block 1/31/26
+  const availableDoctors = [
+    { 
+      id: 1, 
+      name: "Dr. Melissa B. Edic", 
+      specialization: "Pediatrics",
+      schedule: "Thu-Fri: 9AM-5PM, Wed (2nd & 4th): 9AM-3PM",
+      availability: [
+        { days: [4, 5], startHour: 9, endHour: 17 }, // Thu-Fri: 9AM-5PM
+        { days: [3], startHour: 9, endHour: 15, weeksOfMonth: [2, 4] } // Wed 2nd & 4th: 9AM-3PM
+      ]
+    },
+    { 
+      id: 2, 
+      name: "Dr. Genevive Bandiwan-Laking", 
+      specialization: "Pediatrics",
+      schedule: "By Appointment Only",
+      availability: [
+        { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 } // Available all weekdays
+      ]
+    },
+    { 
+      id: 3, 
+      name: "Dr. Cynthia Moran", 
+      specialization: "Internal Medicine",
+      schedule: "Wed: 9AM-12PM",
+      availability: [
+        { days: [3], startHour: 9, endHour: 12 } // Wed: 9AM-12PM
+      ]
+    },
+    { 
+      id: 4, 
+      name: "Dr. Edrian O. Geronimo", 
+      specialization: "Infectious Disease",
+      schedule: "Tue, Thu: 9AM-12PM",
+      availability: [
+        { days: [2, 4], startHour: 9, endHour: 12 } // Tue, Thu: 9AM-12PM
+      ]
+    },
+    { 
+      id: 5, 
+      name: "Dr. Feb Golocan-Alquiza", 
+      specialization: "Nephrology",
+      schedule: "Mon, Tue, Thu: 1PM-5PM",
+      availability: [
+        { days: [1, 2, 4], startHour: 13, endHour: 17 } // Mon, Tue, Thu: 1PM-5PM
+      ]
+    },
+    { 
+      id: 6, 
+      name: "Dr. Tanya Charissa Diomampo", 
+      specialization: "Nephrology",
+      schedule: "Wed: 1PM-5PM, Sat: 10AM-1PM",
+      availability: [
+        { days: [3], startHour: 13, endHour: 17 }, // Wed: 1PM-5PM
+        { days: [6], startHour: 10, endHour: 13 }  // Sat: 10AM-1PM
+      ]
+    },
+    { 
+      id: 7, 
+      name: "Dr. Maricar Josephine A. Geronimo", 
+      specialization: "Nephrology",
+      schedule: "Fri: 1PM-5PM",
+      availability: [
+        { days: [5], startHour: 13, endHour: 17 } // Fri: 1PM-5PM
+      ]
+    },
+    { 
+      id: 8, 
+      name: "Dr. Elvira T. Lampacan", 
+      specialization: "OB-GYN",
+      schedule: "Wed, Fri: 9:30AM-12PM, Thu: 1PM-3PM",
+      availability: [
+        { days: [3, 5], startHour: 9.5, endHour: 12 }, // Wed, Fri: 9:30AM-12PM
+        { days: [4], startHour: 13, endHour: 15 }      // Thu: 1PM-3PM
+      ]
+    },
+    { 
+      id: 9, 
+      name: "Dr. Clarissa Mae L. Lee", 
+      specialization: "OB-GYN",
+      schedule: "Mon, Tue: 9:30AM-12PM, Sat: 1PM-3PM",
+      availability: [
+        { days: [1, 2], startHour: 9.5, endHour: 12 }, // Mon, Tue: 9:30AM-12PM
+        { days: [6], startHour: 13, endHour: 15 }      // Sat: 1PM-3PM
+      ]
+    },
+    { 
+      id: 10, 
+      name: "Dr. Herschel Charisse C. Rivera-Ang", 
+      specialization: "OB-GYN",
+      schedule: "Mon-Wed: 1PM-3PM",
+      availability: [
+        { days: [1, 2, 3], startHour: 13, endHour: 15 } // Mon-Wed: 1PM-3PM
+      ]
+    },
+    { 
+      id: 11, 
+      name: "Dr. Cecille P. Pating", 
+      specialization: "OB-GYN",
+      schedule: "Thu, Sat: 9:30AM-12PM, Fri: 1PM-3PM",
+      availability: [
+        { days: [4, 6], startHour: 9.5, endHour: 12 }, // Thu, Sat: 9:30AM-12PM
+        { days: [5], startHour: 13, endHour: 15 }      // Fri: 1PM-3PM
+      ]
+    },
+    { 
+      id: 12, 
+      name: "Dr. Richard S. Ang", 
+      specialization: "Orthopedics & Urology",
+      schedule: "Mon-Fri: 8AM-5PM",
+      availability: [
+        { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 } // Mon-Fri: 8AM-5PM
+      ]
+    },
+    { 
+      id: 13, 
+      name: "Dr. Rajiv D. Laoagan", 
+      specialization: "General Surgery",
+      schedule: "Thu: 8AM-5PM, Fri-Sat: 8AM-12PM",
+      availability: [
+        { days: [4], startHour: 8, endHour: 17 },    // Thu: 8AM-5PM
+        { days: [5, 6], startHour: 8, endHour: 12 }  // Fri-Sat: 8AM-12PM
+      ]
+    },
+    { 
+      id: 14, 
+      name: "Dr. Jefferson Richmond G. Chomenwey",
+      specialization: "General Surgery",
+      schedule: "By Appointment Only",
+      availability: [
+        { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 } // Available all weekdays
+      ]
+    },
+    { 
+      id: 15, 
+      name: "Dr. Rhea Jeanne L. Awas", 
+      specialization: "ENT",
+      schedule: "Mon-Wed: 8AM-5PM",
+      availability: [
+        { days: [1, 2, 3], startHour: 8, endHour: 17 } // Mon-Wed: 8AM-5PM
+      ]
+    }
+  ];
 
   //==================== EVENT HANDLERS ====================
+  // ADDED 1/31/26 Helper function to check if doctor is available at selected date/time
+  const isDoctorAvailable = (doctor, appointmentDateTime) => {
+    if (!appointmentDateTime) return true; // If no date selected, show all doctors
+    
+    const appointmentDate = new Date(appointmentDateTime);
+    const dayOfWeek = appointmentDate.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const appointmentHour = appointmentDate.getHours() + (appointmentDate.getMinutes() / 60);
+    
+    // Get week of month (1st, 2nd, 3rd, 4th, 5th)
+    const weekOfMonth = Math.ceil(appointmentDate.getDate() / 7);
+    
+    // Check each availability slot
+    return doctor.availability.some(slot => {
+      // Check if appointment day matches doctor's available days
+      if (!slot.days.includes(dayOfWeek)) {
+        return false;
+      }
+      
+      // Check if appointment time is within doctor's hours
+      if (appointmentHour < slot.startHour || appointmentHour >= slot.endHour) {
+        return false;
+      }
+      
+      // Special check for specific weeks of month (like 2nd & 4th Wednesday)
+      if (slot.weeksOfMonth && !slot.weeksOfMonth.includes(weekOfMonth)) {
+        return false;
+      }
+      
+      return true;
+    });
+  };
+
   const handleNav = () => setNav(!nav);
 
   const handlePriorityChange = (checked) => {
@@ -291,6 +485,20 @@ function Checkin() {
     });
   };
 
+  //ADDED handledoctorSelect 1/31/26
+  const handleDoctorSelect = (doctorId) => {
+    const doctor = availableDoctors.find(d => d.id === doctorId);
+    setSelectedDoctor(doctor);
+    
+    // Auto-populate a general service when booking by doctor
+    if (doctor && !formData.services.includes('follow-up')) {
+      setFormData(prev => ({
+        ...prev,
+        services: ['follow-up'] // Default service when booking by doctor
+      }));
+    }
+  };
+
   const showMessage = (title, message, isSuccess = true) => {
     document.getElementById("message-box").innerHTML = `
       <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -319,6 +527,8 @@ function Checkin() {
     });
     setExpandedCategory(null);
     setAvailableSlots(1);
+    setBookingMode('service'); // ADDED this 1/31/26
+    setSelectedDoctor(null); // ADDED this 1/31/26
   };
 
   const handlePatientSubmit = async (e) => {
@@ -342,21 +552,30 @@ function Checkin() {
 
       if (selectedPatientType === "Walk-in") {
         result = await registerWalkInPatient(formData);
+      //ADDED change from here 1/31/26
       } else if (selectedPatientType === "Appointment") {
-        if (!formData.appointmentDateTime) {
-          showMessage("Validation Error", "Please select appointment date and time.", false);
-          setIsSubmitting(false);
-          return;
-        }
-
-        if (availableSlots <= 0) {
-          showMessage("No Slots Available", "This time slot is fully booked. Please choose another time.", false);
-          setIsSubmitting(false);
-          return;
-        }
-
-        result = await registerAppointmentPatient(formData, formData.appointmentDateTime);
+      if (!formData.appointmentDateTime) {
+        showMessage("Validation Error", "Please select appointment date and time.", false);
+        setIsSubmitting(false);
+        return;
       }
+
+      // ✅ ADD THIS VALIDATION for doctor booking mode
+      if (bookingMode === 'doctor' && !selectedDoctor) {
+        showMessage("Validation Error", "Please select a doctor for your appointment.", false);
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (availableSlots <= 0) {
+        showMessage("No Slots Available", "This time slot is fully booked. Please choose another time.", false);
+        setIsSubmitting(false);
+        return;
+      }
+
+      result = await registerAppointmentPatient(formData, formData.appointmentDateTime);
+    }
+    //UNTIL HERE 
 
       if (result.success) {
         // Store patient email if they're registering from patient view
@@ -387,6 +606,7 @@ function Checkin() {
 
         const existingPatient = findExistingPatient();
 
+        //ADDED change const newPatient 1/31/26
         const newPatient = {
           name: formData.name,
           age: formData.age,
@@ -399,8 +619,14 @@ function Checkin() {
           isPriority: formData.isPriority,
           priorityType: formData.priorityType,
           isReturningPatient: formData.isReturningPatient,
-          //ADDED CHANGE patientEmail: 1/30/26
           patientEmail: isFromPatientSidebar && currentPatientEmail ? currentPatientEmail : null,
+          // ✅ ADD THIS - Store preferred doctor when booking by doctor
+          preferredDoctor: bookingMode === 'doctor' && selectedDoctor ? {
+            id: selectedDoctor.id,
+            name: selectedDoctor.name,
+            specialization: selectedDoctor.specialization
+          } : null,
+          bookingMode: bookingMode, // Track how they booked
         };
 
         if (existingPatient && formData.isReturningPatient) {
@@ -460,6 +686,17 @@ function Checkin() {
   };
   
   //==================== USE EFFECTS ====================
+  // ADDED 1/31/26
+  useEffect(() => {
+    if (selectedDoctor && formData.appointmentDateTime && bookingMode === 'doctor') {
+      const isStillAvailable = isDoctorAvailable(selectedDoctor, formData.appointmentDateTime);
+      if (!isStillAvailable) {
+        console.log(`⚠️ ${selectedDoctor.name} is not available at selected time, clearing selection`);
+        setSelectedDoctor(null);
+      }
+    }
+  }, [formData.appointmentDateTime, selectedDoctor, bookingMode]);
+  
   useEffect(() => {
     if (formData.appointmentDateTime) {
       const slots = getAvailableSlots(formData.appointmentDateTime);
@@ -826,6 +1063,61 @@ function Checkin() {
                   </div>
                 )}
 
+                {/* ADDED 1/31/26 */}
+                {selectedPatientType === "Appointment" && (
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg">
+                    <Label className="text-blue-800 font-bold mb-3 block">Book your appointment by:</Label>
+                    
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBookingMode('service');
+                          setSelectedDoctor(null);
+                        }}
+                        className={`p-3 rounded-lg border-2 transition-all ${
+                          bookingMode === 'service'
+                            ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                        }`}
+                      >
+                        <div className="flex flex-col items-center">
+                          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                          </svg>
+                          <span className="font-semibold text-sm">Service</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setBookingMode('doctor');
+                          // Clear services when switching to doctor mode
+                          setFormData(prev => ({ ...prev, services: [] }));
+                        }}
+                        className={`p-3 rounded-lg border-2 transition-all ${
+                          bookingMode === 'doctor'
+                            ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                        }`}
+                      >
+                        <div className="flex flex-col items-center">
+                          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                          </svg>
+                          <span className="font-semibold text-sm">Doctor</span>
+                        </div>
+                      </button>
+                    </div>
+
+                    <p className="text-xs text-blue-700">
+                      {bookingMode === 'service' 
+                        ? 'Choose the medical services you need, and we\'ll assign the appropriate doctor.' 
+                        : 'Select a specific doctor you\'d like to see for your appointment.'}
+                    </p>
+                  </div>
+                )}
                 {/* NEW OR RETURNING PATIENT QUESTION */}
                 <div className="space-y-3 p-4 rounded-lg border-2 border-blue-300 bg-blue-50">
                   <Label className="text-blue-800 font-bold">Are you a new or returning patient? *</Label>
@@ -940,29 +1232,115 @@ function Checkin() {
                   ))}
                 </div>
 
-                <div className="space-y-3 p-4 rounded-lg border border-green-300 bg-green-50">
-                  <Label className="text-green-700 font-bold">Select Services</Label>
-                  {serviceCategories.map(cat => (
-                    <div key={cat.id} className="pt-2 border-b last:border-b-0">
-                      <div className="cursor-pointer flex justify-between font-semibold text-green-700"
-                        onClick={() => toggleCategory(cat.id)}>
-                        {cat.label} <span>{expandedCategory === cat.id ? "▲" : "▼"}</span>
-                      </div>
-                      {expandedCategory === cat.id && (
-                        <div className="ml-2 mt-2 space-y-2">
-                          {cat.services.map(svc => (
-                            <div key={svc.id} className="flex items-center">
-                              <input type="checkbox" id={svc.id} checked={formData.services.includes(svc.id)}
-                                onChange={(e) => handleServiceChange(svc.id, e.target.checked)}
-                                className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
-                              <Label htmlFor={svc.id} className="ml-2">{svc.label}</Label>
-                            </div>
-                          ))}
+                {/* ADDED 1/31/26 DOCTOR SELECTION - Only shown when booking by doctor */}
+                {selectedPatientType === "Appointment" && bookingMode === 'doctor' && (
+                  <div className="space-y-3 p-4 rounded-lg border border-indigo-300 bg-indigo-50">
+                    <Label className="text-indigo-800 font-bold">Select Doctor *</Label>
+                    
+                    {/* Show message if no date/time selected */}
+                    {!formData.appointmentDateTime && (
+                      <div className="bg-yellow-50 border border-yellow-300 rounded-md p-3 mb-3">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-yellow-800">
+                            Please select an appointment date and time first to see available doctors.
+                          </p>
                         </div>
-                      )}
+                      </div>
+                    )}
+                    
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {availableDoctors.map(doctor => {
+                        const isAvailable = isDoctorAvailable(doctor, formData.appointmentDateTime);
+                        
+                        return (
+                          <div
+                            key={doctor.id}
+                            onClick={() => isAvailable && handleDoctorSelect(doctor.id)}
+                            className={`p-4 rounded-lg border-2 transition-all ${
+                              !isAvailable
+                                ? 'opacity-50 cursor-not-allowed bg-gray-100 border-gray-300'
+                                : selectedDoctor?.id === doctor.id
+                                  ? 'border-indigo-600 bg-indigo-100 shadow-md cursor-pointer'
+                                  : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-bold text-gray-900">{doctor.name}</h4>
+                                  {!isAvailable && formData.appointmentDateTime && (
+                                    <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium">
+                                      Not Available
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-600 mb-2">{doctor.specialization}</p>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span>{doctor.schedule}</span>
+                                </div>
+                              </div>
+                              
+                              {selectedDoctor?.id === doctor.id && isAvailable && (
+                                <div className="flex-shrink-0">
+                                  <svg className="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
-                </div>
+                    
+                    {selectedDoctor && (
+                      <div className="mt-3 p-3 bg-indigo-100 rounded-md">
+                        <p className="text-sm text-indigo-900">
+                          <strong>Selected:</strong> {selectedDoctor.name}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/*ADDED 1/31/26 SERVICES SELECTION - Only shown when booking by service OR for walk-ins */}
+                {(selectedPatientType === "Walk-in" || bookingMode === 'service') && (
+                  <div className="space-y-3 p-4 rounded-lg border border-green-300 bg-green-50">
+                    <Label className="text-green-700 font-bold">
+                      Select Services {selectedPatientType === "Appointment" && bookingMode === 'service' ? '*' : '(Optional)'}
+                    </Label>
+                    {serviceCategories.map(cat => (
+                      <div key={cat.id} className="pt-2 border-b last:border-b-0">
+                        <div 
+                          className="cursor-pointer flex justify-between font-semibold text-green-700"
+                          onClick={() => toggleCategory(cat.id)}
+                        >
+                          {cat.label} <span>{expandedCategory === cat.id ? "▲" : "▼"}</span>
+                        </div>
+                        {expandedCategory === cat.id && (
+                          <div className="ml-2 mt-2 space-y-2">
+                            {cat.services.map(svc => (
+                              <div key={svc.id} className="flex items-center">
+                                <input 
+                                  type="checkbox" 
+                                  id={svc.id} 
+                                  checked={formData.services.includes(svc.id)}
+                                  onChange={(e) => handleServiceChange(svc.id, e.target.checked)}
+                                  className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500" 
+                                />
+                                <Label htmlFor={svc.id} className="ml-2">{svc.label}</Label>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 <div className="space-y-3">                  
                   <Button 
@@ -1010,17 +1388,73 @@ function Checkin() {
         </CardHeader>
         
         <CardContent>
+          {/*ADDED 1/31/26*/}
           {selectedPatientType === "Appointment" && (
-            <div className="space-y-4 mb-6">
-              <AppointmentPicker
-                selectedDateTime={formData.appointmentDateTime}
-                onDateTimeChange={(dateTime) => setFormData({ ...formData, appointmentDateTime: dateTime })}
-                getAvailableSlots={getAvailableSlots}
-              />
-            </div>
-          )}
+          <div className="space-y-4 mb-6">
+            <AppointmentPicker
+              selectedDateTime={formData.appointmentDateTime}
+              onDateTimeChange={(dateTime) => setFormData({ ...formData, appointmentDateTime: dateTime })}
+              getAvailableSlots={getAvailableSlots}
+            />
+          </div>
+        )}
 
-          <form onSubmit={handlePatientSubmit} className="space-y-6">
+        <form onSubmit={handlePatientSubmit} className="space-y-6">
+          {/* ✅ ADD BOOKING MODE SELECTION FOR APPOINTMENTS */}
+          {selectedPatientType === "Appointment" && (
+            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg">
+              <Label className="text-blue-800 font-bold mb-3 block">Book your appointment by:</Label>
+              
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBookingMode('service');
+                    setSelectedDoctor(null);
+                  }}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    bookingMode === 'service'
+                      ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                      : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                  }`}
+                >
+                  <div className="flex flex-col items-center">
+                    <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <span className="font-semibold text-sm">Service</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBookingMode('doctor');
+                    // Clear services when switching to doctor mode
+                    setFormData(prev => ({ ...prev, services: [] }));
+                  }}
+                  className={`p-3 rounded-lg border-2 transition-all ${
+                    bookingMode === 'doctor'
+                      ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                      : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                  }`}
+                >
+                  <div className="flex flex-col items-center">
+                    <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span className="font-semibold text-sm">Doctor</span>
+                  </div>
+                </button>
+              </div>
+
+              <p className="text-xs text-blue-700">
+                {bookingMode === 'service' 
+                  ? 'Choose the medical services you need, and we\'ll assign the appropriate doctor.' 
+                  : 'Select a specific doctor you\'d like to see for your appointment.'}
+              </p>
+            </div>
+          )} 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name *</Label>
@@ -1139,6 +1573,7 @@ function Checkin() {
               </div>
             )}
 
+            {/* ADDED change 1/31/26 */}
             <div className="space-y-3 p-4 rounded-lg border border-green-300">
               <Label className="text-green-700 font-bold">Symptoms (Select all that apply)</Label>
               {symptomsList.map(symptom => (
@@ -1151,29 +1586,109 @@ function Checkin() {
               ))}
             </div>
 
-            <div className="space-y-3 p-4 rounded-lg border border-green-300 bg-green-50">
-              <Label className="text-green-700 font-bold">Select Services</Label>
-              {serviceCategories.map(cat => (
-                <div key={cat.id} className="pt-2 border-b last:border-b-0">
-                  <div className="cursor-pointer flex justify-between font-semibold text-green-700"
-                    onClick={() => toggleCategory(cat.id)}>
-                    {cat.label} <span>{expandedCategory === cat.id ? "▲" : "▼"}</span>
-                  </div>
-                  {expandedCategory === cat.id && (
-                    <div className="ml-2 mt-2 space-y-2">
-                      {cat.services.map(svc => (
-                        <div key={svc.id} className="flex items-center">
-                          <input type="checkbox" id={svc.id} checked={formData.services.includes(svc.id)}
-                            onChange={(e) => handleServiceChange(svc.id, e.target.checked)}
-                            className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
-                          <Label htmlFor={svc.id} className="ml-2">{svc.label}</Label>
-                        </div>
-                      ))}
+            {/* ✅ DOCTOR SELECTION - Only shown when booking by doctor */}
+            {selectedPatientType === "Appointment" && bookingMode === 'doctor' && (
+              <div className="space-y-3 p-4 rounded-lg border border-indigo-300 bg-indigo-50">
+                <Label className="text-indigo-800 font-bold">Select Doctor *</Label>
+                
+                {/* Show message if no date/time selected */}
+                {!formData.appointmentDateTime && (
+                  <div className="bg-yellow-50 border border-yellow-300 rounded-md p-3 mb-3">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-yellow-800">
+                        Please select an appointment date and time first to see available doctors.
+                      </p>
                     </div>
-                  )}
+                  </div>
+                )}
+                
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {availableDoctors.map(doctor => {
+                    const isAvailable = isDoctorAvailable(doctor, formData.appointmentDateTime);
+                    
+                    return (
+                      <div
+                        key={doctor.id}
+                        onClick={() => isAvailable && handleDoctorSelect(doctor.id)}
+                        className={`p-4 rounded-lg border-2 transition-all ${
+                          !isAvailable
+                            ? 'opacity-50 cursor-not-allowed bg-gray-100 border-gray-300'
+                            : selectedDoctor?.id === doctor.id
+                              ? 'border-indigo-600 bg-indigo-100 shadow-md cursor-pointer'
+                              : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-bold text-gray-900">{doctor.name}</h4>
+                              {!isAvailable && formData.appointmentDateTime && (
+                                <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium">
+                                  Not Available
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-gray-600 mb-2">{doctor.specialization}</p>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              <span>{doctor.schedule}</span>
+                            </div>
+                          </div>
+                          
+                          {selectedDoctor?.id === doctor.id && isAvailable && (
+                            <div className="flex-shrink-0">
+                              <svg className="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
+                
+                {selectedDoctor && (
+                  <div className="mt-3 p-3 bg-indigo-100 rounded-md">
+                    <p className="text-sm text-indigo-900">
+                      <strong>Selected:</strong> {selectedDoctor.name}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ✅ SERVICES SELECTION - Only shown when booking by service OR for walk-ins */}
+            {(selectedPatientType === "Walk-in" || bookingMode === 'service') && (
+              <div className="space-y-3 p-4 rounded-lg border border-green-300 bg-green-50">
+                <Label className="text-green-700 font-bold">
+                  Select Services {selectedPatientType === "Appointment" && bookingMode === 'service' ? '*' : '(Optional)'}
+                </Label>
+                {serviceCategories.map(cat => (
+                  <div key={cat.id} className="pt-2 border-b last:border-b-0">
+                    <div className="cursor-pointer flex justify-between font-semibold text-green-700"
+                      onClick={() => toggleCategory(cat.id)}>
+                      {cat.label} <span>{expandedCategory === cat.id ? "▲" : "▼"}</span>
+                    </div>
+                    {expandedCategory === cat.id && (
+                      <div className="ml-2 mt-2 space-y-2">
+                        {cat.services.map(svc => (
+                          <div key={svc.id} className="flex items-center">
+                            <input type="checkbox" id={svc.id} checked={formData.services.includes(svc.id)}
+                              onChange={(e) => handleServiceChange(svc.id, e.target.checked)}
+                              className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500" />
+                            <Label htmlFor={svc.id} className="ml-2">{svc.label}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )} {/*UNTIL HERE*/}
 
             <div className="space-y-3">
               <Button 

@@ -231,24 +231,43 @@ const Appointment = () => {
                           </div>
                         </div>
                         
-                        <div className="p-3 bg-green-50 rounded-lg border border-green-100">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Stethoscope className="w-5 h-5 text-green-600" />
-                            <p className="text-xs font-semibold text-green-900">Requested Services</p>
+                        {/* ADDED 1/31/26 Show Preferred Doctor if booked by doctor */}
+                        {appointment.preferredDoctor && appointment.bookingMode === 'doctor' ? (
+                          <div className="p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                            <div className="flex items-center gap-2 mb-2">
+                              <User className="w-5 h-5 text-indigo-600" />
+                              <p className="text-xs font-semibold text-indigo-900">Preferred Doctor</p>
+                            </div>
+                            <div className="space-y-1">
+                              <p className="font-semibold text-sm text-indigo-900">
+                                {appointment.preferredDoctor.name}
+                              </p>
+                              <p className="text-xs text-indigo-700">
+                                {appointment.preferredDoctor.specialization}
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {appointment.services && appointment.services.length > 0 ? (
-                              appointment.services.map((serviceId, idx) => (
-                                <Badge key={idx} variant="outline" 
-                                       className="text-xs bg-white text-green-700 border-green-200">
-                                  {getServiceLabel(serviceId)}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-gray-400 text-xs">None selected</span>
-                            )}
+                        ) : (
+                          /* Show Services if booked by service or default */
+                          <div className="p-3 bg-green-50 rounded-lg border border-green-100">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Stethoscope className="w-5 h-5 text-green-600" />
+                              <p className="text-xs font-semibold text-green-900">Requested Services</p>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {appointment.services && appointment.services.length > 0 ? (
+                                appointment.services.map((serviceId, idx) => (
+                                  <Badge key={idx} variant="outline" 
+                                        className="text-xs bg-white text-green-700 border-green-200">
+                                    {getServiceLabel(serviceId)}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-gray-400 text-xs">None selected</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
 

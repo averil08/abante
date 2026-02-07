@@ -1,3 +1,4 @@
+import { doctors } from './doctorData';
 import React, { useState, useContext, useEffect, useRef, useMemo } from "react";
 import { PatientContext } from "./PatientContext";
 import Sidebar from "@/components/Sidebar";
@@ -79,16 +80,16 @@ function Checkin() {
 
   const loadFormDataFromTemp = () => {
     const currentEmail = localStorage.getItem('currentPatientEmail');
-    if (currentEmail && isFromPatientSidebar) {
+    if (currentEmail) { // Removed strict check for isFromPatientSidebar
       const tempDataStr = localStorage.getItem(`tempFormData_${currentEmail}`);
       if (tempDataStr) {
         const tempData = JSON.parse(tempDataStr);
-        
+
         // Only restore if data is less than 1 hour old
         const oneHour = 60 * 60 * 1000;
         if (Date.now() - tempData.timestamp < oneHour) {
           console.log('📥 Restoring form data from temp storage:', tempData);
-          
+
           setFormData(prev => ({
             ...prev,
             symptoms: tempData.symptoms || [],
@@ -110,7 +111,7 @@ function Checkin() {
           if (tempData.selectedDoctor) {
             setSelectedDoctor(tempData.selectedDoctor);
           }
-          
+
           return true;
         } else {
           // Data is too old, remove it
@@ -137,10 +138,10 @@ function Checkin() {
   const [availableSlots, setAvailableSlots] = useState(1);
   const [bookingMode, setBookingMode] = useState('service');
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  
+
   const currentPatientEmail = localStorage.getItem('currentPatientEmail');
   const isPatientLoggedIn = localStorage.getItem('isPatientLoggedIn') === 'true';
-  
+
   const profileLoadedRef = useRef(false);
   const tempDataLoadedRef = useRef(false);
   const appointmentCheckDoneRef = useRef(false);
@@ -161,185 +162,141 @@ function Checkin() {
 
   //============== STATIC DATA ===============
   const symptomsList = [
-    'Fever','Cough','Sore Throat','Headache','Stomach Pain',
-    'Vomiting','Diarrhea','Rash','Ear Pain','Runny Nose',
-    'Difficulty Breathing','Itching'
+    'Fever', 'Cough', 'Sore Throat', 'Headache', 'Stomach Pain',
+    'Vomiting', 'Diarrhea', 'Rash', 'Ear Pain', 'Runny Nose',
+    'Difficulty Breathing', 'Itching'
   ];
 
   const serviceCategories = [
-    { id: "general", label: "General Consultation", services: [{ id: "pedia", label: "Pediatric Consultation" }, { id: "adult", label: "Adult Consultation" }, { id: "senior", label: "Senior Consultation (60+)" }, { id: "preventive", label: "Preventive/Annual Physical Exam" }, { id: "follow-up", label: "Follow-up Consultation" }] },
-    { id: "hematology", label: "Hematology", services: [{ id: "cbc", label: "CBC (Complete Blood Count)" }, { id: "platelet", label: "Platelet Count" }, { id: "esr", label: "ESR (Inflammation Check)" }, { id: "abo", label: "Blood Type Test: ABO/Rh Typing" }] },
-    { id: "immunology", label: "Immunology & Serology", services: [{ id: "hbsag", label: "HBsAg (Hepatitis B Screening)" }, { id: "vdrl", label: "VDRL/RPR (Syphilis Screening)" }, { id: "antiHCV", label: "Anti-HCV (Hepatitis C Screening)" }, { id: "hpylori", label: "H.PYLORI (H. pylori Stomach Bacteria Test)" }, { id: "dengueIg", label: "Dengue IgG+IgM (Dengue Fever Screening: Past/Current)" }, { id: "dengueNs1", label: "Dengue NS1 (Early Dengue Fever Test)" }, { id: "dengueDuo", label: "Dengue Duo: NS1, IgG+IgM (Complete Dengue Test)" }, { id: "typhidot", label: "Typhidot (Typhoid Fever Test)" }] },
-    { id: "chemistry", label: "Clinical Chemistry", services: [{ id: "fbs", label: "FBS (Fasting Blood Sugar)" }, { id: "rbs", label: "RBS (Random Blood Sugar)" }, { id: "lipid", label: "Lipid Profile (Cholesterol and Fats Check)" }, { id: "totalCh", label: "Total Cholesterol" }, { id: "triglycerides", label: "Triglycerides (Blood Fats)" }, { id: "hdl", label: "HDL (Good Cholesterol)" }, { id: "ldl", label: "LDL (Bad Cholesterol)" }, { id: "alt", label: "ALT/SGPT (Liver Function Test)" }, { id: "ast", label: "AST/SGOT (Liver Function Test)" }, { id: "uric", label: "Uric Acid" }, { id: "creatinine", label: "Creatinine (Kidney Function Test)" }, { id: "bun", label: "Bun (Kidney Function Test)" }, { id: "hba1c", label: "HBA1C (Long-Term Blood Sugar)" }, { id: "albumin", label: "Albumin (Protein in blood)" }, { id: "magnesium", label: "Magnesium" }, { id: "totalProtein", label: "Total Protein (present in blood)" }, { id: "alp", label: "ALP (Bone and Liver Enzyme)" }, { id: "phosphorus", label: "Phosphorus" }, { id: "sodium", label: "Sodium" }, { id: "potassium", label: "Potassium" }, { id: "ionizedCal", label: "Ionized Calcium (Free Calcium Level)" }, { id: "totalCal", label: "Total Calcium" }, { id: "chloride", label: "Chloride" }] },
-    { id: "microscopy", label: "Clinical Microscopy & Parasitology", services: [{ id: "urinalysis", label: "Urinalysis" }, { id: "fecalysis", label: "Fecalysis (Stool Test)" }, { id: "pregnancyT", label: "Pregnancy Test" }, { id: "fecal", label: "Fecal Occult Blood (Hidden Blood in Stool)" }, { id: "semen", label: "Semen Analysis" }] },
-    { id: "others", label: "Others", services: [{ id: "tsh", label: "TSH (Thyroid Stimulating Hormone)" }, { id: "ft3", label: "FT3 (Free T3 Thyroid Hormone)" }, { id: "75g", label: "75 Grams OGTT (Diabetes Glucose Challenge Test)" }, { id: "t4", label: "T4 (T4 Thyroid Hormone)" }, { id: "t3", label: "T3 (T3 Thyroid Hormone)" }, { id: "psa", label: "PSA (Prostate Health Screening)" }, { id: "totalBilirubin", label: "Total/ Direct Bilirubin (Jaundice Check)" }] },
+    {
+      id: "general",
+      label: "General Consultation",
+      services: [
+        { id: "pedia", label: "Pediatric Consultation" },
+        { id: "adult", label: "Adult Consultation" },
+        { id: "senior", label: "Senior Consultation (60+)" },
+        { id: "preventive", label: "Preventive/Annual Physical Exam" },
+        { id: "follow-up", label: "Follow-up Consultation" },
+      ],
+    },
+    {
+      id: "hematology",
+      label: "Hematology",
+      services: [
+        { id: "cbc", label: "CBC (Complete Blood Count)" },
+        { id: "platelet", label: "Platelet Count" },
+        { id: "esr", label: "ESR (Inflammation Check)" },
+        { id: "abo", label: "Blood Type Test: ABO/Rh Typing" },
+      ],
+    },
+    {
+      id: "immunology",
+      label: "Immunology & Serology",
+      services: [
+        { id: "hbsag", label: "HBsAg (Hepatitis B Screening)" },
+        { id: "vdrl", label: "VDRL/RPR (Syphilis Screening)" },
+        { id: "antiHCV", label: "Anti-HCV (Hepatitis C Screening)" },
+        { id: "hpylori", label: "H.PYLORI (H. pylori Stomach Bacteria Test)" },
+        { id: "dengueIg", label: "Dengue IgG+IgM (Dengue Fever Screening: Past/Current)" },
+        { id: "dengueNs1", label: "Dengue NS1 (Early Dengue Fever Test)" },
+        { id: "dengueDuo", label: "Dengue Duo: NS1, IgG+IgM (Complete Dengue Test)" },
+        { id: "typhidot", label: "Typhidot (Typhoid Fever Test)" },
+      ],
+    },
+    {
+      id: "chemistry",
+      label: "Clinical Chemistry",
+      services: [
+        { id: "fbs", label: "FBS (Fasting Blood Sugar)" },
+        { id: "rbs", label: "RBS (Random Blood Sugar)" },
+        { id: "lipid", label: "Lipid Profile (Cholesterol and Fats Check)" },
+        { id: "totalCh", label: "Total Cholesterol" },
+        { id: "triglycerides", label: "Triglycerides (Blood Fats)" },
+        { id: "hdl", label: "HDL (Good Cholesterol)" },
+        { id: "ldl", label: "LDL (Bad Cholesterol)" },
+        { id: "alt", label: "ALT/SGPT (Liver Function Test)" },
+        { id: "ast", label: "AST/SGOT (Liver Function Test)" },
+        { id: "uric", label: "Uric Acid" },
+        { id: "creatinine", label: "Creatinine (Kidney Function Test)" },
+        { id: "bun", label: "Bun (Kidney Function Test)" },
+        { id: "hba1c", label: "HBA1C (Long-Term Blood Sugar)" },
+        { id: "albumin", label: "Albumin (Protein in blood)" },
+        { id: "magnesium", label: "Magnesium" },
+        { id: "totalProtein", label: "Total Protein (present in blood)" },
+        { id: "alp", label: "ALP (Bone and Liver Enzyme)" },
+        { id: "phosphorus", label: "Phosphorus" },
+        { id: "sodium", label: "Sodium" },
+        { id: "potassium", label: "Potassium" },
+        { id: "ionizedCal", label: "Ionized Calcium (Free Calcium Level)" },
+        { id: "totalCal", label: "Total Calcium" },
+        { id: "chloride", label: "Chloride" },
+      ],
+    },
+    {
+      id: "microscopy",
+      label: "Clinical Microscopy & Parasitology",
+      services: [
+        { id: "urinalysis", label: "Urinalysis" },
+        { id: "fecalysis", label: "Fecalysis (Stool Test)" },
+        { id: "pregnancyT", label: "Pregnancy Test" },
+        { id: "fecal", label: "Fecal Occult Blood (Hidden Blood in Stool)" },
+        { id: "semen", label: "Semen Analysis" },
+      ],
+    },
+    {
+      id: "surgery",
+      label: "Surgery",
+      services: [
+        { id: "general surgery", label: "General Surgery Consultation" },
+        { id: "ent", label: "ENT (Ear, Nose, Throat) Consultation" },
+        { id: "orthopedic", label: "Orthopedic Surgery Consultation" }
+      ]
+    },
+    {
+      id: "others",
+      label: "Others",
+      services: [
+        { id: "tsh", label: "TSH (Thyroid Stimulating Hormone)" },
+        { id: "ft3", label: "FT3 (Free T3 Thyroid Hormone)" },
+        { id: "75g", label: "75 Grams OGTT (Diabetes Glucose Challenge Test)" },
+        { id: "t4", label: "T4 (T4 Thyroid Hormone)" },
+        { id: "t3", label: "T3 (T3 Thyroid Hormone)" },
+        { id: "psa", label: "PSA (Prostate Health Screening)" },
+        { id: "totalBilirubin", label: "Total/ Direct Bilirubin (Jaundice Check)" },
+      ],
+    },
   ];
 
-  const availableDoctors = [
-    { 
-      id: 1, 
-      name: "Dr. Melissa B. Edic", 
-      specialization: "Pediatrics",
-      schedule: "Thu-Fri: 9AM-5PM, Wed (2nd & 4th): 9AM-3PM",
-      availability: [
-        { days: [4, 5], startHour: 9, endHour: 17 },
-        { days: [3], startHour: 9, endHour: 15, weeksOfMonth: [2, 4] }
-      ]
-    },
-    { 
-      id: 2, 
-      name: "Dr. Genevive Bandiwan-Laking", 
-      specialization: "Pediatrics",
-      schedule: "By Appointment Only",
-      availability: [
-        { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 }
-      ]
-    },
-    { 
-      id: 3, 
-      name: "Dr. Cynthia Moran", 
-      specialization: "Internal Medicine",
-      schedule: "Wed: 9AM-12PM",
-      availability: [
-        { days: [3], startHour: 9, endHour: 12 }
-      ]
-    },
-    { 
-      id: 4, 
-      name: "Dr. Edrian O. Geronimo", 
-      specialization: "Infectious Disease",
-      schedule: "Tue, Thu: 9AM-12PM",
-      availability: [
-        { days: [2, 4], startHour: 9, endHour: 12 }
-      ]
-    },
-    { 
-      id: 5, 
-      name: "Dr. Feb Golocan-Alquiza", 
-      specialization: "Nephrology",
-      schedule: "Mon, Tue, Thu: 1PM-5PM",
-      availability: [
-        { days: [1, 2, 4], startHour: 13, endHour: 17 }
-      ]
-    },
-    { 
-      id: 6, 
-      name: "Dr. Tanya Charissa Diomampo", 
-      specialization: "Nephrology",
-      schedule: "Wed: 1PM-5PM, Sat: 10AM-1PM",
-      availability: [
-        { days: [3], startHour: 13, endHour: 17 },
-        { days: [6], startHour: 10, endHour: 13 }
-      ]
-    },
-    { 
-      id: 7, 
-      name: "Dr. Maricar Josephine A. Geronimo", 
-      specialization: "Nephrology",
-      schedule: "Fri: 1PM-5PM",
-      availability: [
-        { days: [5], startHour: 13, endHour: 17 }
-      ]
-    },
-    { 
-      id: 8, 
-      name: "Dr. Elvira T. Lampacan", 
-      specialization: "OB-GYN",
-      schedule: "Wed, Fri: 9:30AM-12PM, Thu: 1PM-3PM",
-      availability: [
-        { days: [3, 5], startHour: 9.5, endHour: 12 },
-        { days: [4], startHour: 13, endHour: 15 }
-      ]
-    },
-    { 
-      id: 9, 
-      name: "Dr. Clarissa Mae L. Lee", 
-      specialization: "OB-GYN",
-      schedule: "Mon, Tue: 9:30AM-12PM, Sat: 1PM-3PM",
-      availability: [
-        { days: [1, 2], startHour: 9.5, endHour: 12 },
-        { days: [6], startHour: 13, endHour: 15 }
-      ]
-    },
-    { 
-      id: 10, 
-      name: "Dr. Herschel Charisse C. Rivera-Ang", 
-      specialization: "OB-GYN",
-      schedule: "Mon-Wed: 1PM-3PM",
-      availability: [
-        { days: [1, 2, 3], startHour: 13, endHour: 15 }
-      ]
-    },
-    { 
-      id: 11, 
-      name: "Dr. Cecille P. Pating", 
-      specialization: "OB-GYN",
-      schedule: "Thu, Sat: 9:30AM-12PM, Fri: 1PM-3PM",
-      availability: [
-        { days: [4, 6], startHour: 9.5, endHour: 12 },
-        { days: [5], startHour: 13, endHour: 15 }
-      ]
-    },
-    { 
-      id: 12, 
-      name: "Dr. Richard S. Ang", 
-      specialization: "Orthopedics & Urology",
-      schedule: "Mon-Fri: 8AM-5PM",
-      availability: [
-        { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 }
-      ]
-    },
-    { 
-      id: 13, 
-      name: "Dr. Rajiv D. Laoagan", 
-      specialization: "General Surgery",
-      schedule: "Thu: 8AM-5PM, Fri-Sat: 8AM-12PM",
-      availability: [
-        { days: [4], startHour: 8, endHour: 17 },
-        { days: [5, 6], startHour: 8, endHour: 12 }
-      ]
-    },
-    { 
-      id: 14, 
-      name: "Dr. Jefferson Richmond G. Chomenwey",
-      specialization: "General Surgery",
-      schedule: "By Appointment Only",
-      availability: [
-        { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 }
-      ]
-    },
-    { 
-      id: 15, 
-      name: "Dr. Rhea Jeanne L. Awas", 
-      specialization: "ENT",
-      schedule: "Mon-Wed: 8AM-5PM",
-      availability: [
-        { days: [1, 2, 3], startHour: 8, endHour: 17 }
-      ]
-    }
-  ];
+
+
+  const availableDoctors = doctors;
 
   const isDoctorAvailable = (doctor, appointmentDateTime) => {
     if (!appointmentDateTime) return true;
-    
+
+    // ✅ ADDED: Always show "By Appointment Only" doctors
+    if (doctor.schedule && doctor.schedule.includes("By Appointment Only")) {
+      return true;
+    }
+
     const appointmentDate = new Date(appointmentDateTime);
     const dayOfWeek = appointmentDate.getDay();
     const appointmentHour = appointmentDate.getHours() + (appointmentDate.getMinutes() / 60);
     const weekOfMonth = Math.ceil(appointmentDate.getDate() / 7);
-    
+
     return doctor.availability.some(slot => {
       if (!slot.days.includes(dayOfWeek)) {
         return false;
       }
-      
+
       if (appointmentHour < slot.startHour || appointmentHour >= slot.endHour) {
         return false;
       }
-      
+
       if (slot.weeksOfMonth && !slot.weeksOfMonth.includes(weekOfMonth)) {
         return false;
       }
-      
+
       return true;
     });
   };
@@ -385,7 +342,7 @@ function Checkin() {
   const handleDoctorSelect = (doctorId) => {
     const doctor = availableDoctors.find(d => d.id === doctorId);
     setSelectedDoctor(doctor);
-    
+
     if (doctor && !formData.services.includes('follow-up')) {
       setFormData(prev => ({
         ...prev,
@@ -430,18 +387,22 @@ function Checkin() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    // ✅ MODIFIED: Enforce mutual exclusivity based on booking mode
     const dataToSubmit = {
       ...formData,
-      name: formData.name || "Guest Patient", 
-      fullName: formData.name || "Guest Patient" 
+      name: formData.name || "Guest Patient",
+      fullName: formData.name || "Guest Patient",
+      // If booking by doctor, clear services. If by service, clear physician.
+      services: bookingMode === 'doctor' ? [] : formData.services,
+      physician: bookingMode === 'doctor' && selectedDoctor ? selectedDoctor.name : null
     };
 
     try {
       if (isFromPatientSidebar) {
         if (!formData.name || !formData.age || !formData.phoneNum) {
           showMessage(
-            "Profile Incomplete", 
-            "Please complete your profile in Settings before booking an appointment.", 
+            "Profile Incomplete",
+            "Please complete your profile in Settings before booking an appointment.",
             false
           );
           setIsSubmitting(false);
@@ -476,7 +437,7 @@ function Checkin() {
 
       if (result.success) {
         const currentPatientEmail = localStorage.getItem('currentPatientEmail');
-        
+
         const normalizeName = (name) => {
           if (!name) return '';
           return name.toLowerCase().trim();
@@ -537,11 +498,11 @@ function Checkin() {
         addPatient(newPatient);
         setActivePatient(newPatient);
         resetForm();
-        
-        const successMsg = selectedPatientType === "Walk-in" 
-          ? `Registration completed for ${newPatient.name}. You're in the queue!` 
+
+        const successMsg = selectedPatientType === "Walk-in"
+          ? `Registration completed for ${newPatient.name}. You're in the queue!`
           : `Appointment request submitted for ${newPatient.name}. Please wait for confirmation.`;
-        
+
         showMessage("Success", successMsg, true);
 
         setTimeout(() => {
@@ -566,7 +527,7 @@ function Checkin() {
       setIsSubmitting(false);
     }
   };
-  
+
   //==================== USE EFFECTS ====================
   useEffect(() => {
     if (selectedDoctor && formData.appointmentDateTime && bookingMode === 'doctor') {
@@ -585,73 +546,110 @@ function Checkin() {
     }
   }, [formData.appointmentDateTime, getAvailableSlots]);
 
+  // ✅ NEW: Auto-save form data whenever it changes
   useEffect(() => {
-    if (isFromPatientSidebar && selectedPatientType && !tempDataLoadedRef.current) {
-      const restored = loadFormDataFromTemp();
-      if (restored) {
-        tempDataLoadedRef.current = true;
-        console.log('✅ Successfully restored previous form selections');
-      }
+    // Check if user is logged in (has email) and booking an appointment
+    const currentEmail = localStorage.getItem('currentPatientEmail');
+
+    if (currentEmail && selectedPatientType === 'Appointment') {
+      // Debounce slightly to avoid excessive writes
+      const timeoutId = setTimeout(() => {
+        const tempData = {
+          symptoms: formData.symptoms,
+          services: formData.services,
+          appointmentDateTime: formData.appointmentDateTime,
+          isPriority: formData.isPriority,
+          priorityType: formData.priorityType,
+          isReturningPatient: formData.isReturningPatient,
+          expandedCategory: expandedCategory,
+          bookingMode: bookingMode,
+          selectedDoctor: selectedDoctor,
+          timestamp: Date.now()
+        };
+        localStorage.setItem(`tempFormData_${currentEmail}`, JSON.stringify(tempData));
+        console.log('💾 Auto-saved form data:', tempData);
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
     }
-    if (!selectedPatientType) {
-      tempDataLoadedRef.current = false;
-    }
-  }, [isFromPatientSidebar, selectedPatientType]);
+  }, [formData, expandedCategory, bookingMode, selectedDoctor, selectedPatientType]);
 
   useEffect(() => {
-    if (isFromPatientSidebar && selectedPatientType && !profileLoadedRef.current) {
+    // Check validation based on login status rather than just sidebar source
+    const currentEmail = localStorage.getItem('currentPatientEmail');
+    if (currentEmail && selectedPatientType && !profileLoadedRef.current) {
       try {
-        const email = localStorage.getItem('currentPatientEmail');
-        if (email) {
-          const userProfileStr = localStorage.getItem(`userProfile_${email}`);
-          if (userProfileStr) {
-            const userProfile = JSON.parse(userProfileStr);
-            
-            console.log('📋 Loading profile data for:', email);
-            console.log('📋 Profile data:', userProfile);
-            
-            setFormData(prev => ({
-              ...prev,
-              name: userProfile.fullName || prev.name,
-              age: userProfile.age || prev.age,
-              phoneNum: userProfile.phoneNumber || prev.phoneNum,
-            }));
-            
-            profileLoadedRef.current = true;
-            console.log('✅ Profile loaded and marked');
-          } else {
-            console.log('⚠️ No profile found for:', email);
-          }
+        const userProfileStr = localStorage.getItem(`userProfile_${currentEmail}`);
+        if (userProfileStr) {
+          const userProfile = JSON.parse(userProfileStr);
+
+          console.log('📋 Loading profile data for:', currentEmail);
+          console.log('📋 Profile data:', userProfile);
+
+          setFormData(prev => ({
+            ...prev,
+            name: userProfile.fullName || prev.name,
+            age: userProfile.age || prev.age,
+            phoneNum: userProfile.phoneNumber || prev.phoneNum,
+          }));
+
+          profileLoadedRef.current = true;
+          console.log('✅ Profile loaded and marked');
+        } else {
+          console.log('⚠️ No profile found for:', currentEmail);
         }
       } catch (error) {
         console.error('Error loading user profile:', error);
       }
     }
-    
+
     if (!selectedPatientType) {
       profileLoadedRef.current = false;
     }
-  }, [isFromPatientSidebar, selectedPatientType]);
+  }, [selectedPatientType]);
 
- // ✅✅✅ COMPLETELY REWRITTEN - This is the fix!
+  // ✅ RESTORE DATA: Load temp data on mount or when patient type is selected
+  useEffect(() => {
+    const currentEmail = localStorage.getItem('currentPatientEmail');
+
+    // Attempt to load data if user is logged in and (is selecting a type OR already selected appointment)
+    if (currentEmail && (selectedPatientType || !tempDataLoadedRef.current)) {
+      const restored = loadFormDataFromTemp();
+      if (restored) {
+        tempDataLoadedRef.current = true;
+        console.log('✅ Successfully restored previous form selections');
+
+        // If we restored data and it has a booking mode, ensure we set the patient type to Appointment if not set
+        if (!selectedPatientType) {
+          setSelectedPatientType("Appointment");
+        }
+      }
+    }
+
+    if (!selectedPatientType) {
+      tempDataLoadedRef.current = false;
+    }
+  }, [selectedPatientType]); // Run when patient type changes
+
+  // ✅✅✅ COMPLETELY REWRITTEN - This is the fix!
   useEffect(() => {
     // Only check once when component mounts or when we return from settings
     if (appointmentCheckDoneRef.current) {
       return; // Already checked, don't check again
     }
-    
+
     // Only check if we're in patient sidebar view and NOT selecting a patient type
     if (!isFromPatientSidebar || selectedPatientType || !isPatientLoggedIn) {
       return;
     }
-    
+
     const currentPatientEmail = localStorage.getItem('currentPatientEmail');
     if (!currentPatientEmail) {
       return;
     }
-    
+
     // Find existing appointment - do this INSIDE useEffect, not in useMemo
-    const myActiveAppointment = patients.find(p => 
+    const myActiveAppointment = patients.find(p =>
       p.type === 'Appointment' &&
       p.patientEmail &&
       p.patientEmail.toLowerCase().trim() === currentPatientEmail.toLowerCase().trim() &&
@@ -664,8 +662,8 @@ function Checkin() {
       appointmentCheckDoneRef.current = true;
       setActivePatient(myActiveAppointment);
     }
-    
-  // ✅✅✅ KEY FIX: Only depend on length, not the whole array!
+
+    // ✅✅✅ KEY FIX: Only depend on length, not the whole array!
   }, [isFromPatientSidebar, selectedPatientType, isPatientLoggedIn, patients?.length]);
 
   // Reset the ref when patient type is selected (so we can check again if they go back)
@@ -700,7 +698,7 @@ function Checkin() {
             <CardContent className="space-y-6">
               <div className="bg-white p-8 rounded-xl border-2 border-green-200 flex flex-col items-center">
                 <div className="bg-white p-4 rounded-lg shadow-inner">
-                  <QRCodeSVG 
+                  <QRCodeSVG
                     value={`${import.meta.env.VITE_APP_URL}/checkin?view=patient&type=walkin`}
                     size={200} level="H" marginSize={4} className="w-48 h-48 sm:w-64 sm:h-64"
                   />
@@ -786,7 +784,7 @@ function Checkin() {
                       <p className="text-sm text-green-700">Your profile information will be used for this appointment</p>
                     </div>
                   </div>
-                  
+
                   {formData.name && formData.age && formData.phoneNum ? (
                     <div className="space-y-2 bg-white p-4 rounded-md border border-green-200">
                       <div className="flex justify-between items-center py-2 border-b border-gray-100">
@@ -852,7 +850,7 @@ function Checkin() {
               {selectedPatientType === "Appointment" && (
                 <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg">
                   <Label className="text-blue-800 font-bold mb-3 block">Book your appointment by:</Label>
-                  
+
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <button
                       type="button"
@@ -860,11 +858,10 @@ function Checkin() {
                         setBookingMode('service');
                         setSelectedDoctor(null);
                       }}
-                      className={`p-3 rounded-lg border-2 transition-all ${
-                        bookingMode === 'service'
-                          ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
-                      }`}
+                      className={`p-3 rounded-lg border-2 transition-all ${bookingMode === 'service'
+                        ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                        }`}
                     >
                       <div className="flex flex-col items-center">
                         <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -880,11 +877,10 @@ function Checkin() {
                         setBookingMode('doctor');
                         setFormData(prev => ({ ...prev, services: [] }));
                       }}
-                      className={`p-3 rounded-lg border-2 transition-all ${
-                        bookingMode === 'doctor'
-                          ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
-                      }`}
+                      className={`p-3 rounded-lg border-2 transition-all ${bookingMode === 'doctor'
+                        ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                        }`}
                     >
                       <div className="flex flex-col items-center">
                         <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -896,8 +892,8 @@ function Checkin() {
                   </div>
 
                   <p className="text-xs text-blue-700">
-                    {bookingMode === 'service' 
-                      ? 'Choose the medical services you need, and we\'ll assign the appropriate doctor.' 
+                    {bookingMode === 'service'
+                      ? 'Choose the medical services you need, and we\'ll assign the appropriate doctor.'
                       : 'Select a specific doctor you\'d like to see for your appointment.'}
                   </p>
                 </div>
@@ -949,7 +945,7 @@ function Checkin() {
               {selectedPatientType === "Appointment" && bookingMode === 'doctor' && (
                 <div className="space-y-3 p-4 rounded-lg border border-indigo-300 bg-indigo-50">
                   <Label className="text-indigo-800 font-bold">Select Doctor *</Label>
-                  
+
                   {!formData.appointmentDateTime && (
                     <div className="bg-yellow-50 border border-yellow-300 rounded-md p-3 mb-3">
                       <div className="flex items-start gap-2">
@@ -960,22 +956,21 @@ function Checkin() {
                       </div>
                     </div>
                   )}
-                  
+
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {availableDoctors.map(doctor => {
                       const isAvailable = isDoctorAvailable(doctor, formData.appointmentDateTime);
-                      
+
                       return (
                         <div
                           key={doctor.id}
                           onClick={() => isAvailable && handleDoctorSelect(doctor.id)}
-                          className={`p-4 rounded-lg border-2 transition-all ${
-                            !isAvailable
-                              ? 'opacity-50 cursor-not-allowed bg-gray-100 border-gray-300'
-                              : selectedDoctor?.id === doctor.id
-                                ? 'border-indigo-600 bg-indigo-100 shadow-md cursor-pointer'
-                                : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer'
-                          }`}
+                          className={`p-4 rounded-lg border-2 transition-all ${!isAvailable
+                            ? 'opacity-50 cursor-not-allowed bg-gray-100 border-gray-300'
+                            : selectedDoctor?.id === doctor.id
+                              ? 'border-indigo-600 bg-indigo-100 shadow-md cursor-pointer'
+                              : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer'
+                            }`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -995,7 +990,7 @@ function Checkin() {
                                 <span>{doctor.schedule}</span>
                               </div>
                             </div>
-                            
+
                             {selectedDoctor?.id === doctor.id && isAvailable && (
                               <div className="flex-shrink-0">
                                 <svg className="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
@@ -1008,7 +1003,7 @@ function Checkin() {
                       );
                     })}
                   </div>
-                  
+
                   {selectedDoctor && (
                     <div className="mt-3 p-3 bg-indigo-100 rounded-md">
                       <p className="text-sm text-indigo-900">

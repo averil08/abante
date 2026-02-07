@@ -4,34 +4,35 @@ import 'react-calendar/dist/Calendar.css';
 import { Label } from "@/components/ui/label";
 import { AlertCircle } from "lucide-react";
 
-const AppointmentPicker = ({ 
-  selectedDateTime, 
-  onDateTimeChange, 
-  getAvailableSlots 
+const AppointmentPicker = ({
+  selectedDateTime,
+  onDateTimeChange,
+  getAvailableSlots
 }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState("");
   const [timeSlots, setTimeSlots] = useState([]);
 
   // ✅ ADD THIS NEW useEffect - Initialize from props
+  // ✅ ADD THIS NEW useEffect - Initialize from props
   useEffect(() => {
     if (selectedDateTime) {
       const dateTime = new Date(selectedDateTime);
-      
+
       // Set the date
       setSelectedDate(dateTime);
-      
+
       // Set the time in HH:MM format
       const hours = dateTime.getHours().toString().padStart(2, '0');
       const minutes = dateTime.getMinutes().toString().padStart(2, '0');
       setSelectedTime(`${hours}:${minutes}`);
-      
+
       console.log('📅 Restored appointment picker state:', {
         date: dateTime.toLocaleDateString(),
         time: `${hours}:${minutes}`
       });
     }
-  }, []); // Empty dependency - only run once on mount
+  }, [selectedDateTime]); // ✅ Fixed: allow updates when prop changes
 
   // Define available time slots (8:00 AM - 5:00 PM, 30-minute intervals)
   const generateTimeSlots = () => {
@@ -99,17 +100,17 @@ const AppointmentPicker = ({
 
   const getSlotAvailability = (timeValue) => {
     if (!selectedDate || !timeValue) return 0;
-    
+
     // ✅ ADD THIS: Check if function exists
     if (typeof getAvailableSlots !== 'function') {
       console.warn('getAvailableSlots not yet available');
       return 1; // Return default value
     }
-    
+
     const testDate = new Date(selectedDate);
     const [hours, minutes] = timeValue.split(':');
     testDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-    
+
     return getAvailableSlots(testDate.toISOString());
   };
 
@@ -128,17 +129,17 @@ const AppointmentPicker = ({
     if (view === 'month') {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       if (date < today) {
         return 'past-date';
       }
-      
+
       // Line 109 fix:
       const hasAvailableSlots = timeSlots.some(slot => {
         const testDate = new Date(date);
         const [hours, minutes] = slot.value.split(':');
         testDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        
+
         // ADD THIS CHECK: Ensure the function exists before calling it
         return typeof getAvailableSlots === 'function' ? getAvailableSlots(testDate.toISOString()) > 0 : false;
       });
@@ -152,9 +153,9 @@ const AppointmentPicker = ({
     return null;
   };
 
-  const currentAvailableSlots = typeof getAvailableSlots === 'function' 
-  ? getSlotAvailability(selectedTime) 
-  : 1;
+  const currentAvailableSlots = typeof getAvailableSlots === 'function'
+    ? getSlotAvailability(selectedTime)
+    : 1;
 
   return (
     <div className="space-y-6">
@@ -261,7 +262,7 @@ const AppointmentPicker = ({
         <p className="text-sm text-red-600 mb-4 font-medium">
           To the extent possible, additional slots are made regularly.
         </p>
-        
+
         <Calendar
           onChange={handleDateChange}
           value={selectedDate}
@@ -298,14 +299,14 @@ const AppointmentPicker = ({
             <option value="">-- Choose a time slot --</option>
             {timeSlots.map((slot) => {
               // ✅ ADD THIS: Safe slot availability check
-              const availableSlots = typeof getAvailableSlots === 'function' 
-                ? getSlotAvailability(slot.value) 
+              const availableSlots = typeof getAvailableSlots === 'function'
+                ? getSlotAvailability(slot.value)
                 : 1;
               const isFullyBooked = availableSlots <= 0;
 
               return (
-                <option 
-                  key={slot.value} 
+                <option
+                  key={slot.value}
                   value={slot.value}
                   disabled={isFullyBooked}
                 >
@@ -317,25 +318,21 @@ const AppointmentPicker = ({
 
           {/* Availability Indicator */}
           {selectedTime && (
-            <div className={`flex items-center gap-2 p-3 rounded-md ${
-              currentAvailableSlots > 0 
-                ? 'bg-blue-50 border border-blue-200' 
+            <div className={`flex items-center gap-2 p-3 rounded-md ${currentAvailableSlots > 0
+                ? 'bg-blue-50 border border-blue-200'
                 : 'bg-red-50 border border-red-200'
-            }`}>
-              <AlertCircle className={`w-5 h-5 ${
-                currentAvailableSlots > 0 ? 'text-blue-600' : 'text-red-600'
-              }`} />
+              }`}>
+              <AlertCircle className={`w-5 h-5 ${currentAvailableSlots > 0 ? 'text-blue-600' : 'text-red-600'
+                }`} />
               <div>
-                <p className={`font-semibold text-sm ${
-                  currentAvailableSlots > 0 ? 'text-blue-900' : 'text-red-900'
-                }`}>
+                <p className={`font-semibold text-sm ${currentAvailableSlots > 0 ? 'text-blue-900' : 'text-red-900'
+                  }`}>
                   {currentAvailableSlots > 0 ? 'Slot available' : 'Slot not available'}
                 </p>
-                <p className={`text-xs ${
-                  currentAvailableSlots > 0 ? 'text-blue-700' : 'text-red-700'
-                }`}>
-                  {currentAvailableSlots > 0 
-                    ? 'Book now to secure your appointment' 
+                <p className={`text-xs ${currentAvailableSlots > 0 ? 'text-blue-700' : 'text-red-700'
+                  }`}>
+                  {currentAvailableSlots > 0
+                    ? 'Book now to secure your appointment'
                     : 'This time is already booked, please select another time'}
                 </p>
               </div>
@@ -349,11 +346,11 @@ const AppointmentPicker = ({
         <div className="p-4 bg-green-50 border-2 border-green-300 rounded-lg">
           <p className="font-semibold text-green-900 mb-1">✓ Selected Appointment:</p>
           <p className="text-green-800">
-            {selectedDate.toLocaleDateString('en-US', { 
+            {selectedDate.toLocaleDateString('en-US', {
               weekday: 'long',
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
             })}
             {' at '}
             {timeSlots.find(slot => slot.value === selectedTime)?.label}

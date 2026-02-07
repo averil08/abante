@@ -13,7 +13,7 @@ const QueueStatus = () => {
   const navigate = useNavigate();
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
-  
+
   // Helper function to determine initial view mode
   const getInitialViewMode = () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -42,38 +42,38 @@ const QueueStatus = () => {
   const currentPatientEmail = localStorage.getItem('currentPatientEmail');
   const isPatientLoggedIn = localStorage.getItem('isPatientLoggedIn') === 'true';
 
- //  Set initial view mode based on access type
-useEffect(() => {
-  if (isFromPatientSidebar) {
-    // Patient sidebar has highest priority - always show clinic view with PatientSidebar
-    if (viewMode !== 'clinic') {
+  //  Set initial view mode based on access type
+  useEffect(() => {
+    if (isFromPatientSidebar) {
+      // Patient sidebar has highest priority - always show clinic view with PatientSidebar
+      if (viewMode !== 'clinic') {
+        setViewMode('clinic');
+      }
+    } else if (isPatientAccess && !isFromPatientSidebar) {
+      // Direct patient access (QR code) - show patient view (no sidebar)
+      if (viewMode !== 'patient') {
+        setViewMode('patient');
+      }
+    }
+  }, [isPatientAccess, isFromPatientSidebar, viewMode]);
+
+  //  Force patient sidebar users to stay in clinic view
+  useEffect(() => {
+    if (isFromPatientSidebar && viewMode === 'patient') {
       setViewMode('clinic');
     }
-  } else if (isPatientAccess && !isFromPatientSidebar) {
-    // Direct patient access (QR code) - show patient view (no sidebar)
-    if (viewMode !== 'patient') {
-      setViewMode('patient');
-    }
-  }
-}, [isPatientAccess, isFromPatientSidebar, viewMode]);
+  }, [viewMode, isFromPatientSidebar]);
 
-//  Force patient sidebar users to stay in clinic view
-useEffect(() => {
-  if (isFromPatientSidebar && viewMode === 'patient') {
-    setViewMode('clinic');
-  }
-}, [viewMode, isFromPatientSidebar]);
 
-  
-  const { 
-    patients, 
-    activePatient, 
-    currentServing, 
+  const {
+    patients,
+    activePatient,
+    currentServing,
     avgWaitTime,
     setActivePatient,
     requeuePatient
   } = useContext(PatientContext);
-  
+
   // Validate that activePatient belongs to current logged-in patient
   // This prevents seeing other patients' queue status
   const isMyAppointment = React.useMemo(() => {
@@ -103,13 +103,13 @@ useEffect(() => {
   const service = currentPatient?.type || "Walk-in";
   const symptoms = currentPatient?.symptoms || [];
   // NEW: Get all patients assigned to the same doctor
-  const doctorPatients = currentPatient?.assignedDoctor  
-    ? patients.filter(p => 
-        !p.isInactive && 
-        p.assignedDoctor?.id === currentPatient.assignedDoctor.id &&
-        p.inQueue &&
-        (p.type !== "Appointment" || p.appointmentStatus === "accepted")
-      ).sort((a, b) => a.queueNo - b.queueNo)
+  const doctorPatients = currentPatient?.assignedDoctor
+    ? patients.filter(p =>
+      !p.isInactive &&
+      p.assignedDoctor?.id === currentPatient.assignedDoctor.id &&
+      p.inQueue &&
+      (p.type !== "Appointment" || p.appointmentStatus === "accepted")
+    ).sort((a, b) => a.queueNo - b.queueNo)
     : [];
 
   const serviceLabels = {
@@ -138,11 +138,11 @@ useEffect(() => {
   const estimatedWait = avgWaitTime; // Just use the avgWaitTime directly
 
   // Check if appointment is pending approval
-  const isAppointmentPending = currentPatient?.type === 'Appointment' && 
+  const isAppointmentPending = currentPatient?.type === 'Appointment' &&
     (!currentPatient?.appointmentStatus || currentPatient?.appointmentStatus === 'pending');
 
   // Check if appointment is rejected
-  const isAppointmentRejected = currentPatient?.type === 'Appointment' && 
+  const isAppointmentRejected = currentPatient?.type === 'Appointment' &&
     currentPatient?.appointmentStatus === 'rejected';
 
   // Watch for status changes in the patients array
@@ -153,7 +153,7 @@ useEffect(() => {
     if (isAppointmentPending) return;
 
     const difference = queueNumber - currentServing;
-    
+
     // Check if cancelled
     if (currentPatient.status === "cancelled") {
       setNotificationMessage("Your queue has been cancelled. You didn't show up.");
@@ -161,7 +161,7 @@ useEffect(() => {
       setShowNotification(true);
       return;
     }
-    
+
     // Check if patient is in progress
     if (currentPatient.status === "in progress") {
       setNotificationMessage("It's your turn now! Please proceed to the counter.");
@@ -169,7 +169,7 @@ useEffect(() => {
       setShowNotification(true);
       return;
     }
-    
+
     // Check if coming up soon
     if (difference === 1 && currentPatient.status === "waiting") {
       setNotificationMessage("Your turn is coming up soon! Please be ready.");
@@ -193,10 +193,10 @@ useEffect(() => {
     requeuePatient(oldQueueNo);
     // Find the new ticket that was just created
     setTimeout(() => {
-      const newTicket = patients.find(p => 
+      const newTicket = patients.find(p =>
         p.requeued && p.originalQueueNo === oldQueueNo && !p.isInactive
       );
-      
+
       if (newTicket) {
         setActivePatient(newTicket);
         setNotificationMessage(`You've been added back to the queue with ticket #${String(newTicket.queueNo).padStart(3, '0')}!`);
@@ -219,7 +219,7 @@ useEffect(() => {
   const handleConfirmDone = () => {
     setShowDoneModal(false);
     setActivePatient(null);
-    
+
     if (isFromPatientSidebar) {
       // Navigate to checkin with patient sidebar
       const params = new URLSearchParams();
@@ -236,19 +236,18 @@ useEffect(() => {
 
   const PushNotification = () => {
     if (!showNotification) return null;
-      
+
     const isCancelled = notificationType === "cancelled";
-      
+
     return (
       <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md px-4 animate-in slide-in-from-top">
-        <div className={`${
-          isCancelled ? "bg-red-600" : "bg-green-600"
+        <div className={`${isCancelled ? "bg-red-600" : "bg-green-600"
           } text-white shadow-lg rounded-xl p-4 relative`}>
           {!isCancelled && (
             <button
               className="absolute top-2 right-2 text-white hover:opacity-80"
               onClick={() => setShowNotification(false)}
-              >
+            >
               <X className="h-4 w-4" />
             </button>
           )}
@@ -328,27 +327,27 @@ useEffect(() => {
     );
   }
 
-//If patient is logged in but viewing someone else's appointment, redirect
+  //If patient is logged in but viewing someone else's appointment, redirect
   if (isPatientLoggedIn && !isMyAppointment) {
     return (
       <div className="flex w-full min-h-screen">
         {isFromPatientSidebar ? (
           <PatientSidebar nav={nav} handleNav={handleNav} />
         ) : null}
-      <div className={`flex-1 min-h-screen bg-gray-50 ${isFromPatientSidebar ? 'ml-0 md:ml-52' : ''} flex items-center justify-center p-4`}>
-        <Card className="max-w-md">
-         <CardContent className="p-6 text-center">            <AlertCircle className="w-16 h-16 mx-auto text-red-500 mb-4" />
-          <h3 className="text-lg font-bold text-gray-900 mb-2">Access Denied</h3>
-          <p className="text-gray-600 mb-4">
-            This appointment does not belong to your account.
-          </p>
-          <Button
-            onClick={() => navigate('/homepage')}
-              className="w-full bg-green-600 hover:bg-green-700 text-white"
+        <div className={`flex-1 min-h-screen bg-gray-50 ${isFromPatientSidebar ? 'ml-0 md:ml-52' : ''} flex items-center justify-center p-4`}>
+          <Card className="max-w-md">
+            <CardContent className="p-6 text-center">            <AlertCircle className="w-16 h-16 mx-auto text-red-500 mb-4" />
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Access Denied</h3>
+              <p className="text-gray-600 mb-4">
+                This appointment does not belong to your account.
+              </p>
+              <Button
+                onClick={() => navigate('/homepage')}
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
               >
-                 Go to Homepage
-            </Button>
-          </CardContent>
+                Go to Homepage
+              </Button>
+            </CardContent>
           </Card>
         </div>
       </div>
@@ -393,15 +392,15 @@ useEffect(() => {
                   <div className="flex justify-between">
                     <span className="text-gray-600 font-normal">Appointment Time</span>
                     <span className="font-medium text-gray-900">
-                      {currentPatient.appointmentDateTime 
+                      {currentPatient.appointmentDateTime
                         ? new Date(currentPatient.appointmentDateTime).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                          })
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        })
                         : 'N/A'}
                     </span>
                   </div>
@@ -449,7 +448,7 @@ useEffect(() => {
                       Switch to Patient View
                     </Button>
                   )}
-                  
+
                   <Button
                     variant="outline"
                     className="w-full text-sm sm:text-lg"
@@ -459,164 +458,168 @@ useEffect(() => {
                     Done
                   </Button>
                 </div>
-            </div>
+              </div>
 
-            {/* NEW: Doctor's Queue Table */}
-            {currentPatient?.assignedDoctor && 
-            doctorPatients.length > 0 && 
-            !isAppointmentPending && 
-            !isAppointmentRejected && (
-              <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
-                  {currentPatient.assignedDoctor.name}'s Queue
-                </h3>
-                
-                {/* Mobile Card View */}
-                <div className="block lg:hidden space-y-3">
-                  {doctorPatients.map(patient => (
-                    <div 
-                      key={patient.queueNo} 
-                      className={`border rounded-lg p-3 ${
-                        patient.queueNo === currentPatient.queueNo 
-                          ? 'border-green-500 bg-green-50 border-2' 
-                          : patient.isPriority
-                          ? 'border-yellow-300 bg-yellow-50'
-                          : 'border-gray-200'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="font-bold text-base">
-                            #{String(patient.queueNo).padStart(3, '0')}
-                            {patient.queueNo === currentPatient.queueNo && (
-                              <span className="ml-2 text-green-600 text-sm">(You)</span>
-                            )}
-                          </p>
-                          <p className="text-sm text-gray-600">{patient.name}</p>
-                        </div>
-                        <Badge
-                          className={
-                            patient.status === 'in progress'
-                              ? 'bg-blue-100 text-blue-700'
-                              : patient.status === 'done'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : patient.status === 'cancelled'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                          }
-                        >
-                          {patient.status}
-                        </Badge>
-                      </div>
-                      
-                      {patient.isPriority && (
-                        <div className="mb-2">
-                          <Badge className="bg-purple-100 text-purple-700 text-xs">
-                            Priority: {patient.priorityType}
-                          </Badge>
-                        </div>
-                      )}
-                      
-                      <div className="text-xs text-gray-600 space-y-1">
-                        <p>Age: {patient.age} | Type: {patient.type}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {patient.symptoms?.slice(0, 3).map((symptom, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs">
-                              {symptom}
-                            </Badge>
-                          ))}
-                          {patient.symptoms?.length > 3 && (
-                            <span className="text-xs text-gray-500">+{patient.symptoms.length - 3} more</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              {/* NEW: Doctor's Queue Table */}
+              {currentPatient?.assignedDoctor &&
+                !isAppointmentRejected && (
+                  <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
+                      {currentPatient.assignedDoctor.name}'s Queue
+                    </h3>
 
-                {/* Desktop Table View */}
-                <div className="hidden lg:block overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Name</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Age</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Type</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Priority</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Symptoms</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                    {/* Mobile Card View */}
+                    <div className="block lg:hidden space-y-3">
                       {doctorPatients.map(patient => (
-                        <tr 
+                        <div
                           key={patient.queueNo}
-                          className={`border-b ${
-                            patient.queueNo === currentPatient.queueNo 
-                              ? 'bg-green-50 font-semibold' 
-                              : patient.isPriority
-                              ? 'bg-yellow-50'
-                              : 'hover:bg-gray-50'
-                          }`}
+                          className={`border rounded-lg p-3 ${patient.queueNo === currentPatient.queueNo
+                            ? 'border-green-500 bg-green-50 border-2'
+                            : patient.isPriority
+                              ? 'border-yellow-300 bg-yellow-50'
+                              : 'border-gray-200'
+                            }`}
                         >
-                          <td className="p-3 align-middle">
-                            #{String(patient.queueNo).padStart(3, '0')}
-                            {patient.queueNo === currentPatient.queueNo && (
-                              <span className="ml-2 text-green-600 text-xs">(You)</span>
-                            )}
-                          </td>
-                          <td className="p-3 align-middle">{patient.name}</td>
-                          <td className="p-3 align-middle">{patient.age}</td>
-                          <td className="p-3 align-middle text-gray-600">{patient.type}</td>
-                          <td className="p-3 align-middle">
-                            {patient.isPriority ? (
-                              <Badge className="bg-purple-100 text-purple-700 text-xs">
-                                {patient.priorityType}
-                              </Badge>
-                            ) : (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
-                          </td>
-                          <td className="p-3 align-middle">
-                            <div className="flex flex-wrap gap-1 max-w-xs">
-                              {patient.symptoms?.slice(0, 2).map((symptom, idx) => (
-                                <Badge key={idx} variant="outline" className="text-xs">
-                                  {symptom}
-                                </Badge>
-                              ))}
-                              {patient.symptoms?.length > 2 && (
-                                <span className="text-xs text-gray-500">+{patient.symptoms.length - 2}</span>
-                              )}
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <p className="font-bold text-base">
+                                #{String(patient.queueNo).padStart(3, '0')}
+                                {patient.queueNo === currentPatient.queueNo && (
+                                  <span className="ml-2 text-green-600 text-sm">(You)</span>
+                                )}
+                              </p>
+                              <p className="text-sm text-gray-600">{patient.name}</p>
                             </div>
-                          </td>
-                          <td className="p-3 align-middle">
                             <Badge
                               className={
                                 patient.status === 'in progress'
                                   ? 'bg-blue-100 text-blue-700'
                                   : patient.status === 'done'
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : patient.status === 'cancelled'
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-yellow-100 text-yellow-700'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : patient.status === 'cancelled'
+                                      ? 'bg-red-100 text-red-700'
+                                      : 'bg-yellow-100 text-yellow-700'
                               }
                             >
                               {patient.status}
                             </Badge>
-                          </td>
-                        </tr>
+                          </div>
+
+                          {patient.isPriority && (
+                            <div className="mb-2">
+                              <Badge className="bg-purple-100 text-purple-700 text-xs">
+                                Priority: {patient.priorityType}
+                              </Badge>
+                            </div>
+                          )}
+
+                          <div className="text-xs text-gray-600 space-y-1">
+                            <p>Age: {patient.age} | Type: {patient.type}</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {patient.symptoms?.slice(0, 3).map((symptom, idx) => (
+                                <Badge key={idx} variant="outline" className="text-xs">
+                                  {symptom}
+                                </Badge>
+                              ))}
+                              {patient.symptoms?.length > 3 && (
+                                <span className="text-xs text-gray-500">+{patient.symptoms.length - 3} more</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden lg:block overflow-x-auto">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="bg-gray-100">
+                            <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
+                            <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Name</th>
+                            <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Age</th>
+                            <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Type</th>
+                            <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Priority</th>
+                            <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Symptoms</th>
+                            <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {doctorPatients.length > 0 ? (
+                            doctorPatients.map(patient => (
+                              <tr
+                                key={patient.queueNo}
+                                className={`border-b ${patient.queueNo === currentPatient.queueNo
+                                  ? 'bg-green-50 font-semibold'
+                                  : patient.isPriority
+                                    ? 'bg-yellow-50'
+                                    : 'hover:bg-gray-50'
+                                  }`}
+                              >
+                                <td className="p-3 align-middle">
+                                  #{String(patient.queueNo).padStart(3, '0')}
+                                  {patient.queueNo === currentPatient.queueNo && (
+                                    <span className="ml-2 text-green-600 text-xs">(You)</span>
+                                  )}
+                                </td>
+                                <td className="p-3 align-middle">{patient.name}</td>
+                                <td className="p-3 align-middle">{patient.age}</td>
+                                <td className="p-3 align-middle text-gray-600">{patient.type}</td>
+                                <td className="p-3 align-middle">
+                                  {patient.isPriority ? (
+                                    <Badge className="bg-purple-100 text-purple-700 text-xs">
+                                      {patient.priorityType}
+                                    </Badge>
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">-</span>
+                                  )}
+                                </td>
+                                <td className="p-3 align-middle">
+                                  <div className="flex flex-wrap gap-1 max-w-xs">
+                                    {patient.symptoms?.slice(0, 2).map((symptom, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs">
+                                        {symptom}
+                                      </Badge>
+                                    ))}
+                                    {patient.symptoms?.length > 2 && (
+                                      <span className="text-xs text-gray-500">+{patient.symptoms.length - 2}</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-3 align-middle">
+                                  <Badge
+                                    className={
+                                      patient.status === 'in progress'
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : patient.status === 'done'
+                                          ? 'bg-emerald-100 text-emerald-700'
+                                          : patient.status === 'cancelled'
+                                            ? 'bg-red-100 text-red-700'
+                                            : 'bg-yellow-100 text-yellow-700'
+                                    }
+                                  >
+                                    {patient.status}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan="7" className="p-4 text-center text-gray-500">
+                                No active patients in queue.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+            </div>
           </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
     // Pending Appointment - Patient View (No sidebar)
     return (
@@ -649,15 +652,15 @@ useEffect(() => {
                 <div className="flex justify-between">
                   <span className="text-gray-600 font-normal">Appointment Time</span>
                   <span className="font-medium text-gray-900">
-                    {currentPatient.appointmentDateTime 
+                    {currentPatient.appointmentDateTime
                       ? new Date(currentPatient.appointmentDateTime).toLocaleString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true
-                        })
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })
                       : 'N/A'}
                   </span>
                 </div>
@@ -706,7 +709,7 @@ useEffect(() => {
                     Back to Clinic View
                   </Button>
                 )}
-              
+
                 <Button
                   variant="outline"
                   className="w-full text-sm sm:text-lg"
@@ -719,156 +722,160 @@ useEffect(() => {
             </div>
 
             {/* NEW: Doctor's Queue Table */}
-            {currentPatient?.assignedDoctor && 
-            doctorPatients.length > 0 && 
-            !isAppointmentPending && 
-            !isAppointmentRejected && (
-              <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
-                  {currentPatient.assignedDoctor.name}'s Queue
-                </h3>
-                
-                {/* Mobile Card View */}
-                <div className="block lg:hidden space-y-3">
-                  {doctorPatients.map(patient => (
-                    <div 
-                      key={patient.queueNo} 
-                      className={`border rounded-lg p-3 ${
-                        patient.queueNo === currentPatient.queueNo 
-                          ? 'border-green-500 bg-green-50 border-2' 
-                          : patient.isPriority
-                          ? 'border-yellow-300 bg-yellow-50'
-                          : 'border-gray-200'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="font-bold text-base">
-                            #{String(patient.queueNo).padStart(3, '0')}
-                            {patient.queueNo === currentPatient.queueNo && (
-                              <span className="ml-2 text-green-600 text-sm">(You)</span>
-                            )}
-                          </p>
-                          <p className="text-sm text-gray-600">{patient.name}</p>
-                        </div>
-                        <Badge
-                          className={
-                            patient.status === 'in progress'
-                              ? 'bg-blue-100 text-blue-700'
-                              : patient.status === 'done'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : patient.status === 'cancelled'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                          }
-                        >
-                          {patient.status}
-                        </Badge>
-                      </div>
-                      
-                      {patient.isPriority && (
-                        <div className="mb-2">
-                          <Badge className="bg-purple-100 text-purple-700 text-xs">
-                            Priority: {patient.priorityType}
-                          </Badge>
-                        </div>
-                      )}
-                      
-                      <div className="text-xs text-gray-600 space-y-1">
-                        <p>Age: {patient.age} | Type: {patient.type}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {patient.symptoms?.slice(0, 3).map((symptom, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs">
-                              {symptom}
-                            </Badge>
-                          ))}
-                          {patient.symptoms?.length > 3 && (
-                            <span className="text-xs text-gray-500">+{patient.symptoms.length - 3} more</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {currentPatient?.assignedDoctor &&
+              !isAppointmentRejected && (
+                <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
+                    {currentPatient.assignedDoctor.name}'s Queue
+                  </h3>
 
-                {/* Desktop Table View */}
-                <div className="hidden lg:block overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Name</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Age</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Type</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Priority</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Symptoms</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {doctorPatients.map(patient => (
-                        <tr 
-                          key={patient.queueNo}
-                          className={`border-b ${
-                            patient.queueNo === currentPatient.queueNo 
-                              ? 'bg-green-50 font-semibold' 
-                              : patient.isPriority
-                              ? 'bg-yellow-50'
-                              : 'hover:bg-gray-50'
+                  {/* Mobile Card View */}
+                  <div className="block lg:hidden space-y-3">
+                    {doctorPatients.map(patient => (
+                      <div
+                        key={patient.queueNo}
+                        className={`border rounded-lg p-3 ${patient.queueNo === currentPatient.queueNo
+                          ? 'border-green-500 bg-green-50 border-2'
+                          : patient.isPriority
+                            ? 'border-yellow-300 bg-yellow-50'
+                            : 'border-gray-200'
                           }`}
-                        >
-                          <td className="p-3 align-middle">
-                            #{String(patient.queueNo).padStart(3, '0')}
-                            {patient.queueNo === currentPatient.queueNo && (
-                              <span className="ml-2 text-green-600 text-xs">(You)</span>
-                            )}
-                          </td>
-                          <td className="p-3 align-middle">{patient.name}</td>
-                          <td className="p-3 align-middle">{patient.age}</td>
-                          <td className="p-3 align-middle text-gray-600">{patient.type}</td>
-                          <td className="p-3 align-middle">
-                            {patient.isPriority ? (
-                              <Badge className="bg-purple-100 text-purple-700 text-xs">
-                                {patient.priorityType}
-                              </Badge>
-                            ) : (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
-                          </td>
-                          <td className="p-3 align-middle">
-                            <div className="flex flex-wrap gap-1 max-w-xs">
-                              {patient.symptoms?.slice(0, 2).map((symptom, idx) => (
-                                <Badge key={idx} variant="outline" className="text-xs">
-                                  {symptom}
-                                </Badge>
-                              ))}
-                              {patient.symptoms?.length > 2 && (
-                                <span className="text-xs text-gray-500">+{patient.symptoms.length - 2}</span>
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-bold text-base">
+                              #{String(patient.queueNo).padStart(3, '0')}
+                              {patient.queueNo === currentPatient.queueNo && (
+                                <span className="ml-2 text-green-600 text-sm">(You)</span>
                               )}
-                            </div>
-                          </td>
-                          <td className="p-3 align-middle">
-                            <Badge
-                              className={
-                                patient.status === 'in progress'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : patient.status === 'done'
+                            </p>
+                            <p className="text-sm text-gray-600">{patient.name}</p>
+                          </div>
+                          <Badge
+                            className={
+                              patient.status === 'in progress'
+                                ? 'bg-blue-100 text-blue-700'
+                                : patient.status === 'done'
                                   ? 'bg-emerald-100 text-emerald-700'
                                   : patient.status === 'cancelled'
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-yellow-100 text-yellow-700'
-                              }
-                            >
-                              {patient.status}
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-yellow-100 text-yellow-700'
+                            }
+                          >
+                            {patient.status}
+                          </Badge>
+                        </div>
+
+                        {patient.isPriority && (
+                          <div className="mb-2">
+                            <Badge className="bg-purple-100 text-purple-700 text-xs">
+                              Priority: {patient.priorityType}
                             </Badge>
-                          </td>
+                          </div>
+                        )}
+
+                        <div className="text-xs text-gray-600 space-y-1">
+                          <p>Age: {patient.age} | Type: {patient.type}</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {patient.symptoms?.slice(0, 3).map((symptom, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {symptom}
+                              </Badge>
+                            ))}
+                            {patient.symptoms?.length > 3 && (
+                              <span className="text-xs text-gray-500">+{patient.symptoms.length - 3} more</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Name</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Age</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Type</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Priority</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Symptoms</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {doctorPatients.length > 0 ? (
+                          doctorPatients.map(patient => (
+                            <tr
+                              key={patient.queueNo}
+                              className={`border-b ${patient.queueNo === currentPatient.queueNo
+                                ? 'bg-green-50 font-semibold'
+                                : patient.isPriority
+                                  ? 'bg-yellow-50'
+                                  : 'hover:bg-gray-50'
+                                }`}
+                            >
+                              <td className="p-3 align-middle">
+                                #{String(patient.queueNo).padStart(3, '0')}
+                                {patient.queueNo === currentPatient.queueNo && (
+                                  <span className="ml-2 text-green-600 text-xs">(You)</span>
+                                )}
+                              </td>
+                              <td className="p-3 align-middle">{patient.name}</td>
+                              <td className="p-3 align-middle">{patient.age}</td>
+                              <td className="p-3 align-middle text-gray-600">{patient.type}</td>
+                              <td className="p-3 align-middle">
+                                {patient.isPriority ? (
+                                  <Badge className="bg-purple-100 text-purple-700 text-xs">
+                                    {patient.priorityType}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">-</span>
+                                )}
+                              </td>
+                              <td className="p-3 align-middle">
+                                <div className="flex flex-wrap gap-1 max-w-xs">
+                                  {patient.symptoms?.slice(0, 2).map((symptom, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs">
+                                      {symptom}
+                                    </Badge>
+                                  ))}
+                                  {patient.symptoms?.length > 2 && (
+                                    <span className="text-xs text-gray-500">+{patient.symptoms.length - 2}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3 align-middle">
+                                <Badge
+                                  className={
+                                    patient.status === 'in progress'
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : patient.status === 'done'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : patient.status === 'cancelled'
+                                          ? 'bg-red-100 text-red-700'
+                                          : 'bg-yellow-100 text-yellow-700'
+                                  }
+                                >
+                                  {patient.status}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="7" className="p-4 text-center text-gray-500">
+                              No active patients in queue.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
       </div>
@@ -914,15 +921,15 @@ useEffect(() => {
                   <div className="flex justify-between">
                     <span className="text-gray-600 font-normal">Requested Time</span>
                     <span className="font-medium text-gray-900">
-                      {currentPatient.appointmentDateTime 
+                      {currentPatient.appointmentDateTime
                         ? new Date(currentPatient.appointmentDateTime).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                          })
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        })
                         : 'N/A'}
                     </span>
                   </div>
@@ -997,7 +1004,7 @@ useEffect(() => {
                       Switch to Patient View
                     </Button>
                   )}
-                  
+
                   <Button
                     variant="outline"
                     className="w-full text-sm sm:text-lg"
@@ -1045,15 +1052,15 @@ useEffect(() => {
                 <div className="flex justify-between">
                   <span className="text-gray-600 font-normal">Requested Time</span>
                   <span className="font-medium text-gray-900">
-                    {currentPatient.appointmentDateTime 
+                    {currentPatient.appointmentDateTime
                       ? new Date(currentPatient.appointmentDateTime).toLocaleString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true
-                        })
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      })
                       : 'N/A'}
                   </span>
                 </div>
@@ -1129,7 +1136,7 @@ useEffect(() => {
                     Back to Clinic View
                   </Button>
                 )}
-               
+
                 <Button
                   variant="outline"
                   className="w-full text-sm sm:text-lg"
@@ -1160,16 +1167,15 @@ useEffect(() => {
         <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 p-4">
           <div className="max-w-[800px] mt-[20px] sm:mt-[50px] w-full mx-auto space-y-6">
             <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 text-center">
-              <Badge className={`text-sm sm:text-lg mb-4 ${
-                currentPatient.status === 'cancelled' 
-                  ? 'bg-red-100 text-red-700' 
-                  : currentPatient.status === 'in progress'
+              <Badge className={`text-sm sm:text-lg mb-4 ${currentPatient.status === 'cancelled'
+                ? 'bg-red-100 text-red-700'
+                : currentPatient.status === 'in progress'
                   ? 'bg-green-100 text-green-700'
                   : 'bg-emerald-100 text-emerald-700'
-              } hover:bg-emerald-100`}>
+                } hover:bg-emerald-100`}>
                 <Bell className="w-4 h-4 mr-2" />
-                {currentPatient.status === 'cancelled' ? 'Cancelled' : 
-                 currentPatient.status === 'in progress' ? 'In Progress' : 'Queue Joined'}
+                {currentPatient.status === 'cancelled' ? 'Cancelled' :
+                  currentPatient.status === 'in progress' ? 'In Progress' : 'Queue Joined'}
               </Badge>
 
               {currentPatient.requeued && (
@@ -1196,11 +1202,10 @@ useEffect(() => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600 font-normal">Status</span>
-                  <span className={`font-medium ${
-                    currentPatient.status === 'cancelled' ? 'text-red-600' : 
-                    currentPatient.status === 'in progress' ? 'text-green-600' : 
-                    'text-gray-900'
-                  }`}>
+                  <span className={`font-medium ${currentPatient.status === 'cancelled' ? 'text-red-600' :
+                    currentPatient.status === 'in progress' ? 'text-green-600' :
+                      'text-gray-900'
+                    }`}>
                     {currentPatient.status}
                   </span>
                 </div>
@@ -1252,7 +1257,7 @@ useEffect(() => {
                     Switch to  Patient View
                   </Button>
                 )}
-                
+
                 <Button
                   variant="outline"
                   className="w-full text-sm sm:text-lg"
@@ -1265,156 +1270,160 @@ useEffect(() => {
             </div>
 
             {/* NEW: Doctor's Queue Table - ADDED HERE FOR CLINIC VIEW */}
-            {currentPatient?.assignedDoctor && 
-            doctorPatients.length > 0 && 
-            !isAppointmentPending && 
-            !isAppointmentRejected && (
-              <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
-                <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
-                  {currentPatient.assignedDoctor.name}'s Queue
-                </h3>
-                
-                {/* Mobile Card View */}
-                <div className="block lg:hidden space-y-3">
-                  {doctorPatients.map(patient => (
-                    <div 
-                      key={patient.queueNo} 
-                      className={`border rounded-lg p-3 ${
-                        patient.queueNo === currentPatient.queueNo 
-                          ? 'border-green-500 bg-green-50 border-2' 
-                          : patient.isPriority
-                          ? 'border-yellow-300 bg-yellow-50'
-                          : 'border-gray-200'
-                      }`}
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="font-bold text-base">
-                            #{String(patient.queueNo).padStart(3, '0')}
-                            {patient.queueNo === currentPatient.queueNo && (
-                              <span className="ml-2 text-green-600 text-sm">(You)</span>
-                            )}
-                          </p>
-                          <p className="text-sm text-gray-600">{patient.name}</p>
-                        </div>
-                        <Badge
-                          className={
-                            patient.status === 'in progress'
-                              ? 'bg-blue-100 text-blue-700'
-                              : patient.status === 'done'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : patient.status === 'cancelled'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                          }
-                        >
-                          {patient.status}
-                        </Badge>
-                      </div>
-                      
-                      {patient.isPriority && (
-                        <div className="mb-2">
-                          <Badge className="bg-purple-100 text-purple-700 text-xs">
-                            Priority: {patient.priorityType}
-                          </Badge>
-                        </div>
-                      )}
-                      
-                      <div className="text-xs text-gray-600 space-y-1">
-                        <p>Age: {patient.age} | Type: {patient.type}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {patient.symptoms?.slice(0, 3).map((symptom, idx) => (
-                            <Badge key={idx} variant="outline" className="text-xs">
-                              {symptom}
-                            </Badge>
-                          ))}
-                          {patient.symptoms?.length > 3 && (
-                            <span className="text-xs text-gray-500">+{patient.symptoms.length - 3} more</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {currentPatient?.assignedDoctor &&
+              !isAppointmentRejected && (
+                <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
+                    {currentPatient.assignedDoctor.name}'s Queue
+                  </h3>
 
-                {/* Desktop Table View */}
-                <div className="hidden lg:block overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Name</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Age</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Type</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Priority</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Symptoms</th>
-                        <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {doctorPatients.map(patient => (
-                        <tr 
-                          key={patient.queueNo}
-                          className={`border-b ${
-                            patient.queueNo === currentPatient.queueNo 
-                              ? 'bg-green-50 font-semibold' 
-                              : patient.isPriority
-                              ? 'bg-yellow-50'
-                              : 'hover:bg-gray-50'
+                  {/* Mobile Card View */}
+                  <div className="block lg:hidden space-y-3">
+                    {doctorPatients.map(patient => (
+                      <div
+                        key={patient.queueNo}
+                        className={`border rounded-lg p-3 ${patient.queueNo === currentPatient.queueNo
+                          ? 'border-green-500 bg-green-50 border-2'
+                          : patient.isPriority
+                            ? 'border-yellow-300 bg-yellow-50'
+                            : 'border-gray-200'
                           }`}
-                        >
-                          <td className="p-3 align-middle">
-                            #{String(patient.queueNo).padStart(3, '0')}
-                            {patient.queueNo === currentPatient.queueNo && (
-                              <span className="ml-2 text-green-600 text-xs">(You)</span>
-                            )}
-                          </td>
-                          <td className="p-3 align-middle">{patient.name}</td>
-                          <td className="p-3 align-middle">{patient.age}</td>
-                          <td className="p-3 align-middle text-gray-600">{patient.type}</td>
-                          <td className="p-3 align-middle">
-                            {patient.isPriority ? (
-                              <Badge className="bg-purple-100 text-purple-700 text-xs">
-                                {patient.priorityType}
-                              </Badge>
-                            ) : (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
-                          </td>
-                          <td className="p-3 align-middle">
-                            <div className="flex flex-wrap gap-1 max-w-xs">
-                              {patient.symptoms?.slice(0, 2).map((symptom, idx) => (
-                                <Badge key={idx} variant="outline" className="text-xs">
-                                  {symptom}
-                                </Badge>
-                              ))}
-                              {patient.symptoms?.length > 2 && (
-                                <span className="text-xs text-gray-500">+{patient.symptoms.length - 2}</span>
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className="font-bold text-base">
+                              #{String(patient.queueNo).padStart(3, '0')}
+                              {patient.queueNo === currentPatient.queueNo && (
+                                <span className="ml-2 text-green-600 text-sm">(You)</span>
                               )}
-                            </div>
-                          </td>
-                          <td className="p-3 align-middle">
-                            <Badge
-                              className={
-                                patient.status === 'in progress'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : patient.status === 'done'
+                            </p>
+                            <p className="text-sm text-gray-600">{patient.name}</p>
+                          </div>
+                          <Badge
+                            className={
+                              patient.status === 'in progress'
+                                ? 'bg-blue-100 text-blue-700'
+                                : patient.status === 'done'
                                   ? 'bg-emerald-100 text-emerald-700'
                                   : patient.status === 'cancelled'
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-yellow-100 text-yellow-700'
-                              }
-                            >
-                              {patient.status}
+                                    ? 'bg-red-100 text-red-700'
+                                    : 'bg-yellow-100 text-yellow-700'
+                            }
+                          >
+                            {patient.status}
+                          </Badge>
+                        </div>
+
+                        {patient.isPriority && (
+                          <div className="mb-2">
+                            <Badge className="bg-purple-100 text-purple-700 text-xs">
+                              Priority: {patient.priorityType}
                             </Badge>
-                          </td>
+                          </div>
+                        )}
+
+                        <div className="text-xs text-gray-600 space-y-1">
+                          <p>Age: {patient.age} | Type: {patient.type}</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {patient.symptoms?.slice(0, 3).map((symptom, idx) => (
+                              <Badge key={idx} variant="outline" className="text-xs">
+                                {symptom}
+                              </Badge>
+                            ))}
+                            {patient.symptoms?.length > 3 && (
+                              <span className="text-xs text-gray-500">+{patient.symptoms.length - 3} more</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table View */}
+                  <div className="hidden lg:block overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Name</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Age</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Type</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Priority</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Symptoms</th>
+                          <th className="border px-3 py-2 text-left text-sm font-medium text-gray-600">Status</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {doctorPatients.length > 0 ? (
+                          doctorPatients.map(patient => (
+                            <tr
+                              key={patient.queueNo}
+                              className={`border-b ${patient.queueNo === currentPatient.queueNo
+                                ? 'bg-green-50 font-semibold'
+                                : patient.isPriority
+                                  ? 'bg-yellow-50'
+                                  : 'hover:bg-gray-50'
+                                }`}
+                            >
+                              <td className="p-3 align-middle">
+                                #{String(patient.queueNo).padStart(3, '0')}
+                                {patient.queueNo === currentPatient.queueNo && (
+                                  <span className="ml-2 text-green-600 text-xs">(You)</span>
+                                )}
+                              </td>
+                              <td className="p-3 align-middle">{patient.name}</td>
+                              <td className="p-3 align-middle">{patient.age}</td>
+                              <td className="p-3 align-middle text-gray-600">{patient.type}</td>
+                              <td className="p-3 align-middle">
+                                {patient.isPriority ? (
+                                  <Badge className="bg-purple-100 text-purple-700 text-xs">
+                                    {patient.priorityType}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-gray-400 text-xs">-</span>
+                                )}
+                              </td>
+                              <td className="p-3 align-middle">
+                                <div className="flex flex-wrap gap-1 max-w-xs">
+                                  {patient.symptoms?.slice(0, 2).map((symptom, idx) => (
+                                    <Badge key={idx} variant="outline" className="text-xs">
+                                      {symptom}
+                                    </Badge>
+                                  ))}
+                                  {patient.symptoms?.length > 2 && (
+                                    <span className="text-xs text-gray-500">+{patient.symptoms.length - 2}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-3 align-middle">
+                                <Badge
+                                  className={
+                                    patient.status === 'in progress'
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : patient.status === 'done'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : patient.status === 'cancelled'
+                                          ? 'bg-red-100 text-red-700'
+                                          : 'bg-yellow-100 text-yellow-700'
+                                  }
+                                >
+                                  {patient.status}
+                                </Badge>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="7" className="p-4 text-center text-gray-500">
+                              No active patients in queue.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         </div>
       </div>
@@ -1429,16 +1438,15 @@ useEffect(() => {
       <div className="flex-1 p-4">
         <div className="max-w-[800px] mt-[20px] sm:mt-[50px] w-full mx-auto space-y-6">
           <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 text-center">
-            <Badge className={`text-sm sm:text-lg mb-4 ${
-              currentPatient.status === 'cancelled' 
-                ? 'bg-red-100 text-red-700' 
-                : currentPatient.status === 'in progress'
+            <Badge className={`text-sm sm:text-lg mb-4 ${currentPatient.status === 'cancelled'
+              ? 'bg-red-100 text-red-700'
+              : currentPatient.status === 'in progress'
                 ? 'bg-green-100 text-green-700'
                 : 'bg-emerald-100 text-emerald-700'
-            } hover:bg-emerald-100`}>
+              } hover:bg-emerald-100`}>
               <Bell className="w-4 h-4 mr-2" />
-              {currentPatient.status === 'cancelled' ? 'Cancelled' : 
-               currentPatient.status === 'in progress' ? 'In Progress' : 'Queue Joined'}
+              {currentPatient.status === 'cancelled' ? 'Cancelled' :
+                currentPatient.status === 'in progress' ? 'In Progress' : 'Queue Joined'}
             </Badge>
 
             {currentPatient.requeued && (
@@ -1465,11 +1473,10 @@ useEffect(() => {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 font-normal">Status</span>
-                <span className={`font-medium ${
-                  currentPatient.status === 'cancelled' ? 'text-red-600' : 
-                  currentPatient.status === 'in progress' ? 'text-green-600' : 
-                  'text-gray-900'
-                }`}>
+                <span className={`font-medium ${currentPatient.status === 'cancelled' ? 'text-red-600' :
+                  currentPatient.status === 'in progress' ? 'text-green-600' :
+                    'text-gray-900'
+                  }`}>
                   {currentPatient.status}
                 </span>
               </div>
@@ -1511,9 +1518,9 @@ useEffect(() => {
             </div>
 
             <div className="mt-6 space-y-3">
-                {!isPatientAccess && (
+              {!isPatientAccess && (
                 <Button
-                  onClick={() => setViewMode('clinic')} 
+                  onClick={() => setViewMode('clinic')}
                   variant="outline"
                   className="w-full text-sm sm:text-lg border-green-600 text-green-600 hover:bg-green-50"
                   size="lg"
@@ -1523,39 +1530,36 @@ useEffect(() => {
                 </Button>
               )}
 
-                <Button
-                  variant="outline"
-                  className="w-full text-sm sm:text-lg"
-                  size="lg"
-                  onClick={handleDoneClick}
-                >
-                  Done
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                className="w-full text-sm sm:text-lg"
+                size="lg"
+                onClick={handleDoneClick}
+              >
+                Done
+              </Button>
             </div>
+          </div>
 
-            {/* NEW: Doctor's Queue Table - ADDED HERE FOR CLINIC VIEW */}
-            {currentPatient?.assignedDoctor && 
-            doctorPatients.length > 0 && 
-            !isAppointmentPending && 
+          {/* NEW: Doctor's Queue Table - ADDED HERE FOR CLINIC VIEW */}
+          {currentPatient?.assignedDoctor &&
             !isAppointmentRejected && (
               <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-4">
                   {currentPatient.assignedDoctor.name}'s Queue
                 </h3>
-                
+
                 {/* Mobile Card View */}
                 <div className="block lg:hidden space-y-3">
                   {doctorPatients.map(patient => (
-                    <div 
-                      key={patient.queueNo} 
-                      className={`border rounded-lg p-3 ${
-                        patient.queueNo === currentPatient.queueNo 
-                          ? 'border-green-500 bg-green-50 border-2' 
-                          : patient.isPriority
+                    <div
+                      key={patient.queueNo}
+                      className={`border rounded-lg p-3 ${patient.queueNo === currentPatient.queueNo
+                        ? 'border-green-500 bg-green-50 border-2'
+                        : patient.isPriority
                           ? 'border-yellow-300 bg-yellow-50'
                           : 'border-gray-200'
-                      }`}
+                        }`}
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div>
@@ -1572,16 +1576,16 @@ useEffect(() => {
                             patient.status === 'in progress'
                               ? 'bg-blue-100 text-blue-700'
                               : patient.status === 'done'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : patient.status === 'cancelled'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-yellow-100 text-yellow-700'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : patient.status === 'cancelled'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-yellow-100 text-yellow-700'
                           }
                         >
                           {patient.status}
                         </Badge>
                       </div>
-                      
+
                       {patient.isPriority && (
                         <div className="mb-2">
                           <Badge className="bg-purple-100 text-purple-700 text-xs">
@@ -1589,7 +1593,7 @@ useEffect(() => {
                           </Badge>
                         </div>
                       )}
-                      
+
                       <div className="text-xs text-gray-600 space-y-1">
                         <p>Age: {patient.age} | Type: {patient.type}</p>
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -1622,73 +1626,80 @@ useEffect(() => {
                       </tr>
                     </thead>
                     <tbody>
-                      {doctorPatients.map(patient => (
-                        <tr 
-                          key={patient.queueNo}
-                          className={`border-b ${
-                            patient.queueNo === currentPatient.queueNo 
-                              ? 'bg-green-50 font-semibold' 
+                      {doctorPatients.length > 0 ? (
+                        doctorPatients.map(patient => (
+                          <tr
+                            key={patient.queueNo}
+                            className={`border-b ${patient.queueNo === currentPatient.queueNo
+                              ? 'bg-green-50 font-semibold'
                               : patient.isPriority
-                              ? 'bg-yellow-50'
-                              : 'hover:bg-gray-50'
-                          }`}
-                        >
-                          <td className="p-3 align-middle">
-                            #{String(patient.queueNo).padStart(3, '0')}
-                            {patient.queueNo === currentPatient.queueNo && (
-                              <span className="ml-2 text-green-600 text-xs">(You)</span>
-                            )}
-                          </td>
-                          <td className="p-3 align-middle">{patient.name}</td>
-                          <td className="p-3 align-middle">{patient.age}</td>
-                          <td className="p-3 align-middle text-gray-600">{patient.type}</td>
-                          <td className="p-3 align-middle">
-                            {patient.isPriority ? (
-                              <Badge className="bg-purple-100 text-purple-700 text-xs">
-                                {patient.priorityType}
-                              </Badge>
-                            ) : (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
-                          </td>
-                          <td className="p-3 align-middle">
-                            <div className="flex flex-wrap gap-1 max-w-xs">
-                              {patient.symptoms?.slice(0, 2).map((symptom, idx) => (
-                                <Badge key={idx} variant="outline" className="text-xs">
-                                  {symptom}
-                                </Badge>
-                              ))}
-                              {patient.symptoms?.length > 2 && (
-                                <span className="text-xs text-gray-500">+{patient.symptoms.length - 2}</span>
+                                ? 'bg-yellow-50'
+                                : 'hover:bg-gray-50'
+                              }`}
+                          >
+                            <td className="p-3 align-middle">
+                              #{String(patient.queueNo).padStart(3, '0')}
+                              {patient.queueNo === currentPatient.queueNo && (
+                                <span className="ml-2 text-green-600 text-xs">(You)</span>
                               )}
-                            </div>
-                          </td>
-                          <td className="p-3 align-middle">
-                            <Badge
-                              className={
-                                patient.status === 'in progress'
-                                  ? 'bg-blue-100 text-blue-700'
-                                  : patient.status === 'done'
-                                  ? 'bg-emerald-100 text-emerald-700'
-                                  : patient.status === 'cancelled'
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-yellow-100 text-yellow-700'
-                              }
-                            >
-                              {patient.status}
-                            </Badge>
+                            </td>
+                            <td className="p-3 align-middle">{patient.name}</td>
+                            <td className="p-3 align-middle">{patient.age}</td>
+                            <td className="p-3 align-middle text-gray-600">{patient.type}</td>
+                            <td className="p-3 align-middle">
+                              {patient.isPriority ? (
+                                <Badge className="bg-purple-100 text-purple-700 text-xs">
+                                  {patient.priorityType}
+                                </Badge>
+                              ) : (
+                                <span className="text-gray-400 text-xs">-</span>
+                              )}
+                            </td>
+                            <td className="p-3 align-middle">
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {patient.symptoms?.slice(0, 2).map((symptom, idx) => (
+                                  <Badge key={idx} variant="outline" className="text-xs">
+                                    {symptom}
+                                  </Badge>
+                                ))}
+                                {patient.symptoms?.length > 2 && (
+                                  <span className="text-xs text-gray-500">+{patient.symptoms.length - 2}</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-3 align-middle">
+                              <Badge
+                                className={
+                                  patient.status === 'in progress'
+                                    ? 'bg-blue-100 text-blue-700'
+                                    : patient.status === 'done'
+                                      ? 'bg-emerald-100 text-emerald-700'
+                                      : patient.status === 'cancelled'
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-yellow-100 text-yellow-700'
+                                }
+                              >
+                                {patient.status}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7" className="p-4 text-center text-gray-500">
+                            No active patients in queue.
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
               </div>
             )}
-          </div>
         </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
 export default QueueStatus;

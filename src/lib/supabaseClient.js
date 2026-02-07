@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Read the variables defined in your .env file
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY; 
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Initialize the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -13,85 +13,127 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Register a walk-in patient
 export const registerWalkInPatient = async (patientData) => {
-  try {
-    const { data, error } = await supabase
-      .from('patients')
-      .insert([
-        {
-          name: patientData.name,
-          age: parseInt(patientData.age),
-          phone_num: patientData.phoneNum,
-          physician: patientData.physician || null,
-          symptoms: patientData.symptoms || [],
-          services: patientData.services || [],
-          days_since_onset: patientData.daysSinceOnSet ? parseInt(patientData.daysSinceOnSet) : null,
-          patient_type: 'walk-in'
-        }
-      ])
-      .select();
+  let attempts = 0;
+  const maxAttempts = 3;
 
-    if (error) throw error;
-    return { success: true, data: data[0] };
-  } catch (error) {
-    console.error('Error registering walk-in patient:', error);
-    return { success: false, error: error.message };
+  while (attempts < maxAttempts) {
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .insert([
+          {
+            name: patientData.name,
+            age: parseInt(patientData.age),
+            phone_num: patientData.phoneNum,
+            physician: patientData.physician || null,
+            symptoms: patientData.symptoms || [],
+            services: patientData.services || [],
+            days_since_onset: patientData.daysSinceOnSet ? parseInt(patientData.daysSinceOnSet) : null,
+            patient_type: 'walk-in'
+          }
+        ])
+        .select();
+
+      if (error) throw error;
+      return { success: true, data: data[0] };
+    } catch (error) {
+      // Check for unique constraint violation on queue_no (Postgres code 23505)
+      // or if message contains specific constraint name
+      if (
+        (error.code === '23505' || error.message?.includes('unique_queue_no')) &&
+        attempts < maxAttempts - 1
+      ) {
+        console.warn(`Queue number conflict detected. Retrying... (Attempt ${attempts + 1}/${maxAttempts})`);
+        attempts++;
+        // Use a small delay before retrying
+        await new Promise(resolve => setTimeout(resolve, 300));
+        continue;
+      }
+
+      console.error('Error registering walk-in patient:', error);
+      return { success: false, error: error.message };
+    }
   }
 };
 
 // Register an appointment patient
 export const registerAppointmentPatient = async (formData, appointmentDateTime) => {
-  try {
-    // STEP 1: Create the Patient record
-    // We use snake_case keys (phone_num, patient_type) to match your SQL schema
-    // STEP 1: Update or Create the Patient record
-// ✅ NEW CODE (FIXED)
-const { data: patientData, error: patientError } = await supabase
-  .from('patients')
-  .insert([
-    { 
-      name: formData.name || "Guest Patient",
-      age: formData.age ? parseInt(formData.age) : 0,
-      phone_num: formData.phoneNum, 
-      patient_type: "appointment",
-      physician: formData.physician || null,
-      symptoms: formData.symptoms || [],
-      services: formData.services || [],
-      status: 'waiting',
-      appointment_status: 'pending',
-      is_priority: formData.isPriority || false,
-      priority_type: formData.priorityType || null,
-      patient_email: localStorage.getItem('currentPatientEmail') || null
-    }
-  ])
-  .select()
-  .single();
+  let attempts = 0;
+  const maxAttempts = 3;
 
-    if (patientError) {
-      console.error("Step 1 (Patient) failed:", patientError);
-      throw patientError;
-    }
+  while (attempts < maxAttempts) {
+    try {
+      // STEP 1: Create the Patient record
+      const { data: patientData, error: patientError } = await supabase
+        .from('patients')
+        .insert([
+          {
+            name: formData.name || "Guest Patient",
+            age: formData.age ? parseInt(formData.age) : 0,
+            phone_num: formData.phoneNum,
+            patient_type: "appointment",
+            physician: formData.physician || null,
+            symptoms: formData.symptoms || [],
+            services: formData.services || [],
+            status: 'waiting',
+            appointment_status: 'pending',
+            is_priority: formData.isPriority || false,
+            priority_type: formData.priorityType || null,
+            patient_email: localStorage.getItem('currentPatientEmail') || null,
+            appointment_datetime: appointmentDateTime
+          }
+        ])
+        .select()
+        .single();
 
-    // STEP 2: Create the Appointment record linked via patient_id
-    const { data: apptData, error: apptError } = await supabase
-      .from('appointments')
-      .insert([
-        { 
-          patient_id: patientData.id, 
-          appointment_datetime: appointmentDateTime,
-          status: 'scheduled',
-          notes: formData.notes || null
+      if (patientError) {
+        // Check for unique_queue_no violation and retry
+        if (
+          (patientError.code === '23505' || patientError.message?.includes('unique_queue_no')) &&
+          attempts < maxAttempts - 1
+        ) {
+          console.warn(`Queue number conflict detected. Retrying... (Attempt ${attempts + 1}/${maxAttempts})`);
+          attempts++;
+          await new Promise(resolve => setTimeout(resolve, 300));
+          continue;
         }
-      ]);
 
-    if (apptError) {
-      console.error("Step 2 (Appointment) failed:", apptError);
-      throw apptError;
+        console.error("Step 1 (Patient) failed:", patientError);
+        throw patientError;
+      }
+
+      // STEP 2: Create the Appointment record linked via patient_id
+      const { data: apptData, error: apptError } = await supabase
+        .from('appointments')
+        .insert([
+          {
+            patient_id: patientData.id,
+            appointment_datetime: appointmentDateTime,
+            status: 'scheduled',
+            notes: formData.notes || null
+          }
+        ]);
+
+      if (apptError) {
+        // If appointment creation fails but patient was created, usually strictly speaking we should cleanup,
+        // but for now we just throw error. Conflict on appt shouldn't be queue_no related.
+        console.error("Step 2 (Appointment) failed:", apptError);
+        throw apptError;
+      }
+
+      return { success: true, data: apptData };
+    } catch (error) {
+      // If unique violation happened and we haven't exhausted retries, we continue loop
+      if ((error.code === '23505' || error.message?.includes('unique_queue_no')) && attempts < maxAttempts - 1) {
+        // Verify we didn't just catch the error we re-threw above, though correct flow lands here anyway
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 300));
+        continue;
+      }
+
+      console.error("Detailed Error Object:", error);
+      return { success: false, error: error.message || "An unexpected error occurred" };
     }
-
-    return { success: true, data: apptData };
-  } catch (error) {
-    console.error("Detailed Error Object:", error);
-    return { success: false, error: error.message || "An unexpected error occurred" };
   }
 };
 
@@ -235,7 +277,7 @@ export const getAppointmentsByDate = async (date) => {
   try {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -390,12 +432,17 @@ export const loginUser = async (email, password) => {
 
   const user = data.user;
 
-  // 3. CHECK STAFF TABLE
-  const { data: staffProfile } = await supabase
+  // 3. CHECK STAFF TABLE (with error handling)
+  const { data: staffProfile, error: staffError } = await supabase
     .from('clinic_staff')
     .select('*')
     .eq('email', cleanEmail)
-    .single();
+    .maybeSingle(); // ✅ ADDED Changed from .single()
+
+  // ✅ ADDED Only log error if it's not a "no rows" error
+  if (staffError && staffError.code !== 'PGRST116') {
+    console.log("Staff check error (this is normal for patients):", staffError.message);
+  }
 
   if (staffProfile) {
     console.log("Role Found: Staff");
@@ -406,17 +453,17 @@ export const loginUser = async (email, password) => {
   const { data: patientProfile, error: pError } = await supabase
     .from('patient_profiles')
     .select('*')
-    .eq('email', cleanEmail) 
-    .single();
+    .eq('email', cleanEmail)
+    .maybeSingle(); // ✅ ADDED changed from .single()
 
-  // Debugging logs to help you see what's happening
+  // Debugging logs to help see what's happening
   console.log("Searching for Patient:", cleanEmail);
   console.log("Patient Data found:", patientProfile);
   if (pError) console.log("Patient Table Error:", pError.message);
 
-  return { 
-    success: true, 
-    user, 
-    role: patientProfile ? 'patient' : 'unknown' 
+  return {
+    success: true,
+    user,
+    role: patientProfile ? 'patient' : 'unknown'
   };
 };

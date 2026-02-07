@@ -14,34 +14,87 @@ import { PatientContext } from "./PatientContext";
 const Appointment = () => {
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
-  
+
   const { patients, acceptAppointment, rejectAppointment } = useContext(PatientContext);
-  
+
   // Filter appointments (patients with type "Appointment")
-  const appointments = (patients || []).filter(p => 
-  p.type === "Appointment" && 
-  p.status !== "done" && 
-  p.status !== "cancelled"
+  const appointments = (patients || []).filter(p =>
+    p.type === "Appointment" &&
+    p.status !== "done" &&
+    p.status !== "cancelled"
   );
-  
+
+  // Service labels mapping
   // Service labels mapping
   const serviceLabels = {
-    pedia: "Pediatric", adult: "Adult", senior: "Senior (65+)",
-    preventive: "Preventive Exam", "follow-up": "Follow-up",
-    cbc: "CBC", platelet: "Platelet Count", esr: "ESR", abo: "Blood Type",
-    hbsag: "HBsAg", vdrl: "VDRL/RPR", antiHCV: "Anti-HCV", hpylori: "H.PYLORI",
-    dengueIg: "Dengue IgG+IgM", dengueNs1: "Dengue NS1", dengueDuo: "Dengue Duo",
-    typhidot: "Typhidot", fbs: "FBS", rbs: "RBS", lipid: "Lipid Profile",
-    totalCh: "Total Cholesterol", triglycerides: "Triglycerides", hdl: "HDL",
-    ldl: "LDL", alt: "ALT/SGPT", ast: "AST/SGOT", uric: "Uric Acid",
-    creatinine: "Creatinine", bun: "BUN", hba1c: "HBA1C", albumin: "Albumin",
-    magnesium: "Magnesium", totalProtein: "Total Protein", alp: "ALP",
-    phosphorus: "Phosphorus", sodium: "Sodium", potassium: "Potassium",
-    ionizedCal: "Ionized Calcium", totalCal: "Total Calcium", chloride: "Chloride",
-    urinalysis: "Urinalysis", fecalysis: "Fecalysis", pregnancyT: "Pregnancy Test",
-    fecal: "Fecal Occult Blood", semen: "Semen Analysis", tsh: "TSH",
-    ft3: "FT3", "75g": "75g OGTT", t4: "T4", t3: "T3", psa: "PSA",
-    totalBilirubin: "Total/Direct Bilirubin"
+    // General
+    pedia: "Pediatric Consultation",
+    adult: "Adult Consultation",
+    senior: "Senior Consultation (60+)",
+    preventive: "Preventive/Annual Physical Exam",
+    "follow-up": "Follow-up Consultation",
+
+    // Hematology
+    cbc: "CBC (Complete Blood Count)",
+    platelet: "Platelet Count",
+    esr: "ESR (Inflammation Check)",
+    abo: "Blood Type Test: ABO/Rh Typing",
+
+    // Immunology & Serology
+    hbsag: "HBsAg (Hepatitis B Screening)",
+    vdrl: "VDRL/RPR (Syphilis Screening)",
+    antiHCV: "Anti-HCV (Hepatitis C Screening)",
+    hpylori: "H.PYLORI (H. pylori Stomach Bacteria Test)",
+    dengueIg: "Dengue IgG+IgM (Dengue Fever Screening: Past/Current)",
+    dengueNs1: "Dengue NS1 (Early Dengue Fever Test)",
+    dengueDuo: "Dengue Duo: NS1, IgG+IgM (Complete Dengue Test)",
+    typhidot: "Typhidot (Typhoid Fever Test)",
+
+    // Clinical Chemistry
+    fbs: "FBS (Fasting Blood Sugar)",
+    rbs: "RBS (Random Blood Sugar)",
+    lipid: "Lipid Profile (Cholesterol and Fats Check)",
+    totalCh: "Total Cholesterol",
+    triglycerides: "Triglycerides (Blood Fats)",
+    hdl: "HDL (Good Cholesterol)",
+    ldl: "LDL (Bad Cholesterol)",
+    alt: "ALT/SGPT (Liver Function Test)",
+    ast: "AST/SGOT (Liver Function Test)",
+    uric: "Uric Acid",
+    creatinine: "Creatinine (Kidney Function Test)",
+    bun: "Bun (Kidney Function Test)",
+    hba1c: "HBA1C (Long-Term Blood Sugar)",
+    albumin: "Albumin (Protein in blood)",
+    magnesium: "Magnesium",
+    totalProtein: "Total Protein (present in blood)",
+    alp: "ALP (Bone and Liver Enzyme)",
+    phosphorus: "Phosphorus",
+    sodium: "Sodium",
+    potassium: "Potassium",
+    ionizedCal: "Ionized Calcium (Free Calcium Level)",
+    totalCal: "Total Calcium",
+    chloride: "Chloride",
+
+    // Microscopy
+    urinalysis: "Urinalysis",
+    fecalysis: "Fecalysis (Stool Test)",
+    pregnancyT: "Pregnancy Test",
+    fecal: "Fecal Occult Blood (Hidden Blood in Stool)",
+    semen: "Semen Analysis",
+
+    // Surgery
+    "general surgery": "General Surgery Consultation",
+    ent: "ENT (Ear, Nose, Throat) Consultation",
+    orthopedic: "Orthopedic Surgery Consultation",
+
+    // Others
+    tsh: "TSH (Thyroid Stimulating Hormone)",
+    ft3: "FT3 (Free T3 Thyroid Hormone)",
+    "75g": "75 Grams OGTT (Diabetes Glucose Challenge Test)",
+    t4: "T4 (T4 Thyroid Hormone)",
+    t3: "T3 (T3 Thyroid Hormone)",
+    psa: "PSA (Prostate Health Screening)",
+    totalBilirubin: "Total/ Direct Bilirubin (Jaundice Check)"
   };
 
   const getServiceLabel = (serviceId) => serviceLabels[serviceId] || serviceId;
@@ -77,27 +130,27 @@ const Appointment = () => {
     setRejectionDialog({ open: false, appointment: null, reason: "" });
   };
 
-const formatDateTime = (dateTimeString) => {
- 
-  if (!dateTimeString) return 'N/A';
-    const date = new Date(dateTimeString);
-   if (isNaN(date.getTime())) {
-    return 'Invalid Date';
-  }
+  const formatDateTime = (dateTimeString) => {
 
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-};
+    if (!dateTimeString) return 'N/A';
+    const date = new Date(dateTimeString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
 
   return (
     <div className="flex w-full min-h-screen">
-       <Sidebar nav={nav} handleNav={handleNav} />
+      <Sidebar nav={nav} handleNav={handleNav} />
 
       {/* MAIN CONTENT */}
       <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300">
@@ -126,7 +179,7 @@ const formatDateTime = (dateTimeString) => {
                 <p className="text-3xl font-bold text-gray-900">{appointments.length}</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="pb-3">
                 <CardDescription>Accepted</CardDescription>
@@ -137,7 +190,7 @@ const formatDateTime = (dateTimeString) => {
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="pb-3">
                 <CardDescription>Pending</CardDescription>
@@ -185,7 +238,7 @@ const formatDateTime = (dateTimeString) => {
                       </div>
                     </div>
                   </CardHeader>
-                  
+
                   <CardContent className="pt-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Left Column - Patient Info */}
@@ -199,7 +252,7 @@ const formatDateTime = (dateTimeString) => {
                             </p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                           <User className="w-5 h-5 text-blue-600 flex-shrink-0" />
                           <div>
@@ -207,7 +260,7 @@ const formatDateTime = (dateTimeString) => {
                             <p className="font-semibold text-gray-900">{appointment.age} years old</p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                           <Phone className="w-5 h-5 text-purple-600 flex-shrink-0" />
                           <div className="min-w-0">
@@ -218,9 +271,10 @@ const formatDateTime = (dateTimeString) => {
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Right Column - Medical Info */}
                       <div className="space-y-3">
+                        {/* Symptoms - Always Show */}
                         <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
                           <div className="flex items-center gap-2 mb-2">
                             <Activity className="w-5 h-5 text-blue-600" />
@@ -229,8 +283,8 @@ const formatDateTime = (dateTimeString) => {
                           <div className="flex flex-wrap gap-1.5">
                             {appointment.symptoms && appointment.symptoms.length > 0 ? (
                               appointment.symptoms.map((symptom, idx) => (
-                                <Badge key={idx} variant="outline" 
-                                       className="text-xs bg-white text-blue-700 border-blue-200">
+                                <Badge key={idx} variant="outline"
+                                  className="text-xs bg-white text-blue-700 border-blue-200">
                                   {symptom}
                                 </Badge>
                               ))
@@ -239,25 +293,43 @@ const formatDateTime = (dateTimeString) => {
                             )}
                           </div>
                         </div>
-                        
-                        <div className="p-3 bg-green-50 rounded-lg border border-green-100">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Stethoscope className="w-5 h-5 text-green-600" />
-                            <p className="text-xs font-semibold text-green-900">Requested Services</p>
+
+                        {/* CONDITIONAL DISPLAY: Requested Doctor OR Requested Services */}
+                        {appointment.assignedDoctor ? (
+                          // SHOW DOCTOR IF BOOKED BY DOCTOR
+                          <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Stethoscope className="w-5 h-5 text-purple-600" />
+                              <p className="text-xs font-semibold text-purple-900">Requested Doctor</p>
+                            </div>
+                            <div className="flex flex-col">
+                              <p className="font-semibold text-purple-900 text-sm">{appointment.assignedDoctor.name}</p>
+                              {appointment.assignedDoctor.specialization && (
+                                <p className="text-xs text-purple-700">{appointment.assignedDoctor.specialization}</p>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {appointment.services && appointment.services.length > 0 ? (
-                              appointment.services.map((serviceId, idx) => (
-                                <Badge key={idx} variant="outline" 
-                                       className="text-xs bg-white text-green-700 border-green-200">
-                                  {getServiceLabel(serviceId)}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-gray-400 text-xs">None selected</span>
-                            )}
+                        ) : (
+                          // SHOW SERVICES IF BOOKED BY SERVICE
+                          <div className="p-3 bg-green-50 rounded-lg border border-green-100">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Stethoscope className="w-5 h-5 text-green-600" />
+                              <p className="text-xs font-semibold text-green-900">Requested Services</p>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {appointment.services && appointment.services.length > 0 ? (
+                                appointment.services.map((serviceId, idx) => (
+                                  <Badge key={idx} variant="outline"
+                                    className="text-xs bg-white text-green-700 border-green-200">
+                                    {getServiceLabel(serviceId)}
+                                  </Badge>
+                                ))
+                              ) : (
+                                <span className="text-gray-400 text-xs">None selected</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </div>
 
@@ -278,18 +350,18 @@ const formatDateTime = (dateTimeString) => {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Action Buttons */}
                     {(!appointment.appointmentStatus || appointment.appointmentStatus === 'pending') && (
                       <div className="flex flex-col sm:flex-row gap-3 mt-4 pt-4 border-t border-gray-200">
-                        <Button 
+                        <Button
                           onClick={() => handleAccept(appointment)}
                           className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
                           Accept Appointment
                         </Button>
-                        <Button 
+                        <Button
                           onClick={() => handleRejectClick(appointment)}
                           variant="outline"
                           className="flex-1 text-red-600 border-red-300 hover:bg-red-50"
@@ -308,7 +380,7 @@ const formatDateTime = (dateTimeString) => {
       </div>
 
       {/* Added Rejection Reason Dialog */}
-      <Dialog open={rejectionDialog.open} onOpenChange={(open) => setRejectionDialog({...rejectionDialog, open})}>
+      <Dialog open={rejectionDialog.open} onOpenChange={(open) => setRejectionDialog({ ...rejectionDialog, open })}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-red-600">Decline Appointment</DialogTitle>
@@ -317,7 +389,7 @@ const formatDateTime = (dateTimeString) => {
               This will be shared with the patient.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
@@ -326,7 +398,7 @@ const formatDateTime = (dateTimeString) => {
               <Textarea
                 placeholder="e.g., No available time slots, Requires specialist referral, etc."
                 value={rejectionDialog.reason}
-                onChange={(e) => setRejectionDialog({...rejectionDialog, reason: e.target.value})}
+                onChange={(e) => setRejectionDialog({ ...rejectionDialog, reason: e.target.value })}
                 className="min-h-[100px] resize-none"
                 maxLength={500}
               />
@@ -335,16 +407,16 @@ const formatDateTime = (dateTimeString) => {
               </p>
             </div>
           </div>
-          
+
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setRejectionDialog({ open: false, appointment: null, reason: "" })}
               className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleRejectConfirm}
               className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
               disabled={!rejectionDialog.reason.trim()}

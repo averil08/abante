@@ -326,7 +326,7 @@ const AppointmentHistory = () => {
                 <div className="space-y-4">
                   {myAppointments.map((appointment, idx) => (
                     <Card 
-                      key={appointment.queueNo} 
+                      key={appointment.id} 
                       className={`border-l-4 ${
                         appointment.status === 'done' ? 'border-l-emerald-600' :
                         appointment.status === 'cancelled' ? 'border-l-red-600' :

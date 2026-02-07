@@ -21,8 +21,9 @@ import {
 //THIS IS THE REGISTRATION FORMS: WALK-IN & APPOINTMENT (PATIENT UI AND CLINIC UI)
 function Checkin() {
   //============= CONSTANTS & CONTEXT ==============
+  /* New context logic to retrieve and add patients */
   const navigate = useNavigate();
-  const { patients, addPatient, activePatient, setActivePatient, getAvailableSlots, isLoadingFromDB } = useContext(PatientContext);
+  const { patients, addPatient, setActivePatient, activePatient, clearActivePatient, getAvailableSlots, isLoadingFromDB } = useContext(PatientContext);
 
   //=========== HELPER FUNCTIONS (URL PARAMS) ===========
   const getInitialViewMode = () => {
@@ -83,12 +84,12 @@ function Checkin() {
       const tempDataStr = localStorage.getItem(`tempFormData_${currentEmail}`);
       if (tempDataStr) {
         const tempData = JSON.parse(tempDataStr);
-        
+
         // Only restore if data is less than 1 hour old
         const oneHour = 60 * 60 * 1000;
         if (Date.now() - tempData.timestamp < oneHour) {
           console.log('📥 Restoring form data from temp storage:', tempData);
-          
+
           setFormData(prev => ({
             ...prev,
             symptoms: tempData.symptoms || [],
@@ -110,7 +111,7 @@ function Checkin() {
           if (tempData.selectedDoctor) {
             setSelectedDoctor(tempData.selectedDoctor);
           }
-          
+
           return true;
         } else {
           // Data is too old, remove it
@@ -137,10 +138,10 @@ function Checkin() {
   const [availableSlots, setAvailableSlots] = useState(1);
   const [bookingMode, setBookingMode] = useState('service');
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  
+
   const currentPatientEmail = localStorage.getItem('currentPatientEmail');
   const isPatientLoggedIn = localStorage.getItem('isPatientLoggedIn') === 'true';
-  
+
   const profileLoadedRef = useRef(false);
   const tempDataLoadedRef = useRef(false);
   const appointmentCheckDoneRef = useRef(false);
@@ -161,9 +162,9 @@ function Checkin() {
 
   //============== STATIC DATA ===============
   const symptomsList = [
-    'Fever','Cough','Sore Throat','Headache','Stomach Pain',
-    'Vomiting','Diarrhea','Rash','Ear Pain','Runny Nose',
-    'Difficulty Breathing','Itching'
+    'Fever', 'Cough', 'Sore Throat', 'Headache', 'Stomach Pain',
+    'Vomiting', 'Diarrhea', 'Rash', 'Ear Pain', 'Runny Nose',
+    'Difficulty Breathing', 'Itching'
   ];
 
   const serviceCategories = [
@@ -176,9 +177,9 @@ function Checkin() {
   ];
 
   const availableDoctors = [
-    { 
-      id: 1, 
-      name: "Dr. Melissa B. Edic", 
+    {
+      id: 1,
+      name: "Dr. Melissa B. Edic",
       specialization: "Pediatrics",
       schedule: "Thu-Fri: 9AM-5PM, Wed (2nd & 4th): 9AM-3PM",
       availability: [
@@ -186,45 +187,45 @@ function Checkin() {
         { days: [3], startHour: 9, endHour: 15, weeksOfMonth: [2, 4] }
       ]
     },
-    { 
-      id: 2, 
-      name: "Dr. Genevive Bandiwan-Laking", 
+    {
+      id: 2,
+      name: "Dr. Genevive Bandiwan-Laking",
       specialization: "Pediatrics",
       schedule: "By Appointment Only",
       availability: [
         { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 }
       ]
     },
-    { 
-      id: 3, 
-      name: "Dr. Cynthia Moran", 
+    {
+      id: 3,
+      name: "Dr. Cynthia Moran",
       specialization: "Internal Medicine",
       schedule: "Wed: 9AM-12PM",
       availability: [
         { days: [3], startHour: 9, endHour: 12 }
       ]
     },
-    { 
-      id: 4, 
-      name: "Dr. Edrian O. Geronimo", 
+    {
+      id: 4,
+      name: "Dr. Edrian O. Geronimo",
       specialization: "Infectious Disease",
       schedule: "Tue, Thu: 9AM-12PM",
       availability: [
         { days: [2, 4], startHour: 9, endHour: 12 }
       ]
     },
-    { 
-      id: 5, 
-      name: "Dr. Feb Golocan-Alquiza", 
+    {
+      id: 5,
+      name: "Dr. Feb Golocan-Alquiza",
       specialization: "Nephrology",
       schedule: "Mon, Tue, Thu: 1PM-5PM",
       availability: [
         { days: [1, 2, 4], startHour: 13, endHour: 17 }
       ]
     },
-    { 
-      id: 6, 
-      name: "Dr. Tanya Charissa Diomampo", 
+    {
+      id: 6,
+      name: "Dr. Tanya Charissa Diomampo",
       specialization: "Nephrology",
       schedule: "Wed: 1PM-5PM, Sat: 10AM-1PM",
       availability: [
@@ -232,18 +233,18 @@ function Checkin() {
         { days: [6], startHour: 10, endHour: 13 }
       ]
     },
-    { 
-      id: 7, 
-      name: "Dr. Maricar Josephine A. Geronimo", 
+    {
+      id: 7,
+      name: "Dr. Maricar Josephine A. Geronimo",
       specialization: "Nephrology",
       schedule: "Fri: 1PM-5PM",
       availability: [
         { days: [5], startHour: 13, endHour: 17 }
       ]
     },
-    { 
-      id: 8, 
-      name: "Dr. Elvira T. Lampacan", 
+    {
+      id: 8,
+      name: "Dr. Elvira T. Lampacan",
       specialization: "OB-GYN",
       schedule: "Wed, Fri: 9:30AM-12PM, Thu: 1PM-3PM",
       availability: [
@@ -251,9 +252,9 @@ function Checkin() {
         { days: [4], startHour: 13, endHour: 15 }
       ]
     },
-    { 
-      id: 9, 
-      name: "Dr. Clarissa Mae L. Lee", 
+    {
+      id: 9,
+      name: "Dr. Clarissa Mae L. Lee",
       specialization: "OB-GYN",
       schedule: "Mon, Tue: 9:30AM-12PM, Sat: 1PM-3PM",
       availability: [
@@ -261,18 +262,18 @@ function Checkin() {
         { days: [6], startHour: 13, endHour: 15 }
       ]
     },
-    { 
-      id: 10, 
-      name: "Dr. Herschel Charisse C. Rivera-Ang", 
+    {
+      id: 10,
+      name: "Dr. Herschel Charisse C. Rivera-Ang",
       specialization: "OB-GYN",
       schedule: "Mon-Wed: 1PM-3PM",
       availability: [
         { days: [1, 2, 3], startHour: 13, endHour: 15 }
       ]
     },
-    { 
-      id: 11, 
-      name: "Dr. Cecille P. Pating", 
+    {
+      id: 11,
+      name: "Dr. Cecille P. Pating",
       specialization: "OB-GYN",
       schedule: "Thu, Sat: 9:30AM-12PM, Fri: 1PM-3PM",
       availability: [
@@ -280,18 +281,18 @@ function Checkin() {
         { days: [5], startHour: 13, endHour: 15 }
       ]
     },
-    { 
-      id: 12, 
-      name: "Dr. Richard S. Ang", 
+    {
+      id: 12,
+      name: "Dr. Richard S. Ang",
       specialization: "Orthopedics & Urology",
       schedule: "Mon-Fri: 8AM-5PM",
       availability: [
         { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 }
       ]
     },
-    { 
-      id: 13, 
-      name: "Dr. Rajiv D. Laoagan", 
+    {
+      id: 13,
+      name: "Dr. Rajiv D. Laoagan",
       specialization: "General Surgery",
       schedule: "Thu: 8AM-5PM, Fri-Sat: 8AM-12PM",
       availability: [
@@ -299,8 +300,8 @@ function Checkin() {
         { days: [5, 6], startHour: 8, endHour: 12 }
       ]
     },
-    { 
-      id: 14, 
+    {
+      id: 14,
       name: "Dr. Jefferson Richmond G. Chomenwey",
       specialization: "General Surgery",
       schedule: "By Appointment Only",
@@ -308,9 +309,9 @@ function Checkin() {
         { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 }
       ]
     },
-    { 
-      id: 15, 
-      name: "Dr. Rhea Jeanne L. Awas", 
+    {
+      id: 15,
+      name: "Dr. Rhea Jeanne L. Awas",
       specialization: "ENT",
       schedule: "Mon-Wed: 8AM-5PM",
       availability: [
@@ -321,25 +322,25 @@ function Checkin() {
 
   const isDoctorAvailable = (doctor, appointmentDateTime) => {
     if (!appointmentDateTime) return true;
-    
+
     const appointmentDate = new Date(appointmentDateTime);
     const dayOfWeek = appointmentDate.getDay();
     const appointmentHour = appointmentDate.getHours() + (appointmentDate.getMinutes() / 60);
     const weekOfMonth = Math.ceil(appointmentDate.getDate() / 7);
-    
+
     return doctor.availability.some(slot => {
       if (!slot.days.includes(dayOfWeek)) {
         return false;
       }
-      
+
       if (appointmentHour < slot.startHour || appointmentHour >= slot.endHour) {
         return false;
       }
-      
+
       if (slot.weeksOfMonth && !slot.weeksOfMonth.includes(weekOfMonth)) {
         return false;
       }
-      
+
       return true;
     });
   };
@@ -385,7 +386,7 @@ function Checkin() {
   const handleDoctorSelect = (doctorId) => {
     const doctor = availableDoctors.find(d => d.id === doctorId);
     setSelectedDoctor(doctor);
-    
+
     if (doctor && !formData.services.includes('follow-up')) {
       setFormData(prev => ({
         ...prev,
@@ -432,16 +433,16 @@ function Checkin() {
 
     const dataToSubmit = {
       ...formData,
-      name: formData.name || "Guest Patient", 
-      fullName: formData.name || "Guest Patient" 
+      name: formData.name || "Guest Patient",
+      fullName: formData.name || "Guest Patient"
     };
 
     try {
       if (isFromPatientSidebar) {
         if (!formData.name || !formData.age || !formData.phoneNum) {
           showMessage(
-            "Profile Incomplete", 
-            "Please complete your profile in Settings before booking an appointment.", 
+            "Profile Incomplete",
+            "Please complete your profile in Settings before booking an appointment.",
             false
           );
           setIsSubmitting(false);
@@ -476,7 +477,7 @@ function Checkin() {
 
       if (result.success) {
         const currentPatientEmail = localStorage.getItem('currentPatientEmail');
-        
+
         const normalizeName = (name) => {
           if (!name) return '';
           return name.toLowerCase().trim();
@@ -495,7 +496,12 @@ function Checkin() {
 
         const existingPatient = findExistingPatient();
 
+        const dbPatient = selectedPatientType === "Walk-in" ? result.data : result.patient;
+        const dbId = dbPatient?.id;
+
         const newPatient = {
+          id: dbId,
+          dbId: dbId,
           name: formData.name || "Guest Patient",
           age: formData.age,
           phoneNum: formData.phoneNum,
@@ -513,7 +519,12 @@ function Checkin() {
             specialization: selectedDoctor.specialization
           } : null,
           bookingMode: bookingMode,
+          status: "waiting",
+          appointmentStatus: selectedPatientType === "Appointment" ? "pending" : null,
+          inQueue: selectedPatientType === "Walk-in", // Only walk-ins go directly to queue
+          queueNo: selectedPatientType === "Walk-in" ? (dbPatient?.queue_no || Math.max(0, ...patients.map(p => p.queueNo || 0)) + 1) : null
         };
+
 
         if (existingPatient && formData.isReturningPatient) {
           const newNameCapitals = (formData.name.match(/[A-Z]/g) || []).length;
@@ -537,11 +548,11 @@ function Checkin() {
         addPatient(newPatient);
         setActivePatient(newPatient);
         resetForm();
-        
-        const successMsg = selectedPatientType === "Walk-in" 
-          ? `Registration completed for ${newPatient.name}. You're in the queue!` 
+
+        const successMsg = selectedPatientType === "Walk-in"
+          ? `Registration completed for ${newPatient.name}. You're in the queue!`
           : `Appointment request submitted for ${newPatient.name}. Please wait for confirmation.`;
-        
+
         showMessage("Success", successMsg, true);
 
         setTimeout(() => {
@@ -566,7 +577,7 @@ function Checkin() {
       setIsSubmitting(false);
     }
   };
-  
+
   //==================== USE EFFECTS ====================
   useEffect(() => {
     if (selectedDoctor && formData.appointmentDateTime && bookingMode === 'doctor') {
@@ -586,6 +597,15 @@ function Checkin() {
   }, [formData.appointmentDateTime, getAvailableSlots]);
 
   useEffect(() => {
+    // Determine if we are starting a NEW booking flow
+    const urlParams = new URLSearchParams(window.location.search);
+    const isNewBooking = urlParams.get('type') === 'appointment' || urlParams.get('view') === 'patient';
+
+    if (isNewBooking) {
+      console.log("🧹 New booking detected - clearing active patient session.");
+      clearActivePatient();
+    }
+
     if (isFromPatientSidebar && selectedPatientType && !tempDataLoadedRef.current) {
       const restored = loadFormDataFromTemp();
       if (restored) {
@@ -606,17 +626,17 @@ function Checkin() {
           const userProfileStr = localStorage.getItem(`userProfile_${email}`);
           if (userProfileStr) {
             const userProfile = JSON.parse(userProfileStr);
-            
+
             console.log('📋 Loading profile data for:', email);
             console.log('📋 Profile data:', userProfile);
-            
+
             setFormData(prev => ({
               ...prev,
               name: userProfile.fullName || prev.name,
               age: userProfile.age || prev.age,
               phoneNum: userProfile.phoneNumber || prev.phoneNum,
             }));
-            
+
             profileLoadedRef.current = true;
             console.log('✅ Profile loaded and marked');
           } else {
@@ -627,31 +647,31 @@ function Checkin() {
         console.error('Error loading user profile:', error);
       }
     }
-    
+
     if (!selectedPatientType) {
       profileLoadedRef.current = false;
     }
   }, [isFromPatientSidebar, selectedPatientType]);
 
- // ✅✅✅ COMPLETELY REWRITTEN - This is the fix!
+  // ✅✅✅ COMPLETELY REWRITTEN - This is the fix!
   useEffect(() => {
     // Only check once when component mounts or when we return from settings
     if (appointmentCheckDoneRef.current) {
       return; // Already checked, don't check again
     }
-    
+
     // Only check if we're in patient sidebar view and NOT selecting a patient type
     if (!isFromPatientSidebar || selectedPatientType || !isPatientLoggedIn) {
       return;
     }
-    
+
     const currentPatientEmail = localStorage.getItem('currentPatientEmail');
     if (!currentPatientEmail) {
       return;
     }
-    
+
     // Find existing appointment - do this INSIDE useEffect, not in useMemo
-    const myActiveAppointment = patients.find(p => 
+    const myActiveAppointment = patients.find(p =>
       p.type === 'Appointment' &&
       p.patientEmail &&
       p.patientEmail.toLowerCase().trim() === currentPatientEmail.toLowerCase().trim() &&
@@ -664,8 +684,8 @@ function Checkin() {
       appointmentCheckDoneRef.current = true;
       setActivePatient(myActiveAppointment);
     }
-    
-  // ✅✅✅ KEY FIX: Only depend on length, not the whole array!
+
+    // ✅✅✅ KEY FIX: Only depend on length, not the whole array!
   }, [isFromPatientSidebar, selectedPatientType, isPatientLoggedIn, patients?.length]);
 
   // Reset the ref when patient type is selected (so we can check again if they go back)
@@ -700,7 +720,7 @@ function Checkin() {
             <CardContent className="space-y-6">
               <div className="bg-white p-8 rounded-xl border-2 border-green-200 flex flex-col items-center">
                 <div className="bg-white p-4 rounded-lg shadow-inner">
-                  <QRCodeSVG 
+                  <QRCodeSVG
                     value={`${import.meta.env.VITE_APP_URL}/checkin?view=patient&type=walkin`}
                     size={200} level="H" marginSize={4} className="w-48 h-48 sm:w-64 sm:h-64"
                   />
@@ -786,7 +806,7 @@ function Checkin() {
                       <p className="text-sm text-green-700">Your profile information will be used for this appointment</p>
                     </div>
                   </div>
-                  
+
                   {formData.name && formData.age && formData.phoneNum ? (
                     <div className="space-y-2 bg-white p-4 rounded-md border border-green-200">
                       <div className="flex justify-between items-center py-2 border-b border-gray-100">
@@ -852,7 +872,7 @@ function Checkin() {
               {selectedPatientType === "Appointment" && (
                 <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg">
                   <Label className="text-blue-800 font-bold mb-3 block">Book your appointment by:</Label>
-                  
+
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <button
                       type="button"
@@ -860,11 +880,10 @@ function Checkin() {
                         setBookingMode('service');
                         setSelectedDoctor(null);
                       }}
-                      className={`p-3 rounded-lg border-2 transition-all ${
-                        bookingMode === 'service'
-                          ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
-                      }`}
+                      className={`p-3 rounded-lg border-2 transition-all ${bookingMode === 'service'
+                        ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                        }`}
                     >
                       <div className="flex flex-col items-center">
                         <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -880,11 +899,10 @@ function Checkin() {
                         setBookingMode('doctor');
                         setFormData(prev => ({ ...prev, services: [] }));
                       }}
-                      className={`p-3 rounded-lg border-2 transition-all ${
-                        bookingMode === 'doctor'
-                          ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
-                          : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
-                      }`}
+                      className={`p-3 rounded-lg border-2 transition-all ${bookingMode === 'doctor'
+                        ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
+                        : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                        }`}
                     >
                       <div className="flex flex-col items-center">
                         <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -896,8 +914,8 @@ function Checkin() {
                   </div>
 
                   <p className="text-xs text-blue-700">
-                    {bookingMode === 'service' 
-                      ? 'Choose the medical services you need, and we\'ll assign the appropriate doctor.' 
+                    {bookingMode === 'service'
+                      ? 'Choose the medical services you need, and we\'ll assign the appropriate doctor.'
                       : 'Select a specific doctor you\'d like to see for your appointment.'}
                   </p>
                 </div>
@@ -949,7 +967,7 @@ function Checkin() {
               {selectedPatientType === "Appointment" && bookingMode === 'doctor' && (
                 <div className="space-y-3 p-4 rounded-lg border border-indigo-300 bg-indigo-50">
                   <Label className="text-indigo-800 font-bold">Select Doctor *</Label>
-                  
+
                   {!formData.appointmentDateTime && (
                     <div className="bg-yellow-50 border border-yellow-300 rounded-md p-3 mb-3">
                       <div className="flex items-start gap-2">
@@ -960,22 +978,21 @@ function Checkin() {
                       </div>
                     </div>
                   )}
-                  
+
                   <div className="space-y-2 max-h-96 overflow-y-auto">
                     {availableDoctors.map(doctor => {
                       const isAvailable = isDoctorAvailable(doctor, formData.appointmentDateTime);
-                      
+
                       return (
                         <div
                           key={doctor.id}
                           onClick={() => isAvailable && handleDoctorSelect(doctor.id)}
-                          className={`p-4 rounded-lg border-2 transition-all ${
-                            !isAvailable
-                              ? 'opacity-50 cursor-not-allowed bg-gray-100 border-gray-300'
-                              : selectedDoctor?.id === doctor.id
-                                ? 'border-indigo-600 bg-indigo-100 shadow-md cursor-pointer'
-                                : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer'
-                          }`}
+                          className={`p-4 rounded-lg border-2 transition-all ${!isAvailable
+                            ? 'opacity-50 cursor-not-allowed bg-gray-100 border-gray-300'
+                            : selectedDoctor?.id === doctor.id
+                              ? 'border-indigo-600 bg-indigo-100 shadow-md cursor-pointer'
+                              : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer'
+                            }`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -995,7 +1012,7 @@ function Checkin() {
                                 <span>{doctor.schedule}</span>
                               </div>
                             </div>
-                            
+
                             {selectedDoctor?.id === doctor.id && isAvailable && (
                               <div className="flex-shrink-0">
                                 <svg className="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
@@ -1008,7 +1025,7 @@ function Checkin() {
                       );
                     })}
                   </div>
-                  
+
                   {selectedDoctor && (
                     <div className="mt-3 p-3 bg-indigo-100 rounded-md">
                       <p className="text-sm text-indigo-900">

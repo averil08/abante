@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 // Read the variables defined in your .env file
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY; 
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Initialize the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -44,27 +44,31 @@ export const registerAppointmentPatient = async (formData, appointmentDateTime) 
     // STEP 1: Create the Patient record
     // We use snake_case keys (phone_num, patient_type) to match your SQL schema
     // STEP 1: Update or Create the Patient record
-// ✅ NEW CODE (FIXED)
-const { data: patientData, error: patientError } = await supabase
-  .from('patients')
-  .insert([
-    { 
-      name: formData.name || "Guest Patient",
-      age: formData.age ? parseInt(formData.age) : 0,
-      phone_num: formData.phoneNum, 
-      patient_type: "appointment",
-      physician: formData.physician || null,
-      symptoms: formData.symptoms || [],
-      services: formData.services || [],
-      status: 'waiting',
-      appointment_status: 'pending',
-      is_priority: formData.isPriority || false,
-      priority_type: formData.priorityType || null,
-      patient_email: localStorage.getItem('currentPatientEmail') || null
-    }
-  ])
-  .select()
-  .single();
+    // ✅ NEW CODE (FIXED)
+    const { data: patientData, error: patientError } = await supabase
+      .from('patients')
+      .insert([
+        {
+          name: formData.name || "Guest Patient",
+          age: formData.age ? parseInt(formData.age) : 0,
+          phone_num: formData.phoneNum,
+          patient_type: "appointment",
+          physician: formData.physician || null,
+          symptoms: formData.symptoms || [],
+          services: formData.services || [],
+          status: 'waiting',
+          appointment_status: 'pending',
+          // MANUALLY ASSIGN high random number to bypass "Not Null" trigger error
+          // We use a high range (900,000+) to avoid collision with real queue numbers (1-1000)
+          // This creates a temporary unique ID that is positive, satisfying constraints.
+          queue_no: 900000 + Math.floor(Math.random() * 100000),
+          is_priority: formData.isPriority || false,
+          priority_type: formData.priorityType || null,
+          patient_email: localStorage.getItem('currentPatientEmail') || null
+        }
+      ])
+      .select()
+      .single();
 
     if (patientError) {
       console.error("Step 1 (Patient) failed:", patientError);
@@ -75,8 +79,8 @@ const { data: patientData, error: patientError } = await supabase
     const { data: apptData, error: apptError } = await supabase
       .from('appointments')
       .insert([
-        { 
-          patient_id: patientData.id, 
+        {
+          patient_id: patientData.id,
           appointment_datetime: appointmentDateTime,
           status: 'scheduled',
           notes: formData.notes || null
@@ -88,7 +92,7 @@ const { data: patientData, error: patientError } = await supabase
       throw apptError;
     }
 
-    return { success: true, data: apptData };
+    return { success: true, data: apptData, patient: patientData };
   } catch (error) {
     console.error("Detailed Error Object:", error);
     return { success: false, error: error.message || "An unexpected error occurred" };
@@ -235,7 +239,7 @@ export const getAppointmentsByDate = async (date) => {
   try {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
-    
+
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
 
@@ -406,7 +410,7 @@ export const loginUser = async (email, password) => {
   const { data: patientProfile, error: pError } = await supabase
     .from('patient_profiles')
     .select('*')
-    .eq('email', cleanEmail) 
+    .eq('email', cleanEmail)
     .single();
 
   // Debugging logs to help you see what's happening
@@ -414,9 +418,9 @@ export const loginUser = async (email, password) => {
   console.log("Patient Data found:", patientProfile);
   if (pError) console.log("Patient Table Error:", pError.message);
 
-  return { 
-    success: true, 
-    user, 
-    role: patientProfile ? 'patient' : 'unknown' 
+  return {
+    success: true,
+    user,
+    role: patientProfile ? 'patient' : 'unknown'
   };
 };

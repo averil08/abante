@@ -14,16 +14,16 @@ import { PatientContext } from "./PatientContext";
 const Appointment = () => {
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
-  
+
   const { patients, acceptAppointment, rejectAppointment } = useContext(PatientContext);
-  
+
   // Filter appointments (patients with type "Appointment")
-  const appointments = (patients || []).filter(p => 
-  p.type === "Appointment" && 
-  p.status !== "done" && 
-  p.status !== "cancelled"
+  const appointments = (patients || []).filter(p =>
+    p.type === "Appointment" &&
+    p.status !== "done" &&
+    p.status !== "cancelled"
   );
-  
+
   // Service labels mapping
   const serviceLabels = {
     pedia: "Pediatric", adult: "Adult", senior: "Senior (65+)",
@@ -47,7 +47,7 @@ const Appointment = () => {
   const getServiceLabel = (serviceId) => serviceLabels[serviceId] || serviceId;
 
   const handleAccept = (appointment) => {
-    acceptAppointment(appointment.queueNo);
+    acceptAppointment(appointment.id);
   };
 
   //replaced the direct reject handler
@@ -77,27 +77,27 @@ const Appointment = () => {
     setRejectionDialog({ open: false, appointment: null, reason: "" });
   };
 
-const formatDateTime = (dateTimeString) => {
- 
-  if (!dateTimeString) return 'N/A';
-    const date = new Date(dateTimeString);
-   if (isNaN(date.getTime())) {
-    return 'Invalid Date';
-  }
+  const formatDateTime = (dateTimeString) => {
 
-  return date.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-};
+    if (!dateTimeString) return 'N/A';
+    const date = new Date(dateTimeString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
 
   return (
     <div className="flex w-full min-h-screen">
-       <Sidebar nav={nav} handleNav={handleNav} />
+      <Sidebar nav={nav} handleNav={handleNav} />
 
       {/* MAIN CONTENT */}
       <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300">
@@ -126,7 +126,7 @@ const formatDateTime = (dateTimeString) => {
                 <p className="text-3xl font-bold text-gray-900">{appointments.length}</p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="pb-3">
                 <CardDescription>Accepted</CardDescription>
@@ -137,7 +137,7 @@ const formatDateTime = (dateTimeString) => {
                 </p>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="pb-3">
                 <CardDescription>Pending</CardDescription>
@@ -168,9 +168,13 @@ const formatDateTime = (dateTimeString) => {
                         {appointment.name}
                       </CardTitle>
                       <div className="flex flex-wrap gap-2">
-                        <Badge variant="outline" className="bg-white">
-                          Queue #{String(appointment.queueNo).padStart(3, '0')}
-                        </Badge>
+                          <Badge variant="outline" className="bg-white">
+                            {appointment.queueNo >= 900000 ? (
+                              <span className="text-amber-500 font-semibold">Pending</span>
+                            ) : (
+                              `Queue #${String(appointment.queueNo).padStart(3, '0')}`
+                            )}
+                          </Badge>
                         {appointment.appointmentStatus === 'accepted' ? (
                           <Badge className="bg-green-600">Accepted</Badge>
                         ) : appointment.appointmentStatus === 'rejected' ? (
@@ -185,7 +189,7 @@ const formatDateTime = (dateTimeString) => {
                       </div>
                     </div>
                   </CardHeader>
-                  
+
                   <CardContent className="pt-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Left Column - Patient Info */}
@@ -199,7 +203,7 @@ const formatDateTime = (dateTimeString) => {
                             </p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                           <User className="w-5 h-5 text-blue-600 flex-shrink-0" />
                           <div>
@@ -207,7 +211,7 @@ const formatDateTime = (dateTimeString) => {
                             <p className="font-semibold text-gray-900">{appointment.age} years old</p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                           <Phone className="w-5 h-5 text-purple-600 flex-shrink-0" />
                           <div className="min-w-0">
@@ -218,7 +222,7 @@ const formatDateTime = (dateTimeString) => {
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Right Column - Medical Info */}
                       <div className="space-y-3">
                         <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
@@ -229,8 +233,8 @@ const formatDateTime = (dateTimeString) => {
                           <div className="flex flex-wrap gap-1.5">
                             {appointment.symptoms && appointment.symptoms.length > 0 ? (
                               appointment.symptoms.map((symptom, idx) => (
-                                <Badge key={idx} variant="outline" 
-                                       className="text-xs bg-white text-blue-700 border-blue-200">
+                                <Badge key={idx} variant="outline"
+                                  className="text-xs bg-white text-blue-700 border-blue-200">
                                   {symptom}
                                 </Badge>
                               ))
@@ -239,7 +243,7 @@ const formatDateTime = (dateTimeString) => {
                             )}
                           </div>
                         </div>
-                        
+
                         <div className="p-3 bg-green-50 rounded-lg border border-green-100">
                           <div className="flex items-center gap-2 mb-2">
                             <Stethoscope className="w-5 h-5 text-green-600" />
@@ -248,8 +252,8 @@ const formatDateTime = (dateTimeString) => {
                           <div className="flex flex-wrap gap-1.5">
                             {appointment.services && appointment.services.length > 0 ? (
                               appointment.services.map((serviceId, idx) => (
-                                <Badge key={idx} variant="outline" 
-                                       className="text-xs bg-white text-green-700 border-green-200">
+                                <Badge key={idx} variant="outline"
+                                  className="text-xs bg-white text-green-700 border-green-200">
                                   {getServiceLabel(serviceId)}
                                 </Badge>
                               ))
@@ -278,18 +282,18 @@ const formatDateTime = (dateTimeString) => {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Action Buttons */}
                     {(!appointment.appointmentStatus || appointment.appointmentStatus === 'pending') && (
                       <div className="flex flex-col sm:flex-row gap-3 mt-4 pt-4 border-t border-gray-200">
-                        <Button 
+                        <Button
                           onClick={() => handleAccept(appointment)}
                           className="flex-1 bg-green-600 hover:bg-green-700 text-white"
                         >
                           <CheckCircle className="w-4 h-4 mr-2" />
                           Accept Appointment
                         </Button>
-                        <Button 
+                        <Button
                           onClick={() => handleRejectClick(appointment)}
                           variant="outline"
                           className="flex-1 text-red-600 border-red-300 hover:bg-red-50"
@@ -308,7 +312,7 @@ const formatDateTime = (dateTimeString) => {
       </div>
 
       {/* Added Rejection Reason Dialog */}
-      <Dialog open={rejectionDialog.open} onOpenChange={(open) => setRejectionDialog({...rejectionDialog, open})}>
+      <Dialog open={rejectionDialog.open} onOpenChange={(open) => setRejectionDialog({ ...rejectionDialog, open })}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-red-600">Decline Appointment</DialogTitle>
@@ -317,7 +321,7 @@ const formatDateTime = (dateTimeString) => {
               This will be shared with the patient.
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">
@@ -326,7 +330,7 @@ const formatDateTime = (dateTimeString) => {
               <Textarea
                 placeholder="e.g., No available time slots, Requires specialist referral, etc."
                 value={rejectionDialog.reason}
-                onChange={(e) => setRejectionDialog({...rejectionDialog, reason: e.target.value})}
+                onChange={(e) => setRejectionDialog({ ...rejectionDialog, reason: e.target.value })}
                 className="min-h-[100px] resize-none"
                 maxLength={500}
               />
@@ -335,16 +339,16 @@ const formatDateTime = (dateTimeString) => {
               </p>
             </div>
           </div>
-          
+
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setRejectionDialog({ open: false, appointment: null, reason: "" })}
               className="w-full sm:w-auto"
             >
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleRejectConfirm}
               className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
               disabled={!rejectionDialog.reason.trim()}

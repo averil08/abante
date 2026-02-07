@@ -78,41 +78,41 @@ const ClinicTVDisplay = () => {
 
   // ✅ Use syncedPatients instead of patients
   const doctorsInfo = useMemo(() => {
-  // Guard: If syncedPatients is null or undefined, use an empty array
-  const currentData = syncedPatients || []; 
-  console.log('🔄 Recalculating doctor info with', currentData.length, 'patients');
-  
-  return doctors.map(doctor => {
-    const currentServingPatient = currentData.find(p => 
-      !p.isInactive && 
-      p.assignedDoctor?.id === doctor.id &&
-      p.status === "in progress" &&
-      p.inQueue
-    );
-    
-    const doctorPatients = currentData
-      .filter(p => 
-        !p.isInactive && 
+    // Guard: If syncedPatients is null or undefined, use an empty array
+    const currentData = syncedPatients || [];
+    console.log('🔄 Recalculating doctor info with', currentData.length, 'patients');
+
+    return doctors.map(doctor => {
+      const currentServingPatient = currentData.find(p =>
+        !p.isInactive &&
         p.assignedDoctor?.id === doctor.id &&
-        p.status === "waiting" &&
+        p.status === "in progress" &&
         p.inQueue
-      )
-      .sort((a, b) => a.queueNo - b.queueNo);
-    const info = {
-      doctorId: doctor.id,
-      doctorName: doctor.name,
-      currentServing: currentServingPatient ? currentServingPatient.queueNo : null,
-      waitingNumbers: doctorPatients.slice(0, 3).map(p => p.queueNo)
-    };
-    
-    console.log(`📊 ${doctor.name}:`, {
-      serving: info.currentServing,
-      waiting: info.waitingNumbers
+      );
+
+      const doctorPatients = currentData
+        .filter(p =>
+          !p.isInactive &&
+          p.assignedDoctor?.id === doctor.id &&
+          p.status === "waiting" &&
+          p.inQueue
+        )
+        .sort((a, b) => a.queueNo - b.queueNo);
+      const info = {
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        currentServing: currentServingPatient ? currentServingPatient.queueNo : null,
+        waitingNumbers: doctorPatients.slice(0, 3).map(p => p.queueNo)
+      };
+
+      console.log(`📊 ${doctor.name}:`, {
+        serving: info.currentServing,
+        waiting: info.waitingNumbers
+      });
+
+      return info;
     });
-    
-    return info;
-  });
-}, [syncedPatients]);
+  }, [syncedPatients]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-white to-red-100 p-4">
@@ -141,11 +141,10 @@ const ClinicTVDisplay = () => {
         {/* Doctors Grid */}
         <div className="grid grid-cols-5 gap-0">
           {doctorsInfo.map((doctorInfo, index) => (
-            <div 
+            <div
               key={doctorInfo.doctorId}
-              className={`${
-                index % 2 === 0 ? 'bg-green-200/60' : 'bg-white/80'
-              } backdrop-blur-sm border-2 border-green-600/30 p-6 text-center`}
+              className={`${index % 2 === 0 ? 'bg-green-200/60' : 'bg-white/80'
+                } backdrop-blur-sm border-2 border-green-600/30 p-6 text-center`}
             >
               {/* Doctor Name */}
               <div className="text-gray-900 font-bold text-xl mb-2">
@@ -159,8 +158,8 @@ const ClinicTVDisplay = () => {
 
               {/* Current Serving Number */}
               <div className="mb-6">
-                {doctorInfo.currentServing ? (
-                  <div 
+                {doctorInfo.currentServing && doctorInfo.currentServing < 900000 ? (
+                  <div
                     className="text-green-700 text-6xl font-bold drop-shadow-lg transition-all duration-500 animate-pulse"
                     key={`serving-${doctorInfo.currentServing}`}
                   >
@@ -174,34 +173,36 @@ const ClinicTVDisplay = () => {
               </div>
 
               {/* Waiting Numbers */}
-              <div className="space-y-2">
-                {doctorInfo.waitingNumbers.length > 0 ? (
-                  doctorInfo.waitingNumbers.map((queueNo, idx) => (
-                    <div 
-                      key={`${doctorInfo.doctorId}-${queueNo}-${idx}`}
-                      className="text-gray-700 text-4xl font-bold drop-shadow-lg"
-                    >
-                      {String(queueNo).padStart(3, '0')}
+              < div className="space-y-2" >
+                {
+                  doctorInfo.waitingNumbers.length > 0 ? (
+                    doctorInfo.waitingNumbers.map((queueNo, idx) => (
+                      <div
+                        key={`${doctorInfo.doctorId}-${queueNo}-${idx}`}
+                        className="text-gray-700 text-4xl font-bold drop-shadow-lg"
+                      >
+                        {queueNo < 900000 ? String(queueNo).padStart(3, '0') : "PENDING"}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-gray-300 text-3xl font-bold">
+                      - - -
                     </div>
-                  ))
-                ) : (
-                  <div className="text-gray-300 text-3xl font-bold">
-                    - - -
-                  </div>
-                )}
+                  )
+                }
               </div>
             </div>
           ))}
         </div>
-      </div>
+      </div >
 
       {/* Footer Notice */}
-      <div className="mt-4 bg-gradient-to-r from-green-600 to-red-600 text-white text-center py-3 rounded-lg shadow-lg">
+      < div className="mt-4 bg-gradient-to-r from-green-600 to-red-600 text-white text-center py-3 rounded-lg shadow-lg" >
         <p className="text-xl font-semibold">
           Please wait for your number to be called • Thank you for your patience
         </p>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

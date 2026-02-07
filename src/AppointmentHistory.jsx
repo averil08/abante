@@ -9,7 +9,7 @@ import { Calendar, Clock, Stethoscope, Activity, User, Phone, FileText, AlertCir
 const AppointmentHistory = () => {
   const [nav, setNav] = React.useState(false);
   const handleNav = () => setNav(!nav);
-  
+
   const { patients, activePatient, setActivePatient } = useContext(PatientContext);
 
   // Get current logged-in patient's email
@@ -26,7 +26,7 @@ const AppointmentHistory = () => {
     if (currentPatientEmail && !activePatient) {
       // Find the most recent appointment/visit for this patient
       const normalizedEmail = currentPatientEmail.toLowerCase().trim();
-      
+
       const myMostRecentVisit = patients
         .filter(p => {
           if (p.isInactive) return false;
@@ -77,14 +77,14 @@ const AppointmentHistory = () => {
       .filter(p => {
         // Skip inactive patients
         if (p.isInactive) return false;
-        
+
         // ✅ NEW: Only show appointments that belong to the current logged-in patient
         // Match by patientEmail field
         if (p.patientEmail) {
           const normalizedPatientEmail = p.patientEmail.toLowerCase().trim();
           return normalizedPatientEmail === normalizedCurrentEmail;
         }
-        
+
         // For backward compatibility: if no patientEmail, don't show
         return false;
       })
@@ -122,7 +122,7 @@ const AppointmentHistory = () => {
         }
       }
     }
-    
+
     // Walk-in status
     if (appointment.status === 'done') {
       return <Badge className="bg-emerald-100 text-emerald-700">Completed</Badge>;
@@ -147,13 +147,13 @@ const AppointmentHistory = () => {
     return {
       total: myAppointments.length,
       completed: myAppointments.filter(a => a.status === 'done').length,
-      upcoming: myAppointments.filter(a => 
-        a.type === 'Appointment' && 
-        a.appointmentStatus === 'accepted' && 
+      upcoming: myAppointments.filter(a =>
+        a.type === 'Appointment' &&
+        a.appointmentStatus === 'accepted' &&
         a.status === 'waiting'
       ).length,
-      pending: myAppointments.filter(a => 
-        a.type === 'Appointment' && 
+      pending: myAppointments.filter(a =>
+        a.type === 'Appointment' &&
         a.appointmentStatus === 'pending'
       ).length
     };
@@ -255,7 +255,7 @@ const AppointmentHistory = () => {
                     <p className="font-semibold text-gray-900">{activePatient.name}</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <User className="w-5 h-5 text-blue-600 flex-shrink-0" />
                   <div>
@@ -263,7 +263,7 @@ const AppointmentHistory = () => {
                     <p className="font-semibold text-gray-900">{activePatient.age} years old</p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <Phone className="w-5 h-5 text-purple-600 flex-shrink-0" />
                   <div>
@@ -325,16 +325,15 @@ const AppointmentHistory = () => {
               ) : (
                 <div className="space-y-4">
                   {myAppointments.map((appointment, idx) => (
-                    <Card 
-                      key={appointment.queueNo} 
-                      className={`border-l-4 ${
-                        appointment.status === 'done' ? 'border-l-emerald-600' :
-                        appointment.status === 'cancelled' ? 'border-l-red-600' :
-                        appointment.status === 'in progress' ? 'border-l-blue-600' :
-                        appointment.appointmentStatus === 'pending' ? 'border-l-amber-600' :
-                        appointment.appointmentStatus === 'rejected' ? 'border-l-red-600' :
-                        'border-l-yellow-600'
-                      }`}
+                    <Card
+                      key={appointment.queueNo}
+                      className={`border-l-4 ${appointment.status === 'done' ? 'border-l-emerald-600' :
+                          appointment.status === 'cancelled' ? 'border-l-red-600' :
+                            appointment.status === 'in progress' ? 'border-l-blue-600' :
+                              appointment.appointmentStatus === 'pending' ? 'border-l-amber-600' :
+                                appointment.appointmentStatus === 'rejected' ? 'border-l-red-600' :
+                                  'border-l-yellow-600'
+                        }`}
                     >
                       <CardContent className="p-4">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
@@ -349,8 +348,9 @@ const AppointmentHistory = () => {
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-sm text-gray-600">Queue #{String(appointment.queueNo).padStart(3, '0')}</p>
-                          </div>
+                            <h3 className="font-bold text-lg">
+                              {appointment.queueNo >= 900000 ? 'Queue: Pending' : `Queue #${String(appointment.queueNo).padStart(3, '0')}`}
+                            </h3>                          </div>
                         </div>
 
                         {/* Appointment Time (for appointments only) */}
@@ -373,7 +373,7 @@ const AppointmentHistory = () => {
                               <p className="font-medium">{formatDate(appointment.registeredAt)}</p>
                             </div>
                           </div>
-                          
+
                           {appointment.assignedDoctor && (
                             <div className="flex items-center gap-2">
                               <Stethoscope className="w-4 h-4 text-green-600" />

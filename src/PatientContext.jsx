@@ -395,21 +395,32 @@ export const PatientProvider = ({ children }) => {
   //ADDED this update
   const acceptAppointment = async (patientId) => { // Use ID instead of queueNo
     try {
-      // 1. Calculate the next available queue number based on current patients
-      // We really should query the DB for the true max to be safe, but using the local list is acceptable for now
-      // filtering for only positive real queue numbers (ignoring high temp numbers > 900000)
-      const realQueueNumbers = patients
-        .map(p => p.queueNo)
-        .filter(q => q && q > 0 && q < 900000);
+      // 1. Get the patient to check if they already have a valid queue number
+      const patient = patients.find(p => p.id === patientId);
+      if (!patient) {
+        console.error("Patient not found for acceptance");
+        return;
+      }
 
-      const maxQueueNo = realQueueNumbers.length > 0 ? Math.max(...realQueueNumbers) : 0;
-      const newQueueNo = maxQueueNo + 1;
+      let newQueueNo = patient.queueNo;
 
-      console.log(`✅ Accepting appointment ${patientId}. Assigning new queue no: ${newQueueNo}`);
+      // Only generate a new number if the current one is missing or is a temporary high number
+      if (!newQueueNo || newQueueNo >= 900000) {
+        // filtering for only positive real queue numbers (ignoring high temp numbers > 900000)
+        const realQueueNumbers = patients
+          .map(p => p.queueNo)
+          .filter(q => q && q > 0 && q < 900000);
+
+        const maxQueueNo = realQueueNumbers.length > 0 ? Math.max(...realQueueNumbers) : 0;
+        newQueueNo = maxQueueNo + 1;
+        console.log(`✅ Accepting appointment ${patientId}. Old number invalid/temp. Assigning NEW queue no: ${newQueueNo}`);
+      } else {
+        console.log(`✅ Accepting appointment ${patientId}. Preserving EXISTING queue no: ${newQueueNo}`);
+      }
 
       // 2. Prepare updates
       const updates = {
-        queue_no: newQueueNo, // Update the negative placeholder to real number
+        queue_no: newQueueNo,
         appointment_status: "accepted",
         in_queue: true,
         status: "waiting"
@@ -425,10 +436,7 @@ export const PatientProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // 4. Update local state (Optimistic or wait for Refetch?)
-      // Since we have real-time subscription, we can wait, OR update locally. 
-      // Let's update locally to be snappy, but the Real-time subscription will also fire an UPDATE event.
-      // We will update locally just in case.
+      // 4. Update local state
       setPatients(prev => prev.map(p => {
         if (p.id !== patientId) return p;
         return { ...p, ...updates, queueNo: newQueueNo, appointmentStatus: "accepted", inQueue: true };

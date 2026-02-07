@@ -522,7 +522,7 @@ function Checkin() {
           status: "waiting",
           appointmentStatus: selectedPatientType === "Appointment" ? "pending" : null,
           inQueue: selectedPatientType === "Walk-in", // Only walk-ins go directly to queue
-          queueNo: selectedPatientType === "Walk-in" ? (dbPatient?.queue_no || Math.max(0, ...patients.map(p => p.queueNo || 0)) + 1) : null
+          queueNo: dbPatient?.queue_no || (selectedPatientType === "Walk-in" ? (Math.max(0, ...patients.map(p => p.queueNo || 0)) + 1) : null)
         };
 
 

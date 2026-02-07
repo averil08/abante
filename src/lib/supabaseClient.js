@@ -43,7 +43,19 @@ export const registerAppointmentPatient = async (formData, appointmentDateTime) 
   try {
     // STEP 1: Create the Patient record
     // We use snake_case keys (phone_num, patient_type) to match your SQL schema
-    // STEP 1: Update or Create the Patient record
+    // 4.1 GET NEXT QUEUE NUMBER
+    // We must manually calculate the next queue number to ensure it's a real sequence (1, 2, 3...)
+    // and not a high placeholder (900000+).
+    const { data: maxQData } = await supabase
+      .from('patients')
+      .select('queue_no')
+      .lt('queue_no', 900000) // Ignore existing placeholders
+      .order('queue_no', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextQueueNo = (maxQData?.queue_no || 0) + 1;
+
     // ✅ NEW CODE (FIXED)
     const { data: patientData, error: patientError } = await supabase
       .from('patients')
@@ -58,10 +70,7 @@ export const registerAppointmentPatient = async (formData, appointmentDateTime) 
           services: formData.services || [],
           status: 'waiting',
           appointment_status: 'pending',
-          // MANUALLY ASSIGN high random number to bypass "Not Null" trigger error
-          // We use a high range (900,000+) to avoid collision with real queue numbers (1-1000)
-          // This creates a temporary unique ID that is positive, satisfying constraints.
-          queue_no: 900000 + Math.floor(Math.random() * 100000),
+          queue_no: nextQueueNo, // Manually assigned real number
           is_priority: formData.isPriority || false,
           priority_type: formData.priorityType || null,
           patient_email: localStorage.getItem('currentPatientEmail') || null

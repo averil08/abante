@@ -661,8 +661,8 @@ const Dashboard = () => {
                                     <div className="flex items-center gap-2">
                                       {isActive && patientCount > 0 && (
                                         <span className={`text-white text-xs px-2 py-0.5 rounded-full ${doctorStatus === 'hasPatients' ? 'bg-blue-600' :
-                                            doctorStatus === 'busy' ? 'bg-orange-600' :
-                                              'bg-gray-600'
+                                          doctorStatus === 'busy' ? 'bg-orange-600' :
+                                            'bg-gray-600'
                                           }`}>
                                           {patientCount}
                                         </span>
@@ -684,8 +684,8 @@ const Dashboard = () => {
                                       }
                                     }}
                                     className={`text-xs px-2 py-1 rounded ${isActive
-                                        ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                                        : 'bg-green-100 text-green-600 hover:bg-green-200'
+                                      ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                                      : 'bg-green-100 text-green-600 hover:bg-green-200'
                                       }`}
                                   >
                                     {isActive ? 'Stop Queue' : 'Start Queue'}
@@ -740,8 +740,8 @@ const Dashboard = () => {
                           const doctorStatus = getDoctorStatus(selectedDoctor);
                           return patientCount > 0 ? (
                             <span className={`text-white text-xs px-2.5 py-1 rounded-full font-medium ${doctorStatus === 'hasPatients' ? 'bg-blue-600' :
-                                doctorStatus === 'busy' ? 'bg-orange-600' :
-                                  'bg-gray-600'
+                              doctorStatus === 'busy' ? 'bg-orange-600' :
+                                'bg-gray-600'
                               }`}>
                               {patientCount} patient{patientCount !== 1 ? 's' : ''}
                             </span>
@@ -816,15 +816,15 @@ const Dashboard = () => {
                                         <div className="flex items-center gap-2">
                                           {!isActive && <span className="text-gray-400">⏸</span>}
                                           <span className={`font-medium ${!isActive ? 'text-gray-400' :
-                                              isSelected ? 'text-green-700' :
-                                                'text-gray-900'
+                                            isSelected ? 'text-green-700' :
+                                              'text-gray-900'
                                             }`}>
                                             {doctor.name}
                                           </span>
                                           {isActive && patientCount > 0 && (
                                             <span className={`text-white text-xs px-2 py-0.5 rounded-full font-medium ${doctorStatus === 'hasPatients' ? 'bg-blue-600' :
-                                                doctorStatus === 'busy' ? 'bg-orange-600' :
-                                                  'bg-gray-600'
+                                              doctorStatus === 'busy' ? 'bg-orange-600' :
+                                                'bg-gray-600'
                                               }`}>
                                               {patientCount}
                                             </span>
@@ -850,8 +850,8 @@ const Dashboard = () => {
                                         }
                                       }}
                                       className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${isActive
-                                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                          : 'bg-green-100 text-green-700 hover:bg-green-200'
+                                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                        : 'bg-green-100 text-green-700 hover:bg-green-200'
                                         }`}
                                     >
                                       {isActive ? 'Stop' : 'Start'}
@@ -1170,7 +1170,6 @@ const Dashboard = () => {
                         <tr className="bg-blue-100">
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Patient Name</th>
-                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Age</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Phone</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Doctor</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Type</th>
@@ -1184,7 +1183,6 @@ const Dashboard = () => {
                           <tr key={`active-dsk-${patient.queueNo}`} className="border-b transition-colors hover:bg-blue-50">
                             <td className="p-4 align-middle font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
                             <td className="p-4 align-middle">{patient.name}</td>
-                            <td className="p-4 align-middle">{patient.age}</td>
                             <td className="p-4 align-middle text-gray-600">{patient.phoneNum || 'N/A'}</td>
                             <td className="p-4 align-middle text-gray-600">{patient.assignedDoctor?.name || 'Not Assigned'}</td>
                             <td className="p-4 align-middle text-gray-500">{patient.type}</td>
@@ -1363,7 +1361,6 @@ const Dashboard = () => {
                         <tr className="bg-yellow-100">
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Queue #</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Patient Name</th>
-                          <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Age</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Phone</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Doctor</th>
                           <th className="border px-4 py-2 text-left text-sm font-medium text-gray-600">Type</th>
@@ -1377,7 +1374,6 @@ const Dashboard = () => {
                           <tr key={`priority-dsk-${patient.queueNo}`} className="border-b transition-colors hover:bg-yellow-50">
                             <td className="p-4 align-middle font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
                             <td className="p-4 align-middle">{patient.name}</td>
-                            <td className="p-4 align-middle">{patient.age}</td>
                             <td className="p-4 align-middle text-gray-600">{patient.phoneNum || 'N/A'}</td>
                             <td className="p-4 align-middle text-gray-600">{patient.assignedDoctor?.name || 'Not Assigned'}</td>
                             <td className="p-4 align-middle text-gray-500">{patient.type}</td>

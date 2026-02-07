@@ -251,26 +251,31 @@ export const PatientProvider = ({ children }) => {
     }
   }, [patients, activeDoctors]); // Runs whenever patients or activeDoctors change
 
-  const getAvailableSlots = (dateTimeString) => {
-    if (!dateTimeString) return 1;
+ const getAvailableSlots = (dateTimeString) => {
+  if (!dateTimeString) return 1;
 
-    const MAX_SLOTS_PER_TIME = 1;
-    const targetDate = new Date(dateTimeString);
+  const targetDate = new Date(dateTimeString);
+  const now = new Date();
 
-    const minutes = targetDate.getMinutes();
-    targetDate.setMinutes(minutes < 30 ? 0 : 30, 0, 0);
+  // ✅ CRITICAL FIX: If the time is in the past, return 0 slots immediately
+  if (targetDate <= now) {
+    return 0;
+  }
 
-    const bookedCount = patients.filter(p => {
-      if (!p.appointmentDateTime) return false;
-      if (p.appointmentStatus === 'rejected') return false;
-      const pDate = new Date(p.appointmentDateTime);
-      pDate.setMinutes(pDate.getMinutes() < 30 ? 0 : 30, 0, 0);
-      return pDate.getTime() === targetDate.getTime();
-    }).length;
+  const MAX_SLOTS_PER_TIME = 1;
+  const minutes = targetDate.getMinutes();
+  targetDate.setMinutes(minutes < 30 ? 0 : 30, 0, 0);
 
-    return Math.max(0, MAX_SLOTS_PER_TIME - bookedCount);
-  };
+  const bookedCount = patients.filter(p => {
+    if (!p.appointmentDateTime) return false;
+    if (p.appointmentStatus === 'rejected') return false;
+    const pDate = new Date(p.appointmentDateTime);
+    pDate.setMinutes(pDate.getMinutes() < 30 ? 0 : 30, 0, 0);
+    return pDate.getTime() === targetDate.getTime();
+  }).length;
 
+  return Math.max(0, MAX_SLOTS_PER_TIME - bookedCount);
+};
   const normalizeName = (name) => {
     if (!name) return '';
     return name.toLowerCase().trim();

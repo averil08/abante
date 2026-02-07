@@ -297,23 +297,43 @@ const AppointmentPicker = ({
           >
             <option value="">-- Choose a time slot --</option>
             {timeSlots.map((slot) => {
-              // ✅ ADD THIS: Safe slot availability check
-              const availableSlots = typeof getAvailableSlots === 'function' 
-                ? getSlotAvailability(slot.value) 
-                : 1;
-              const isFullyBooked = availableSlots <= 0;
+    // 1. Calculate how many slots are left
+    const availableSlotsCount = typeof getAvailableSlots === 'function' 
+      ? getSlotAvailability(slot.value) 
+      : 1;
+    
+    // 2. Define the "Fully Booked" variable correctly
+    const isFullyBooked = availableSlotsCount <= 0;
 
-              return (
-                <option 
-                  key={slot.value} 
-                  value={slot.value}
-                  disabled={isFullyBooked}
-                >
-                  {slot.label} {isFullyBooked ? '(Fully Booked)' : `(${availableSlots} slot${availableSlots !== 1 ? 's' : ''} available)`}
-                </option>
-              );
-            })}
-          </select>
+    // 3. Logic to check if the time has already passed for TODAY
+    const now = new Date();
+    const isToday = selectedDate && selectedDate.toDateString() === now.toDateString();
+    let isPast = false;
+
+    if (isToday) {
+      const [h, m] = slot.value.split(':');
+      const slotTime = new Date();
+      slotTime.setHours(parseInt(h), parseInt(m), 0, 0);
+      
+      // If the slot time is before or exactly right now, it's "Past"
+      if (slotTime <= now) {
+        isPast = true;
+      }
+    }
+
+    return (
+      <option 
+        key={slot.value} 
+        value={slot.value}
+        // Disable the option if it's already passed or there's no space left
+        disabled={isPast || isFullyBooked}
+      >
+        {slot.label} 
+        {isPast ? ' (not available)' : isFullyBooked ? ' (Fully Booked)' : ` (${availableSlotsCount} available)`}
+      </option>
+    );
+  })}
+</select>
 
           {/* Availability Indicator */}
           {selectedTime && (

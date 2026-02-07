@@ -939,7 +939,7 @@ const Dashboard = () => {
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-3 border-t border-gray-100">
                 <div className="flex items-center gap-2">
                   <span className="text-xs sm:text-sm text-gray-600">Medical Staff:</span>
-                  <span className="text-xs sm:text-sm font-semibold text-gray-900">12 Doctors Available</span>
+                  <span className="text-xs sm:text-sm font-semibold text-gray-900">15 Doctors Available</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs sm:text-sm text-gray-600">Secretary:</span>

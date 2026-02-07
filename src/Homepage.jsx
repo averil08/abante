@@ -17,20 +17,20 @@ const Homepage = () => {
   // Updated function to check if doctor is available today
   const isDoctorAvailableToday = (scheduleArray) => {
     const currentDay = getCurrentDay();
-    
+
     // If no schedule array, return false
     if (!scheduleArray || scheduleArray.length === 0) return false;
-    
+
     // Check each schedule entry
     for (const entry of scheduleArray) {
       // If it's an appointment-only doctor, return false (not walk-in available)
       if (entry.type === "byAppointment") return false;
-      
+
       // If no days property, skip
       if (!entry.days) continue;
-      
+
       const scheduleDays = entry.days.toLowerCase();
-      
+
       // Handle "Mon - Sat" or "Mon - Fri" format
       if (scheduleDays.includes('-')) {
         if (scheduleDays.includes('mon - sat')) {
@@ -46,7 +46,7 @@ const Homepage = () => {
           if (['Thursday', 'Friday'].includes(currentDay)) return true;
         }
       }
-      
+
       // Handle specific days like "Mon, Wed, Fri" or "Tue, Thu, Sat"
       const dayAbbreviations = {
         'Monday': 'mon',
@@ -57,20 +57,20 @@ const Homepage = () => {
         'Saturday': 'sat',
         'Sunday': 'sun'
       };
-      
+
       const currentDayAbbr = dayAbbreviations[currentDay];
       if (scheduleDays.includes(currentDayAbbr)) return true;
     }
-    
+
     return false;
   };
 
   // Doctor data with schedules
   const doctors = [
-    { 
-      id: 1, 
-      name: "Dr. Melissa B. Edic", 
-      specializations: ["pedia", "follow-up"],
+    {
+      id: 1,
+      name: "Dr. Melissa B. Edic",
+      specializations: ["Pediatrics"],
       schedule: [
         { days: "Thu - Fri", time: "9:00 AM - 11:00 PM" },
         { days: "Thu - Fri", time: "2:00 AM - 5:00 PM" },
@@ -78,132 +78,123 @@ const Homepage = () => {
         { days: "Saturday", frequency: "1st and 3rd", time: "9:00 AM - 3:00 PM" }
       ]
     },
-    { 
-      id: 2, 
-      name: "Dr. Genevive Bandiwan-Laking", 
-      specializations: ["pedia", "follow-up"],
+    {
+      id: 2,
+      name: "Dr. Genevive Bandiwan-Laking",
+      specializations: ["Pediatrics"],
       schedule: [
         { type: "byAppointment", note: "Book an appointment to arrange" }
       ]
     },
-    { 
-      id: 3, 
-      name: "Dr. Cynthia Moran", 
+    {
+      id: 3,
+      name: "Dr. Cynthia Moran",
       specializations: [
-        "adult", "senior", "preventive", "follow-up",
-        "cbc", "platelet", "esr", "abo",
-        "fbs", "rbs", "hba1c",
-        "lipid", "totalCh", "triglycerides", "hdl", "ldl",
-        "alt", "ast", "uric", "creatinine", "bun",
-        "albumin", "totalProtein", "alp", "phosphorus",
-        "sodium", "potassium", "chloride", "ionizedCal", "totalCal", "magnesium"
+        "Internal Medicine"
       ],
       schedule: [
         { days: "Wed", time: "9:00 AM - 12:00 PM" }
       ]
     },
-    { 
-      id: 4, 
-      name: "Dr. Edrian O. Geronimo", 
+    {
+      id: 4,
+      name: "Dr. Edrian O. Geronimo",
       specializations: [
-        "adult", "senior", "preventive", "follow-up",
-        "cbc", "platelet", "esr", "abo",
-        "hbsag", "vdrl", "antiHCV", "hpylori",
-        "dengueIg", "dengueNs1", "dengueDuo", "typhidot"
+        "Infectious Disease"
       ],
       schedule: [
         { days: "Tue, Thu", time: "9:00 AM - 12:00 PM" }
       ]
     },
-    { 
-      id: 5, 
-      name: "Dr. Feb Golocan-Alquiza", 
-      specializations: ["fbs", "rbs", "creatinine", "bun", "hba1c"],
+    {
+      id: 5,
+      name: "Dr. Feb Golocan-Alquiza",
+      specializations: ["Nephrology"],
       schedule: [
         { days: "Mon, Tue, Thu", time: "1:00 PM - 5:00 PM" }
       ]
     },
-    { 
-      id: 6, 
-      name: "Dr. Tanya Charissa Diomampo", 
-      specializations: ["creatinine", "bun", "hba1c"],
+    {
+      id: 6,
+      name: "Dr. Tanya Charissa Diomampo",
+      specializations: ["Nephrology"],
       schedule: [
         { days: "Wed", time: "1:00 PM - 5:00 PM" },
         { days: "Sat", time: "10:00 AM - 1:00 PM" }
       ]
     },
-    { 
-      id: 7, 
-      name: "Dr. Maricar Josephine A. Geronimo", 
-      specializations: ["lipid", "totalCh", "triglycerides", "hdl", "ldl", "fbs", "rbs"],
+    {
+      id: 7,
+      name: "Dr. Maricar Josephine A. Geronimo",
+      specializations: ["Nephrology"],
       schedule: [
         { days: "Fri", time: "1:00 PM - 5:00 PM" }
       ]
     },
-    { 
-      id: 8, 
-      name: "Dr. Elvira T. Lampacan", 
-      specializations: ["pregnancyT", "follow-up"],
+    {
+      id: 8,
+      name: "Dr. Elvira T. Lampacan",
+      specializations: ["OB-GYN"],
       schedule: [
         { days: "Wed, Fri", time: "9:30 AM - 12:00 PM" },
         { days: "Thu", time: "1:00 PM - 3:00 PM" }
       ]
     },
-    { 
-      id: 9, 
-      name: "Dr. Clarissa Mae L. Lee", 
-      specializations: ["pregnancyT", "follow-up"],
+    {
+      id: 9,
+      name: "Dr. Clarissa Mae L. Lee",
+      specializations: ["OB-GYN"],
       schedule: [
         { days: "Mon, Tue", time: "9:30 AM - 12:00 PM" },
         { days: "Sat", time: "1:00 PM - 3:00 PM" }
       ]
     },
-    { 
-      id: 10, 
-      name: "Dr. Herschel Charisse C. Rivera-Ang", 
-      specializations: ["pregnancyT", "follow-up"],
+    {
+      id: 10,
+      name: "Dr. Herschel Charisse C. Rivera-Ang",
+      specializations: ["OB-GYN"],
       schedule: [
         { days: "Mon - Wed", time: "1:00 PM - 3:00 PM" }
       ]
     },
-    { 
-      id: 11, 
-      name: "Dr. Cecille P. Pating", 
-      specializations: ["pregnancyT", "follow-up"],
+    {
+      id: 11,
+      name: "Dr. Cecille P. Pating",
+      specializations: ["OB-GYN"],
       schedule: [
         { days: "Thu, Sat", time: "9:30 AM - 12:00 PM" },
         { days: "Fri", time: "1:00 PM - 3:00 PM" }
       ]
     },
-    { 
-      id: 12, 
-      name: "Dr. Richard S. Ang", 
-      specializations: ["follow-up", "psa"],
+    {
+      id: 12,
+      name: "Dr. Richard S. Ang",
+      specializations: ["Orthopedics", "Urology"],
       schedule: [
         { days: "Mon - Fri", time: "8:00 AM - 5:00 PM" }
       ]
     },
-    { 
-      id: 13, 
-      name: "Dr. Rajiv D. Laoagan", 
-      specializations: ["generalSurgery"],
+    {
+      id: 13,
+      name: "Dr. Rajiv D. Laoagan",
+      specializations: ["General Surgery"],
       schedule: [
         { days: "Thu", time: "8:00 AM - 5:00 PM" },
         { days: "Fri, Sat", time: "8:00 AM - 12:00 PM" }
       ]
     },
-    { 
-      id: 14, 
+    {
+      id: 14,
       name: "Dr. Jefferson Richmond G. Chomenwey",
-      specializations: ["generalSurgery"],
+      specializations: ["General Surgery"],
       schedule: [
         { type: "byAppointment", note: "Book an appointment to arrange" }
       ]
     },
-    { 
-      id: 15, 
-      name: "Dr. Rhea Jeanne L. Awas", 
-      specializations: ["ent"],
+    {
+      id: 15,
+      name: "Dr. Rhea Jeanne L. Awas",
+      specializations: ["ENT"],
       schedule: [
         { days: "Mon, Tue, Wed", time: "8:00 AM - 5:00 PM" }
       ]
@@ -243,7 +234,7 @@ const Homepage = () => {
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Doctor Duty Schedule</h2>
             <p className="text-sm text-gray-600 mb-6">View our doctors' specializations and availability</p>
-            
+
             {/* Desktop Grid View */}
             <div className="hidden lg:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {doctors.map(doctor => (
@@ -265,7 +256,7 @@ const Homepage = () => {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Specializations</p>
@@ -277,7 +268,7 @@ const Homepage = () => {
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* FIXED: Map through schedule array */}
                     <div className="pt-3 border-t border-gray-200">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Schedule</p>
@@ -341,7 +332,7 @@ const Homepage = () => {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="space-y-3">
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Specializations</p>
@@ -353,7 +344,7 @@ const Homepage = () => {
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* FIXED: Map through schedule array */}
                     <div className="pt-2 border-t border-gray-100">
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Schedule</p>

@@ -22,7 +22,7 @@ export const PatientProvider = ({ children }) => {
     appointmentDateTime: dbPatient.appointment_datetime,
     symptoms: dbPatient.symptoms || [],
     services: dbPatient.services || [],
-    status: dbPatient.status === "in progress" ? "waiting" : (dbPatient.status || "waiting"),
+    status: dbPatient.status || "waiting",
     appointmentStatus: dbPatient.appointment_status,
     inQueue: dbPatient.in_queue ?? (dbPatient.patient_type === 'walk-in' || dbPatient.appointment_status === 'accepted'),
     registeredAt: dbPatient.registered_at || dbPatient.created_at,
@@ -718,15 +718,6 @@ export const PatientProvider = ({ children }) => {
   const isDoctorActive = (doctorId) => {
     return activeDoctors.includes(doctorId);
   };
-
-  // NEW: Show loading state while fetching from database
-  if (isLoadingFromDB) {
-    return (
-      <PatientContext.Provider value={{ isLoadingFromDB: true }}>
-        {children}
-      </PatientContext.Provider>
-    );
-  }
 
   // NEW: Show loading state while fetching from database
   // ✅ FIXED: Always provide all functions, even during loading

@@ -361,43 +361,8 @@ const Dashboard = () => {
 
 
   const handleCallNext = () => {
-    // ✅ NEW: If no one is currently being served, start the queue
-    if (!currentServing) {
-      // First check for priority patients
-      const firstPriorityPatient = patients.find(p =>
-        p.status === "waiting" &&
-        p.inQueue &&
-        p.isPriority &&
-        !p.isInactive &&
-        (p.type !== "Appointment" || p.appointmentStatus === "accepted")
-      );
-
-      if (firstPriorityPatient) {
-        updatePatientStatus(firstPriorityPatient.queueNo, 'in progress');
-        setCurrentServing(firstPriorityPatient.queueNo);
-        return;
-      }
-
-      // Then check for regular waiting patients
-      const firstWaitingPatient = patients.find(p =>
-        p.status === "waiting" &&
-        p.inQueue &&
-        !p.isPriority &&
-        !p.isInactive &&
-        (p.type !== "Appointment" || p.appointmentStatus === "accepted")
-      );
-
-      if (firstWaitingPatient) {
-        updatePatientStatus(firstWaitingPatient.queueNo, 'in progress');
-        setCurrentServing(firstWaitingPatient.queueNo);
-        return;
-      }
-
-      // No patients waiting
-      return;
-    }
-
-    // ✅ EXISTING LOGIC: Mark current patient as done and call next
+    // 1. Check if there is ALREADY a patient in progress and mark them as done
+    // This robustness prevents multiple patients from being "in progress" at once
     const currentPatient = patients.find(p =>
       p.status === "in progress" &&
       p.inQueue &&
@@ -409,13 +374,18 @@ const Dashboard = () => {
       updatePatientStatus(currentPatient.queueNo, 'done');
     }
 
-    // First, check if there are any waiting priority patients
+    // 2. Find the NEXT patient to call (Priority -> Regular)
+
+    // Check for waiting priority patients first
     const nextPriorityPatient = patients.find(p =>
-      p.status === "waiting" && p.inQueue && p.isPriority && !p.isInactive
+      p.status === "waiting" &&
+      p.inQueue &&
+      p.isPriority &&
+      !p.isInactive &&
+      (p.type !== "Appointment" || p.appointmentStatus === "accepted")
     );
 
     if (nextPriorityPatient) {
-      // Call the priority patient first
       updatePatientStatus(nextPriorityPatient.queueNo, 'in progress');
       setCurrentServing(nextPriorityPatient.queueNo);
       return;
@@ -423,11 +393,14 @@ const Dashboard = () => {
 
     // If no priority patients, find the next regular waiting patient
     const nextWaitingPatient = patients.find(p =>
-      p.status === "waiting" && p.inQueue && !p.isPriority && !p.isInactive
+      p.status === "waiting" &&
+      p.inQueue &&
+      !p.isPriority &&
+      !p.isInactive &&
+      (p.type !== "Appointment" || p.appointmentStatus === "accepted")
     );
 
     if (nextWaitingPatient) {
-      // Mark the next waiting patient as in progress and sync the queue number
       updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
       setCurrentServing(nextWaitingPatient.queueNo);
     } else {

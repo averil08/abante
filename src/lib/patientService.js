@@ -101,6 +101,8 @@ export const syncPatientToDatabase = async (patientData) => {
       services: patientData.services || [],
       is_returning_patient: patientData.isReturningPatient || false,
       is_inactive: patientData.isInactive || false,
+      rejection_reason: patientData.rejectionReason || null,
+      rejected_at: patientData.rejectedAt || null,
 
       // Timestamps
       called_at: patientData.calledAt || null,

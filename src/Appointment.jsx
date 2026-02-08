@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import Sidebar from "@/components/Sidebar";
-import { Calendar, Clock, Phone, User, Activity, Stethoscope, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+import { Calendar, Clock, Phone, User, Activity, Stethoscope, CheckCircle, XCircle, MessageSquare, Filter, Eye, AlertCircle } from 'lucide-react';
 //automatic added dialog in components/ui (run npx shadcn@latest add dialog to install + make dialog.jsx)
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 //automatic added textarea in components/ui (run npx shadcn@latest add textarea to install + make textarea.jsx)
@@ -9,22 +9,107 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
 import { PatientContext } from "./PatientContext";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 //THIS IS THE PATIENT PROFILE IN CLINIC UI
 const Appointment = () => {
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
   const { patients, acceptAppointment, rejectAppointment } = useContext(PatientContext);
 
   // Filter appointments (patients with type "Appointment")
-  const appointments = (patients || []).filter(p =>
-    p.type === "Appointment" &&
-    p.status !== "done" &&
-    p.status !== "cancelled"
-  );
+  const allAppointments = (patients || [])
+    .filter(p =>
+      p.type === "Appointment" &&
+      p.status !== "done" &&
+      p.status !== "cancelled"
+    );
 
-  // Service labels mapping
+  // Helper function to check if appointment is in the future
+  const isFutureAppointment = (appointment) => {
+    const appointmentDate = new Date(appointment.appointmentDateTime || appointment.appointment_datetime);
+    return appointmentDate > new Date();
+  };
+
+  // Helper function to categorize upcoming appointments
+  const categorizeUpcoming = (appointment) => {
+    const appointmentDate = new Date(appointment.appointmentDateTime || appointment.appointment_datetime);
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const endOfWeek = new Date(now);
+    endOfWeek.setDate(endOfWeek.getDate() + 7);
+
+    // Reset time parts for accurate date comparison
+    const appointmentDay = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const tomorrowDay = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
+
+    if (appointmentDay.getTime() === today.getTime()) {
+      return 'today';
+    } else if (appointmentDay.getTime() === tomorrowDay.getTime()) {
+      return 'tomorrow';
+    } else if (appointmentDate <= endOfWeek) {
+      return 'thisWeek';
+    }
+    return 'later';
+  };
+
+  // Get filtered appointments based on active filter
+  const getFilteredAppointments = () => {
+    switch (activeFilter) {
+      case 'pending':
+        return allAppointments
+          .filter(a => !a.appointmentStatus || a.appointmentStatus === 'pending')
+          .sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+
+      case 'accepted':
+        return allAppointments
+          .filter(a => a.appointmentStatus === 'accepted')
+          .sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+
+      case 'rejected':
+        return allAppointments
+          .filter(a => a.appointmentStatus === 'rejected')
+          .sort((a, b) => new Date(b.rejectedAt || b.registeredAt) - new Date(a.rejectedAt || a.registeredAt));
+
+      case 'upcoming':
+        return allAppointments
+          .filter(a => a.appointmentStatus === 'accepted' && isFutureAppointment(a))
+          .sort((a, b) => {
+            const dateA = new Date(a.appointmentDateTime || a.appointment_datetime);
+            const dateB = new Date(b.appointmentDateTime || b.appointment_datetime);
+            return dateA - dateB; // Sort by appointment time, earliest first
+          });
+
+      case 'all':
+      default:
+        return allAppointments
+          .sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+    }
+  };
+
+  const filteredAppointments = getFilteredAppointments();
+
+  // Group upcoming appointments by category
+  const groupedUpcoming = activeFilter === 'upcoming' ? {
+    today: filteredAppointments.filter(a => categorizeUpcoming(a) === 'today'),
+    tomorrow: filteredAppointments.filter(a => categorizeUpcoming(a) === 'tomorrow'),
+    thisWeek: filteredAppointments.filter(a => categorizeUpcoming(a) === 'thisWeek'),
+    later: filteredAppointments.filter(a => categorizeUpcoming(a) === 'later')
+  } : null;
+
   // Service labels mapping
   const serviceLabels = {
     // General
@@ -131,7 +216,6 @@ const Appointment = () => {
   };
 
   const formatDateTime = (dateTimeString) => {
-
     if (!dateTimeString) return 'N/A';
     const date = new Date(dateTimeString);
     if (isNaN(date.getTime())) {
@@ -148,6 +232,310 @@ const Appointment = () => {
     });
   };
 
+  const formatDateShort = (dateTimeString) => {
+    if (!dateTimeString) return 'N/A';
+    const date = new Date(dateTimeString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const handleViewDetails = (appointment) => {
+    setSelectedAppointment(appointment);
+    setIsDetailsDialogOpen(true);
+  };
+
+  // Render appointment card for mobile
+  const renderAppointmentCard = (appointment) => (
+    <Card key={appointment.id} className="mb-4">
+      <CardContent className="p-4">
+        {/* Header with Queue Number and Status */}
+        <div className="flex items-center justify-between mb-3">
+          <Badge variant="outline" className="font-mono">
+            #{String(appointment.queueNo).padStart(3, '0')}
+          </Badge>
+          {appointment.appointmentStatus === 'accepted' ? (
+            <Badge className="bg-green-600">Accepted</Badge>
+          ) : appointment.appointmentStatus === 'rejected' ? (
+            <Badge variant="destructive" className="bg-red-600 text-white">
+              Not Accepted
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+              Pending
+            </Badge>
+          )}
+        </div>
+
+        {/* Patient Name */}
+        <div className="flex items-center gap-2 mb-3">
+          <User className="w-4 h-4 text-gray-400" />
+          <span className="font-semibold text-gray-900 text-lg">{appointment.name}</span>
+          <span className="text-gray-500 text-sm">• {appointment.age} yrs</span>
+        </div>
+
+        {/* Appointment Time */}
+        <div className="flex items-center gap-2 mb-3 text-sm">
+          <Clock className="w-4 h-4 text-gray-400" />
+          <span className="text-gray-700">
+            {formatDateShort(appointment.appointmentDateTime || appointment.appointment_datetime)}
+          </span>
+        </div>
+
+        {/* Doctor or Services */}
+        {appointment.assignedDoctor ? (
+          <div className="flex items-center gap-2 mb-3">
+            <Stethoscope className="w-4 h-4 text-purple-600" />
+            <span className="text-purple-700 font-medium text-sm">
+              {appointment.assignedDoctor.name}
+            </span>
+          </div>
+        ) : (
+          <div className="mb-3">
+            <p className="text-xs text-gray-500 mb-1.5">Services:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {appointment.services && appointment.services.length > 0 ? (
+                <>
+                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                    {getServiceLabel(appointment.services[0])}
+                  </Badge>
+                  {appointment.services.length > 1 && (
+                    <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600">
+                      +{appointment.services.length - 1} more
+                    </Badge>
+                  )}
+                </>
+              ) : (
+                <span className="text-gray-400 text-sm">None</span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Symptoms */}
+        <div className="mb-4">
+          <p className="text-xs text-gray-500 mb-1.5">Symptoms:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {appointment.symptoms && appointment.symptoms.length > 0 ? (
+              <>
+                <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                  {appointment.symptoms[0]}
+                </Badge>
+                {appointment.symptoms.length > 1 && (
+                  <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600">
+                    +{appointment.symptoms.length - 1} more
+                  </Badge>
+                )}
+              </>
+            ) : (
+              <span className="text-gray-400 text-sm">None</span>
+            )}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex gap-2 pt-3 border-t">
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 text-blue-600 border-blue-300 hover:bg-blue-50"
+            onClick={() => handleViewDetails(appointment)}
+          >
+            <Eye className="w-4 h-4 mr-1" />
+            View
+          </Button>
+
+          {(!appointment.appointmentStatus || appointment.appointmentStatus === 'pending') && (
+            <>
+              <Button
+                size="sm"
+                className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                onClick={() => handleAccept(appointment)}
+              >
+                <CheckCircle className="w-4 h-4 mr-1" />
+                Accept
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1 text-red-600 border-red-300 hover:bg-red-50"
+                onClick={() => handleRejectClick(appointment)}
+              >
+                <XCircle className="w-4 h-4 mr-1" />
+                Decline
+              </Button>
+            </>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  // Render appointment table for desktop
+  const renderAppointmentTable = (appointments) => (
+    <>
+      {/* Mobile Card View */}
+      <div className="block lg:hidden">
+        {appointments.map((appointment) => renderAppointmentCard(appointment))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden lg:block overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50">
+              <TableHead className="font-semibold text-gray-700">Queue #</TableHead>
+              <TableHead className="font-semibold text-gray-700">Patient Name</TableHead>
+              <TableHead className="font-semibold text-gray-700">Age</TableHead>
+              <TableHead className="font-semibold text-gray-700">Appointment Time</TableHead>
+              <TableHead className="font-semibold text-gray-700">Doctor/Service</TableHead>
+              <TableHead className="font-semibold text-gray-700">Symptoms</TableHead>
+              <TableHead className="font-semibold text-gray-700 text-center">Status</TableHead>
+              <TableHead className="font-semibold text-gray-700 text-center">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {appointments.map((appointment) => (
+              <TableRow
+                key={appointment.id}
+                className="hover:bg-gray-50 transition-colors"
+              >
+                <TableCell className="font-medium">
+                  <Badge variant="outline" className="font-mono">
+                    #{String(appointment.queueNo).padStart(3, '0')}
+                  </Badge>
+                </TableCell>
+
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4 text-gray-400" />
+                    <span className="font-semibold text-gray-900">{appointment.name}</span>
+                  </div>
+                </TableCell>
+
+                <TableCell>
+                  <span className="text-gray-700">{appointment.age} yrs</span>
+                </TableCell>
+
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <span className="text-gray-700 text-sm">
+                      {formatDateShort(appointment.appointmentDateTime || appointment.appointment_datetime)}
+                    </span>
+                  </div>
+                </TableCell>
+
+                <TableCell>
+                  {appointment.assignedDoctor ? (
+                    <div className="flex items-center gap-2">
+                      <Stethoscope className="w-4 h-4 text-purple-600" />
+                      <span className="text-purple-700 font-medium text-sm">
+                        {appointment.assignedDoctor.name}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1 max-w-xs">
+                      {appointment.services && appointment.services.length > 0 ? (
+                        <>
+                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                            {getServiceLabel(appointment.services[0])}
+                          </Badge>
+                          {appointment.services.length > 1 && (
+                            <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600">
+                              +{appointment.services.length - 1} more
+                            </Badge>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-gray-400 text-sm">None</span>
+                      )}
+                    </div>
+                  )}
+                </TableCell>
+
+                <TableCell>
+                  <div className="flex flex-wrap gap-1 max-w-xs">
+                    {appointment.symptoms && appointment.symptoms.length > 0 ? (
+                      <>
+                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                          {appointment.symptoms[0]}
+                        </Badge>
+                        {appointment.symptoms.length > 1 && (
+                          <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600">
+                            +{appointment.symptoms.length - 1} more
+                          </Badge>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-gray-400 text-sm">None</span>
+                    )}
+                  </div>
+                </TableCell>
+
+                <TableCell className="text-center">
+                  {appointment.appointmentStatus === 'accepted' ? (
+                    <Badge className="bg-green-600">Accepted</Badge>
+                  ) : appointment.appointmentStatus === 'rejected' ? (
+                    <Badge variant="destructive" className="bg-red-600 text-white">
+                      Not Accepted
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+                      Pending
+                    </Badge>
+                  )}
+                </TableCell>
+
+                <TableCell>
+                  <div className="flex items-center justify-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      onClick={() => handleViewDetails(appointment)}
+                    >
+                      <Eye className="w-4 h-4" />
+                    </Button>
+
+                    {(!appointment.appointmentStatus || appointment.appointmentStatus === 'pending') && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                          onClick={() => handleAccept(appointment)}
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleRejectClick(appointment)}
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </>
+  );
+
   return (
     <div className="flex w-full min-h-screen">
       <Sidebar nav={nav} handleNav={handleNav} />
@@ -160,7 +548,7 @@ const Appointment = () => {
             <div className="flex items-center gap-3">
               <Calendar className="w-6 h-6 text-green-600" />
               <div>
-                <h1 className="text-xl max-sm:text-base  font-bold text-gray-900 ">Appointment Management</h1>
+                <h1 className="text-xl max-sm:text-base font-bold text-gray-900">Appointment Management</h1>
                 <p className="text-sm text-gray-600">Review and manage patient appointments</p>
               </div>
             </div>
@@ -169,6 +557,85 @@ const Appointment = () => {
 
         {/* Appointments Section */}
         <div className="max-w-7xl mx-auto p-4 sm:p-6">
+          {/* Filter Buttons */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">Filter by:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => setActiveFilter('all')}
+                variant={activeFilter === 'all' ? 'default' : 'outline'}
+                className={activeFilter === 'all'
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'hover:bg-gray-100'
+                }
+              >
+                All
+                <Badge variant="secondary" className="ml-2 bg-white text-gray-700">
+                  {allAppointments.length}
+                </Badge>
+              </Button>
+
+              <Button
+                onClick={() => setActiveFilter('pending')}
+                variant={activeFilter === 'pending' ? 'default' : 'outline'}
+                className={activeFilter === 'pending'
+                  ? 'bg-amber-600 hover:bg-amber-700'
+                  : 'hover:bg-gray-100'
+                }
+              >
+                Pending Approval
+                <Badge variant="secondary" className="ml-2 bg-white text-gray-700">
+                  {allAppointments.filter(a => !a.appointmentStatus || a.appointmentStatus === 'pending').length}
+                </Badge>
+              </Button>
+
+              <Button
+                onClick={() => setActiveFilter('accepted')}
+                variant={activeFilter === 'accepted' ? 'default' : 'outline'}
+                className={activeFilter === 'accepted'
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'hover:bg-gray-100'
+                }
+              >
+                Accepted
+                <Badge variant="secondary" className="ml-2 bg-white text-gray-700">
+                  {allAppointments.filter(a => a.appointmentStatus === 'accepted').length}
+                </Badge>
+              </Button>
+
+              <Button
+                onClick={() => setActiveFilter('rejected')}
+                variant={activeFilter === 'rejected' ? 'default' : 'outline'}
+                className={activeFilter === 'rejected'
+                  ? 'bg-red-600 hover:bg-red-700'
+                  : 'hover:bg-gray-100'
+                }
+              >
+                Not Accepted
+                <Badge variant="secondary" className="ml-2 bg-white text-gray-700">
+                  {allAppointments.filter(a => a.appointmentStatus === 'rejected').length}
+                </Badge>
+              </Button>
+
+              <Button
+                onClick={() => setActiveFilter('upcoming')}
+                variant={activeFilter === 'upcoming' ? 'default' : 'outline'}
+                className={activeFilter === 'upcoming'
+                  ? 'bg-blue-600 hover:bg-blue-700'
+                  : 'hover:bg-gray-100'
+                }
+              >
+                Upcoming
+                <Badge variant="secondary" className="ml-2 bg-white text-gray-700">
+                  {allAppointments.filter(a => a.appointmentStatus === 'accepted' && isFutureAppointment(a)).length}
+                </Badge>
+              </Button>
+            </div>
+          </div>
+
           {/* Summary Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <Card>
@@ -176,7 +643,7 @@ const Appointment = () => {
                 <CardDescription>Total Appointments</CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-gray-900">{appointments.length}</p>
+                <p className="text-3xl font-bold text-gray-900">{allAppointments.length}</p>
               </CardContent>
             </Card>
 
@@ -186,7 +653,7 @@ const Appointment = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold text-green-600">
-                  {appointments.filter(a => a.appointmentStatus === 'accepted').length}
+                  {allAppointments.filter(a => a.appointmentStatus === 'accepted').length}
                 </p>
               </CardContent>
             </Card>
@@ -197,195 +664,279 @@ const Appointment = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-bold text-amber-600">
-                  {appointments.filter(a => !a.appointmentStatus || a.appointmentStatus === 'pending').length}
+                  {allAppointments.filter(a => !a.appointmentStatus || a.appointmentStatus === 'pending').length}
                 </p>
               </CardContent>
             </Card>
           </div>
 
           {/* Appointments List */}
-          {appointments.length === 0 ? (
+          {filteredAppointments.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <Calendar className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-500 text-lg">No appointments scheduled</p>
+                <p className="text-gray-500 text-lg">
+                  {activeFilter === 'all' && 'No appointments scheduled'}
+                  {activeFilter === 'pending' && 'No pending appointments'}
+                  {activeFilter === 'accepted' && 'No accepted appointments'}
+                  {activeFilter === 'rejected' && 'No rejected appointments'}
+                  {activeFilter === 'upcoming' && 'No upcoming appointments'}
+                </p>
               </CardContent>
             </Card>
-          ) : (
-            <div className="space-y-4">
-              {appointments.map((appointment) => (
-                <Card key={appointment.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <CardTitle className="text-lg sm:text-xl text-green-700">
-                        {appointment.name}
-                      </CardTitle>
-                      <div className="flex flex-wrap gap-2">
-                        <Badge variant="outline" className="bg-white">
-                          Queue #{String(appointment.queueNo).padStart(3, '0')}
-                        </Badge>
-                        {appointment.appointmentStatus === 'accepted' ? (
-                          <Badge className="bg-green-600">Accepted</Badge>
-                        ) : appointment.appointmentStatus === 'rejected' ? (
-                          <Badge variant="destructive" className="bg-red-600 text-white">
-                            Not Accepted
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="bg-amber-100 text-amber-700">
-                            Pending
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
+          ) : activeFilter === 'upcoming' && groupedUpcoming ? (
+            // Grouped view for upcoming appointments
+            <div className="space-y-6">
+              {groupedUpcoming.today.length > 0 && (
+                <Card>
+                  <CardHeader className="bg-green-50">
+                    <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-green-600" />
+                      Today ({groupedUpcoming.today.length})
+                    </CardTitle>
                   </CardHeader>
-
-                  <CardContent className="pt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {/* Left Column - Patient Info */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                          <Clock className="w-5 h-5 text-green-600 flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-xs text-gray-500 mb-1">Appointment Time</p>
-                            <p className="font-semibold text-sm sm:text-base text-gray-900 break-words">
-                              {formatDateTime(appointment.appointmentDateTime || appointment.appointment_datetime)}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                          <User className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                          <div>
-                            <p className="text-xs text-gray-500 mb-1">Age</p>
-                            <p className="font-semibold text-gray-900">{appointment.age} years old</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                          <Phone className="w-5 h-5 text-purple-600 flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="text-xs text-gray-500 mb-1">Phone Number</p>
-                            <p className="font-semibold text-gray-900 break-all">
-                              {appointment.phoneNum || 'N/A'}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Right Column - Medical Info */}
-                      <div className="space-y-3">
-                        {/* Symptoms - Always Show */}
-                        <div className="p-3 bg-blue-50 rounded-lg border border-blue-100">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Activity className="w-5 h-5 text-blue-600" />
-                            <p className="text-xs font-semibold text-blue-900">Symptoms</p>
-                          </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {appointment.symptoms && appointment.symptoms.length > 0 ? (
-                              appointment.symptoms.map((symptom, idx) => (
-                                <Badge key={idx} variant="outline"
-                                  className="text-xs bg-white text-blue-700 border-blue-200">
-                                  {symptom}
-                                </Badge>
-                              ))
-                            ) : (
-                              <span className="text-gray-400 text-xs">None reported</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* CONDITIONAL DISPLAY: Requested Doctor OR Requested Services */}
-                        {appointment.assignedDoctor ? (
-                          // SHOW DOCTOR IF BOOKED BY DOCTOR
-                          <div className="p-3 bg-purple-50 rounded-lg border border-purple-100">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Stethoscope className="w-5 h-5 text-purple-600" />
-                              <p className="text-xs font-semibold text-purple-900">Requested Doctor</p>
-                            </div>
-                            <div className="flex flex-col">
-                              <p className="font-semibold text-purple-900 text-sm">{appointment.assignedDoctor.name}</p>
-                              {appointment.assignedDoctor.specialization && (
-                                <p className="text-xs text-purple-700">{appointment.assignedDoctor.specialization}</p>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          // SHOW SERVICES IF BOOKED BY SERVICE
-                          <div className="p-3 bg-green-50 rounded-lg border border-green-100">
-                            <div className="flex items-center gap-2 mb-2">
-                              <Stethoscope className="w-5 h-5 text-green-600" />
-                              <p className="text-xs font-semibold text-green-900">Requested Services</p>
-                            </div>
-                            <div className="flex flex-wrap gap-1.5">
-                              {appointment.services && appointment.services.length > 0 ? (
-                                appointment.services.map((serviceId, idx) => (
-                                  <Badge key={idx} variant="outline"
-                                    className="text-xs bg-white text-green-700 border-green-200">
-                                    {getServiceLabel(serviceId)}
-                                  </Badge>
-                                ))
-                              ) : (
-                                <span className="text-gray-400 text-xs">None selected</span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Added Rejection Reason Display */}
-                    {appointment.appointmentStatus === 'rejected' && appointment.rejectionReason && (
-                      <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <div className="flex items-start gap-3">
-                          <MessageSquare className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-red-900 mb-1">Reason for Appointment Refusal</p>
-                            <p className="text-sm text-red-800">{appointment.rejectionReason}</p>
-                            {appointment.rejectedAt && (
-                              <p className="text-xs text-red-600 mt-1">
-                                Not Accepted on {formatDateTime(appointment.rejectedAt)}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action Buttons */}
-                    {(!appointment.appointmentStatus || appointment.appointmentStatus === 'pending') && (
-                      <div className="flex flex-col sm:flex-row gap-3 mt-4 pt-4 border-t border-gray-200">
-                        <Button
-                          onClick={() => handleAccept(appointment)}
-                          className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Accept Appointment
-                        </Button>
-                        <Button
-                          onClick={() => handleRejectClick(appointment)}
-                          variant="outline"
-                          className="flex-1 text-red-600 border-red-300 hover:bg-red-50"
-                        >
-                          <XCircle className="w-4 h-4 mr-2" />
-                          Decline Appointment
-                        </Button>
-                      </div>
-                    )}
+                  <CardContent className="p-0">
+                    {renderAppointmentTable(groupedUpcoming.today)}
                   </CardContent>
                 </Card>
-              ))}
+              )}
+
+              {groupedUpcoming.tomorrow.length > 0 && (
+                <Card>
+                  <CardHeader className="bg-blue-50">
+                    <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-blue-600" />
+                      Tomorrow ({groupedUpcoming.tomorrow.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {renderAppointmentTable(groupedUpcoming.tomorrow)}
+                  </CardContent>
+                </Card>
+              )}
+
+              {groupedUpcoming.thisWeek.length > 0 && (
+                <Card>
+                  <CardHeader className="bg-purple-50">
+                    <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-purple-600" />
+                      This Week ({groupedUpcoming.thisWeek.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {renderAppointmentTable(groupedUpcoming.thisWeek)}
+                  </CardContent>
+                </Card>
+              )}
+
+              {groupedUpcoming.later.length > 0 && (
+                <Card>
+                  <CardHeader className="bg-gray-50">
+                    <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                      <Calendar className="w-5 h-5 text-gray-600" />
+                      Later ({groupedUpcoming.later.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    {renderAppointmentTable(groupedUpcoming.later)}
+                  </CardContent>
+                </Card>
+              )}
             </div>
+          ) : (
+            // Regular table view for other filters
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {activeFilter === 'all' && 'All Appointments'}
+                  {activeFilter === 'pending' && 'Pending Appointments'}
+                  {activeFilter === 'accepted' && 'Accepted Appointments'}
+                  {activeFilter === 'rejected' && 'Not Accepted Appointments'}
+                </CardTitle>
+                <CardDescription>
+                  {filteredAppointments.length} appointment{filteredAppointments.length !== 1 ? 's' : ''}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                {renderAppointmentTable(filteredAppointments)}
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>
 
-      {/* Added Rejection Reason Dialog */}
+      {/* Appointment Details Dialog */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <User className="w-6 h-6 text-green-600" />
+              Appointment Details
+            </DialogTitle>
+            <DialogDescription>
+              Queue #{String(selectedAppointment?.queueNo).padStart(3, '0')} • {selectedAppointment?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedAppointment && (
+            <div className="space-y-4 mt-4">
+              {/* Status Badge */}
+              <div className="flex items-center gap-2">
+                {selectedAppointment.appointmentStatus === 'accepted' ? (
+                  <Badge className="bg-green-600">Accepted</Badge>
+                ) : selectedAppointment.appointmentStatus === 'rejected' ? (
+                  <Badge variant="destructive" className="bg-red-600 text-white">Not Accepted</Badge>
+                ) : (
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-700">Pending</Badge>
+                )}
+              </div>
+
+              {/* Patient Info Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <Clock className="w-5 h-5 text-green-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Appointment Time</p>
+                    <p className="font-semibold text-gray-900 text-sm">
+                      {formatDateTime(selectedAppointment.appointmentDateTime || selectedAppointment.appointment_datetime)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <User className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Age</p>
+                    <p className="font-semibold text-gray-900">{selectedAppointment.age} years old</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <Phone className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Phone Number</p>
+                    <p className="font-semibold text-gray-900">{selectedAppointment.phoneNum || 'N/A'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <Calendar className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Queue Number</p>
+                    <p className="font-semibold text-gray-900">#{String(selectedAppointment.queueNo).padStart(3, '0')}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Symptoms */}
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="w-5 h-5 text-blue-600" />
+                  <p className="text-sm font-semibold text-blue-900">Symptoms</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedAppointment.symptoms && selectedAppointment.symptoms.length > 0 ? (
+                    selectedAppointment.symptoms.map((symptom, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs bg-white text-blue-700 border-blue-200">
+                        {symptom}
+                      </Badge>
+                    ))
+                  ) : (
+                    <span className="text-gray-500 text-sm">None reported</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Doctor or Services */}
+              {selectedAppointment.assignedDoctor ? (
+                <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Stethoscope className="w-5 h-5 text-purple-600" />
+                    <p className="text-sm font-semibold text-purple-900">Requested Doctor</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-purple-900">{selectedAppointment.assignedDoctor.name}</p>
+                    {selectedAppointment.assignedDoctor.specialization && (
+                      <p className="text-sm text-purple-700">{selectedAppointment.assignedDoctor.specialization}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-green-50 rounded-lg border border-green-100">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Stethoscope className="w-5 h-5 text-green-600" />
+                    <p className="text-sm font-semibold text-green-900">Requested Services</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedAppointment.services && selectedAppointment.services.length > 0 ? (
+                      selectedAppointment.services.map((serviceId, idx) => (
+                        <Badge key={idx} variant="outline" className="text-xs bg-white text-green-700 border-green-200">
+                          {getServiceLabel(serviceId)}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-gray-500 text-sm">None selected</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Rejection Reason */}
+              {selectedAppointment.appointmentStatus === 'rejected' && selectedAppointment.rejectionReason && (
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <MessageSquare className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-red-900 mb-1">Reason for Appointment Refusal</p>
+                      <p className="text-sm text-red-800">{selectedAppointment.rejectionReason}</p>
+                      {selectedAppointment.rejectedAt && (
+                        <p className="text-xs text-red-600 mt-1">
+                          Not Accepted on {formatDateTime(selectedAppointment.rejectedAt)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              {(!selectedAppointment.appointmentStatus || selectedAppointment.appointmentStatus === 'pending') && (
+                <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                  <Button
+                    onClick={() => {
+                      handleAccept(selectedAppointment);
+                      setIsDetailsDialogOpen(false);
+                    }}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Accept Appointment
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setIsDetailsDialogOpen(false);
+                      handleRejectClick(selectedAppointment);
+                    }}
+                    variant="outline"
+                    className="flex-1 text-red-600 border-red-300 hover:bg-red-50"
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Decline Appointment
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Rejection Reason Dialog */}
       <Dialog open={rejectionDialog.open} onOpenChange={(open) => setRejectionDialog({ ...rejectionDialog, open })}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-red-600">Decline Appointment</DialogTitle>
             <DialogDescription>
-              Please provide a reason for not accepting {rejectionDialog.appointment?.name} appointment.
+              Please provide a reason for not accepting {rejectionDialog.appointment?.name}'s appointment.
               This will be shared with the patient.
             </DialogDescription>
           </DialogHeader>

@@ -158,13 +158,13 @@ function Checkin() {
     isPriority: false,
     priorityType: null,
     isReturningPatient: false,
+    otherSymptomText: "",
   });
 
-  //============== STATIC DATA ===============
   const symptomsList = [
     'Fever', 'Cough', 'Sore Throat', 'Headache', 'Stomach Pain',
     'Vomiting', 'Diarrhea', 'Rash', 'Ear Pain', 'Runny Nose',
-    'Difficulty Breathing', 'Itching'
+    'Difficulty Breathing', 'Itching', 'Other'
   ];
 
   const serviceCategories = [
@@ -376,6 +376,7 @@ function Checkin() {
       isPriority: false,
       priorityType: null,
       isReturningPatient: false,
+      otherSymptomText: "",
     });
     setExpandedCategory(null);
     setAvailableSlots(1);
@@ -387,11 +388,14 @@ function Checkin() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // ✅ MODIFIED: Enforce mutual exclusivity based on booking mode
     const dataToSubmit = {
       ...formData,
       name: formData.name || "Guest Patient",
       fullName: formData.name || "Guest Patient",
+      // Handle "Other" symptom
+      symptoms: formData.symptoms.map(s =>
+        s === 'Other' ? `Other: ${formData.otherSymptomText}` : s
+      ),
       // If booking by doctor, clear services. If by service, clear physician.
       services: bookingMode === 'doctor' ? [] : formData.services,
       physician: bookingMode === 'doctor' && selectedDoctor ? selectedDoctor.name : null
@@ -464,7 +468,9 @@ function Checkin() {
           age: formData.age,
           phoneNum: formData.phoneNum,
           type: selectedPatientType,
-          symptoms: formData.symptoms,
+          symptoms: formData.symptoms.map(s =>
+            s === 'Other' ? `Other: ${formData.otherSymptomText}` : s
+          ),
           services: formData.services,
           appointmentDateTime: formData.appointmentDateTime || undefined,
           isPriority: formData.isPriority,
@@ -579,6 +585,7 @@ function Checkin() {
           expandedCategory: expandedCategory,
           bookingMode: bookingMode,
           selectedDoctor: selectedDoctor,
+          otherSymptomText: formData.otherSymptomText,
           timestamp: Date.now()
         };
         localStorage.setItem(`tempFormData_${currentEmail}`, JSON.stringify(tempData));
@@ -949,9 +956,22 @@ function Checkin() {
               <div className="space-y-3 p-4 rounded-lg border border-green-300">
                 <Label className="text-green-700 font-bold">Symptoms</Label>
                 {symptomsList.map(symptom => (
-                  <div key={symptom} className="flex items-center">
-                    <input type="checkbox" id={symptom} checked={formData.symptoms.includes(symptom)} onChange={(e) => handleSymptomChange(symptom, e.target.checked)} className="h-4 w-4" />
-                    <Label htmlFor={symptom} className="ml-2">{symptom}</Label>
+                  <div key={symptom} className="space-y-2">
+                    <div className="flex items-center">
+                      <input type="checkbox" id={symptom} checked={formData.symptoms.includes(symptom)} onChange={(e) => handleSymptomChange(symptom, e.target.checked)} className="h-4 w-4" />
+                      <Label htmlFor={symptom} className="ml-2">{symptom}</Label>
+                    </div>
+                    {symptom === 'Other' && formData.symptoms.includes('Other') && (
+                      <div className="ml-6 mt-1">
+                        <Input
+                          id="otherSymptomText"
+                          placeholder="Please specify your symptoms"
+                          value={formData.otherSymptomText}
+                          onChange={handleInputChange}
+                          className="border-green-300 focus:ring-green-500"
+                        />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -71,8 +71,33 @@ const AppointmentPicker = ({
   };
 
   useEffect(() => {
-    setTimeSlots(generateTimeSlots());
-  }, []);
+    const slots = generateTimeSlots();
+
+    if (selectedDate) {
+      const now = new Date();
+      // Reset hours to compare dates only
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const checkDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+
+      const isToday = checkDate.getTime() === today.getTime();
+
+      if (isToday) {
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+
+        const filteredSlots = slots.filter(slot => {
+          const [slotHour, slotMinute] = slot.value.split(':').map(Number);
+          if (slotHour > currentHour) return true;
+          if (slotHour === currentHour && slotMinute > currentMinute) return true;
+          return false;
+        });
+        setTimeSlots(filteredSlots);
+        return;
+      }
+    }
+
+    setTimeSlots(slots);
+  }, [selectedDate]);
 
   useEffect(() => {
     if (selectedDate && selectedTime) {
@@ -114,12 +139,17 @@ const AppointmentPicker = ({
     return getAvailableSlots(testDate.toISOString());
   };
 
-  // Disable past dates
+  // Disable past dates and Sundays
   const tileDisabled = ({ date, view }) => {
     if (view === 'month') {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      return date < today;
+
+      // Disable past dates
+      if (date < today) return true;
+
+      // Disable Sundays (0 is Sunday)
+      if (date.getDay() === 0) return true;
     }
     return false;
   };
@@ -319,8 +349,8 @@ const AppointmentPicker = ({
           {/* Availability Indicator */}
           {selectedTime && (
             <div className={`flex items-center gap-2 p-3 rounded-md ${currentAvailableSlots > 0
-                ? 'bg-blue-50 border border-blue-200'
-                : 'bg-red-50 border border-red-200'
+              ? 'bg-blue-50 border border-blue-200'
+              : 'bg-red-50 border border-red-200'
               }`}>
               <AlertCircle className={`w-5 h-5 ${currentAvailableSlots > 0 ? 'text-blue-600' : 'text-red-600'
                 }`} />

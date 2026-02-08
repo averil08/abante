@@ -4,17 +4,17 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 // Import the real login function
-import { loginUser } from "./lib/supabaseClient"; 
+import { loginUser } from "./lib/supabaseClient";
 import Logo from "./assets/logo-valley.png";
 import { useNavigate } from "react-router-dom";
 
 function Login() {
   const navigate = useNavigate();
-  
+
   // Determine if this is patient or staff login based on URL
   const urlParams = new URLSearchParams(window.location.search);
   const isPatientLogin = urlParams.get('type') === 'patient';
-  
+
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -66,11 +66,11 @@ function Login() {
         // 2. Role Verification 
         // Checks the metadata role we set during Signup
         const intendedRole = isPatientLogin ? 'patient' : 'staff';
-        
+
         if (result.role !== intendedRole) {
           showMessage(
-            "Access Denied", 
-            `This account is registered as a ${result.role}. Please use the correct login portal.`, 
+            "Access Denied",
+            `This account is registered as a ${result.role}. Please use the correct login portal.`,
             false
           );
           setIsSubmitting(false);
@@ -96,7 +96,7 @@ function Login() {
         // 4. Redirect
         setTimeout(() => {
           if (isPatientLogin) {
-            navigate("/homepage"); 
+            navigate("/homepage");
           } else {
             navigate("/dashboard");
           }
@@ -138,12 +138,12 @@ function Login() {
         <CardContent>
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email" className="text-red-600">Email *</Label>
               <Input id="email" type="email" value={formData.email} onChange={handleInputChange} placeholder={emailPlaceholder} required />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="password">Password *</Label>
+              <Label htmlFor="password" className="text-red-600">Password *</Label>
               <Input id="password" type="password" value={formData.password} onChange={handleInputChange} placeholder="Enter your password" required />
             </div>
 

@@ -107,8 +107,8 @@ const QueueStatus = () => {
     ? patients.filter(p => {
       if (!p.assignedDoctor || p.isInactive || !p.inQueue) return false;
 
-      // Exclude done/completed patients
-      if (p.status === 'done' || p.status === 'completed') return false;
+      // Exclude done/completed/cancelled patients
+      if (p.status === 'done' || p.status === 'completed' || p.status === 'cancelled') return false;
 
       // Check if appointment is accepted (or not an appointment)
       if (p.type === "Appointment" && p.appointmentStatus !== "accepted") return false;

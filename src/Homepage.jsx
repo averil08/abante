@@ -8,6 +8,9 @@ const Homepage = () => {
   const handleNav = () => setNav(!nav);
   const { patients, activePatient } = useContext(PatientContext);
 
+  // State for specialization filter
+  const [selectedSpecialization, setSelectedSpecialization] = useState('all');
+
   // Get current day of the week
   const getCurrentDay = () => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -65,12 +68,52 @@ const Homepage = () => {
     return false;
   };
 
+  // Specialization categories mapping
+  const specializationCategories = {
+    'all': {
+      label: 'All Doctors',
+      doctorIds: []
+    },
+    'pediatrics': {
+      label: 'Pediatrics',
+      doctorIds: [1, 2] // Melissa, Genevive
+    },
+    'internalMedicine': {
+      label: 'Internal Medicine',
+      doctorIds: [3] // Cynthia
+    },
+    'infectiousDisease': {
+      label: 'Infectious Disease',
+      doctorIds: [4] // Edrian
+    },
+    'nephrology': {
+      label: 'Nephrology',
+      doctorIds: [5, 6, 7] // Feb, Tanya, Maricar
+    },
+    'obgyn': {
+      label: 'OB-GYN',
+      doctorIds: [8, 9, 10, 11] // Elvira, Clarissa Mae, Herschel Charisse, Cecille
+    },
+    'orthopedicsUrology': {
+      label: 'Orthopedics & Urology',
+      doctorIds: [12] // Richard
+    },
+    'generalSurgery': {
+      label: 'General Surgery',
+      doctorIds: [13, 14] // Rajiv, Jefferson
+    },
+    'ent': {
+      label: 'ENT',
+      doctorIds: [15] // Rhea Jeanne
+    }
+  };
+
   // Doctor data with schedules
   const doctors = [
     {
       id: 1,
       name: "Dr. Melissa B. Edic",
-      specializations: ["Pediatrics"],
+      specializations: ["pedia", "follow-up"],
       schedule: [
         { days: "Thu - Fri", time: "9:00 AM - 11:00 PM" },
         { days: "Thu - Fri", time: "2:00 AM - 5:00 PM" },
@@ -81,7 +124,7 @@ const Homepage = () => {
     {
       id: 2,
       name: "Dr. Genevive Bandiwan-Laking",
-      specializations: ["Pediatrics"],
+      specializations: ["pedia", "follow-up"],
       schedule: [
         { type: "byAppointment", note: "Book an appointment to arrange" }
       ]
@@ -90,7 +133,13 @@ const Homepage = () => {
       id: 3,
       name: "Dr. Cynthia Moran",
       specializations: [
-        "Internal Medicine"
+        "adult", "senior", "preventive", "follow-up",
+        "cbc", "platelet", "esr", "abo",
+        "fbs", "rbs", "hba1c",
+        "lipid", "totalCh", "triglycerides", "hdl", "ldl",
+        "alt", "ast", "uric", "creatinine", "bun",
+        "albumin", "totalProtein", "alp", "phosphorus",
+        "sodium", "potassium", "chloride", "ionizedCal", "totalCal", "magnesium"
       ],
       schedule: [
         { days: "Wed", time: "9:00 AM - 12:00 PM" }
@@ -100,7 +149,10 @@ const Homepage = () => {
       id: 4,
       name: "Dr. Edrian O. Geronimo",
       specializations: [
-        "Infectious Disease"
+        "adult", "senior", "preventive", "follow-up",
+        "cbc", "platelet", "esr", "abo",
+        "hbsag", "vdrl", "antiHCV", "hpylori",
+        "dengueIg", "dengueNs1", "dengueDuo", "typhidot"
       ],
       schedule: [
         { days: "Tue, Thu", time: "9:00 AM - 12:00 PM" }
@@ -109,7 +161,7 @@ const Homepage = () => {
     {
       id: 5,
       name: "Dr. Feb Golocan-Alquiza",
-      specializations: ["Nephrology"],
+      specializations: ["fbs", "rbs", "creatinine", "bun", "hba1c"],
       schedule: [
         { days: "Mon, Tue, Thu", time: "1:00 PM - 5:00 PM" }
       ]
@@ -117,7 +169,7 @@ const Homepage = () => {
     {
       id: 6,
       name: "Dr. Tanya Charissa Diomampo",
-      specializations: ["Nephrology"],
+      specializations: ["creatinine", "bun", "hba1c"],
       schedule: [
         { days: "Wed", time: "1:00 PM - 5:00 PM" },
         { days: "Sat", time: "10:00 AM - 1:00 PM" }
@@ -126,7 +178,7 @@ const Homepage = () => {
     {
       id: 7,
       name: "Dr. Maricar Josephine A. Geronimo",
-      specializations: ["Nephrology"],
+      specializations: ["lipid", "totalCh", "triglycerides", "hdl", "ldl", "fbs", "rbs"],
       schedule: [
         { days: "Fri", time: "1:00 PM - 5:00 PM" }
       ]
@@ -134,7 +186,7 @@ const Homepage = () => {
     {
       id: 8,
       name: "Dr. Elvira T. Lampacan",
-      specializations: ["OB-GYN"],
+      specializations: ["pregnancyT", "follow-up"],
       schedule: [
         { days: "Wed, Fri", time: "9:30 AM - 12:00 PM" },
         { days: "Thu", time: "1:00 PM - 3:00 PM" }
@@ -143,7 +195,7 @@ const Homepage = () => {
     {
       id: 9,
       name: "Dr. Clarissa Mae L. Lee",
-      specializations: ["OB-GYN"],
+      specializations: ["pregnancyT", "follow-up"],
       schedule: [
         { days: "Mon, Tue", time: "9:30 AM - 12:00 PM" },
         { days: "Sat", time: "1:00 PM - 3:00 PM" }
@@ -152,7 +204,7 @@ const Homepage = () => {
     {
       id: 10,
       name: "Dr. Herschel Charisse C. Rivera-Ang",
-      specializations: ["OB-GYN"],
+      specializations: ["pregnancyT", "follow-up"],
       schedule: [
         { days: "Mon - Wed", time: "1:00 PM - 3:00 PM" }
       ]
@@ -160,7 +212,7 @@ const Homepage = () => {
     {
       id: 11,
       name: "Dr. Cecille P. Pating",
-      specializations: ["OB-GYN"],
+      specializations: ["pregnancyT", "follow-up"],
       schedule: [
         { days: "Thu, Sat", time: "9:30 AM - 12:00 PM" },
         { days: "Fri", time: "1:00 PM - 3:00 PM" }
@@ -169,7 +221,7 @@ const Homepage = () => {
     {
       id: 12,
       name: "Dr. Richard S. Ang",
-      specializations: ["Orthopedics", "Urology"],
+      specializations: ["follow-up", "psa"],
       schedule: [
         { days: "Mon - Fri", time: "8:00 AM - 5:00 PM" }
       ]
@@ -177,7 +229,7 @@ const Homepage = () => {
     {
       id: 13,
       name: "Dr. Rajiv D. Laoagan",
-      specializations: ["General Surgery"],
+      specializations: ["generalSurgery"],
       schedule: [
         { days: "Thu", time: "8:00 AM - 5:00 PM" },
         { days: "Fri, Sat", time: "8:00 AM - 12:00 PM" }
@@ -186,7 +238,7 @@ const Homepage = () => {
     {
       id: 14,
       name: "Dr. Jefferson Richmond G. Chomenwey",
-      specializations: ["General Surgery"],
+      specializations: ["generalSurgery"],
       schedule: [
         { type: "byAppointment", note: "Book an appointment to arrange" }
       ]
@@ -194,12 +246,25 @@ const Homepage = () => {
     {
       id: 15,
       name: "Dr. Rhea Jeanne L. Awas",
-      specializations: ["ENT"],
+      specializations: ["ent"],
       schedule: [
         { days: "Mon, Tue, Wed", time: "8:00 AM - 5:00 PM" }
       ]
     }
   ];
+
+  // Filter doctors based on selected specialization
+  const getFilteredDoctors = () => {
+    if (selectedSpecialization === 'all') {
+      return doctors;
+    }
+
+    const categoryDoctorIds = specializationCategories[selectedSpecialization].doctorIds;
+
+    return doctors.filter(doctor => categoryDoctorIds.includes(doctor.id));
+  };
+
+  const filteredDoctors = getFilteredDoctors();
 
   return (
     <div className="flex w-full min-h-screen">
@@ -235,14 +300,40 @@ const Homepage = () => {
             <h2 className="text-xl font-bold text-gray-900 mb-4">Doctor Duty Schedule</h2>
             <p className="text-sm text-gray-600 mb-6">View our doctors' specializations and availability</p>
 
+            {/* Specialization Filter Buttons */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Filter by Specialization</h3>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(specializationCategories).map(([key, value]) => (
+                  <button
+                    key={key}
+                    onClick={() => setSelectedSpecialization(key)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedSpecialization === key
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                  >
+                    {value.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Results count */}
+              <div className="mt-4 text-sm text-gray-600">
+                Showing <span className="font-semibold">{filteredDoctors.length}</span> doctor{filteredDoctors.length !== 1 ? 's' : ''}
+                {selectedSpecialization !== 'all' && (
+                  <span> in <span className="font-semibold">{specializationCategories[selectedSpecialization].label}</span></span>
+                )}
+              </div>
+            </div>
+
             {/* Desktop Grid View */}
             <div className="hidden lg:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {doctors.map(doctor => (
+              {filteredDoctors.map(doctor => (
                 <div key={doctor.id} className="border border-gray-200 rounded-lg p-5 hover:shadow-lg transition-shadow bg-gradient-to-br from-white to-gray-50">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <h3 className="font-bold text-lg text-gray-900 mb-1">{doctor.name}</h3>
-                      {/* FIXED: Pass doctor.schedule array instead of doctor.schedule.days */}
                       {isDoctorAvailableToday(doctor.schedule) ? (
                         <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -259,7 +350,7 @@ const Homepage = () => {
 
                   <div className="space-y-3">
                     <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Specializations</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Services</p>
                       <div className="flex flex-wrap gap-1.5">
                         {doctor.specializations.map((spec, idx) => (
                           <span key={idx} className="inline-block bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full font-medium">
@@ -269,7 +360,6 @@ const Homepage = () => {
                       </div>
                     </div>
 
-                    {/* FIXED: Map through schedule array */}
                     <div className="pt-3 border-t border-gray-200">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Schedule</p>
                       <div className="space-y-2">
@@ -313,12 +403,11 @@ const Homepage = () => {
 
             {/* Mobile/Tablet List View */}
             <div className="lg:hidden space-y-4">
-              {doctors.map(doctor => (
+              {filteredDoctors.map(doctor => (
                 <div key={doctor.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-bold text-base text-gray-900">{doctor.name}</h3>
-                      {/* FIXED: Pass doctor.schedule array instead of doctor.schedule.days */}
                       {isDoctorAvailableToday(doctor.schedule) ? (
                         <div className="flex items-center gap-2 text-xs text-green-600 font-medium mt-1">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -345,7 +434,6 @@ const Homepage = () => {
                       </div>
                     </div>
 
-                    {/* FIXED: Map through schedule array */}
                     <div className="pt-2 border-t border-gray-100">
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Schedule</p>
                       <div className="space-y-2">
@@ -368,6 +456,19 @@ const Homepage = () => {
                 </div>
               ))}
             </div>
+
+            {/* No results message */}
+            {filteredDoctors.length === 0 && (
+              <div className="text-center py-12">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No doctors found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  No doctors available for this specialization.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

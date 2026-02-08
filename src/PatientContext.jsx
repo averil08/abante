@@ -32,6 +32,8 @@ export const PatientProvider = ({ children }) => {
       ? doctors.find(d => d.name === (dbPatient.assigned_doctor_name || dbPatient.physician)) || { name: (dbPatient.assigned_doctor_name || dbPatient.physician) }
       : null,
     isInactive: dbPatient.is_inactive || false,
+    rejectionReason: dbPatient.rejection_reason,
+    rejectedAt: dbPatient.rejected_at,
     // Keep raw DB ID for reference/updates
     dbId: dbPatient.id,
     patientEmail: dbPatient.patient_email // NEW: Add patient email for access control
@@ -487,29 +489,43 @@ export const PatientProvider = ({ children }) => {
     }
   };
 
-  const rejectAppointment = (patientId, reason) => {
-    console.log(`❌ Rejecting appointment ${patientId}. Reason: ${reason}`);
-    setPatients(prev =>
-      prev.map(p => {
-        if (p.id !== patientId) return p;
+  const rejectAppointment = async (patientId, reason) => {
+    try {
+      console.log(`❌ Rejecting appointment ${patientId}. Reason: ${reason}`);
 
-        const rejected = {
+      const rejectedAt = new Date().toISOString();
+      const updates = {
+        appointment_status: "rejected",
+        rejection_reason: reason,
+        rejected_at: rejectedAt,
+        in_queue: false,
+        queue_exit_time: rejectedAt
+      };
+
+      // 1. Sync to database via supabase directly for critical update
+      const { error } = await supabase
+        .from('patients')
+        .update(updates)
+        .eq('id', patientId);
+
+      if (error) throw error;
+
+      // 2. Update local state
+      setPatients(prev => prev.map(p => {
+        if (p.id !== patientId) return p;
+        return {
           ...p,
           appointmentStatus: "rejected",
           rejectionReason: reason,
-          rejectedAt: new Date().toISOString(),
+          rejectedAt: rejectedAt,
           inQueue: false,
-          queueExitTime: new Date().toISOString()
+          queueExitTime: rejectedAt
         };
+      }));
 
-        // Sync to database
-        syncPatientToDatabase(rejected).catch(err => {
-          console.error('⚠️ Database sync failed:', err);
-        });
-
-        return rejected;
-      })
-    );
+    } catch (error) {
+      console.error("Failed to reject appointment:", error);
+    }
   };
 
   const requeuePatient = (queueNo) => {

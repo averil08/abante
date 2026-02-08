@@ -15,6 +15,7 @@ function Signup() {
     phoneNumber: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -48,6 +49,7 @@ function Signup() {
       phoneNumber: "",
       email: "",
       password: "",
+      confirmPassword: "",
     });
   };
 
@@ -57,16 +59,16 @@ function Signup() {
 
     try {
       // 1. Basic Validation
-      if (!formData.fullName || !formData.phoneNumber || !formData.email || !formData.password) {
+      if (!formData.fullName || !formData.phoneNumber || !formData.email || !formData.password || !formData.confirmPassword) {
         showMessage("Validation Error", "Please fill in all required fields.", false);
         setIsSubmitting(false);
         return;
       }
 
-      // 2. Phone number validation
-      const phoneRegex = /^[\d\s\-\+\(\)]+$/;
+      // 2. Phone number validation (Strictly 11 digits)
+      const phoneRegex = /^\d{11}$/;
       if (!phoneRegex.test(formData.phoneNumber)) {
-        showMessage("Validation Error", "Please enter a valid phone number.", false);
+        showMessage("Validation Error", "Phone number must be exactly 11 digits and contain only numbers.", false);
         setIsSubmitting(false);
         return;
       }
@@ -78,14 +80,21 @@ function Signup() {
         return;
       }
 
-      // 4. Call registerUser with correct arguments (Matches your supabaseClient.js)
+      // 4. Password match validation
+      if (formData.password !== formData.confirmPassword) {
+        showMessage("Validation Error", "Passwords do not match. Please try again.", false);
+        setIsSubmitting(false);
+        return;
+      }
+
+      // 5. Call registerUser with correct arguments (Matches your supabaseClient.js)
       // registerUser(email, password, fullName, phoneNumber, role)
       const result = await registerUser(
         formData.email,
         formData.password,
         formData.fullName,
         formData.phoneNumber,
-        "patient" 
+        "patient"
       );
 
       if (result.success) {
@@ -113,7 +122,7 @@ function Signup() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
       <Card className="w-full max-w-md shadow-xl border-t-4 border-green-600">
         <div className="p-4 border-b border-gray-200">
-          <Button 
+          <Button
             onClick={() => navigate("/")}
             variant="outline"
             size="sm"
@@ -138,7 +147,7 @@ function Signup() {
         <CardContent>
           <form onSubmit={handlePatientSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name *</Label>
+              <Label htmlFor="fullName" className="text-red-600">Full Name *</Label>
               <Input
                 id="fullName"
                 type="text"
@@ -150,19 +159,20 @@ function Signup() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phoneNumber">Phone Number *</Label>
+              <Label htmlFor="phoneNumber" className="text-red-600">Phone Number *</Label>
               <Input
                 id="phoneNumber"
                 type="tel"
                 value={formData.phoneNumber}
                 onChange={handleInputChange}
-                placeholder="+63 912 345 6789"
+                placeholder="09123456789 (11 digits)"
                 required
+                maxLength={11}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email" className="text-red-600">Email *</Label>
               <Input
                 id="email"
                 type="email"
@@ -172,15 +182,28 @@ function Signup() {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
-              <Label htmlFor="password">Password *</Label>
+              <Label htmlFor="password" className="text-red-600">Password *</Label>
               <Input
                 id="password"
                 type="password"
                 value={formData.password}
                 onChange={handleInputChange}
                 placeholder="Min. 6 characters"
+                required
+                minLength={6}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword" className="text-red-600">Confirm Password *</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={formData.confirmPassword}
+                onChange={handleInputChange}
+                placeholder="Re-enter your password"
                 required
                 minLength={6}
               />
@@ -206,16 +229,16 @@ function Signup() {
             <div className="space-y-3">
               <Button
                 type="button"
-                onClick={() => navigate("/login?type=patient")} 
+                onClick={() => navigate("/login?type=patient")}
                 variant="outline"
                 className="w-full border-green-600 text-green-600"
               >
                 Already have an account? Log In
               </Button>
-              
+
               <Button
                 type="button"
-                onClick={() => navigate("/checkin?view=patient")} 
+                onClick={() => navigate("/checkin?view=patient")}
                 variant="outline"
                 className="w-full border-blue-600 text-blue-600"
               >

@@ -34,6 +34,9 @@ const Analytics = () => {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [showDateDropdown, setShowDateDropdown] = useState(false);
+  const [trendFilter, setTrendFilter] = useState('perHour'); // 'perHour', 'today', 'thisWeek'
+  const [patientStatsType, setPatientStatsType] = useState('walkin'); // 'walkin', 'appointment', 'noshow'
+  const [topStatsType, setTopStatsType] = useState('symptoms'); // 'symptoms', 'services'
 
   const getDateFilterLabel = () => {
     switch (dateFilter) {
@@ -136,18 +139,109 @@ const Analytics = () => {
     if (!filteredPatients || filteredPatients.length === 0) return {
       patientsPerDay: [], patientsPerHour: [], heatmapData: [],
       weeklyData: [], servedWalkIn: 0, servedAppointment: 0,
+      totalWalkIn: 0, totalAppointment: 0,
       noShowPatients: 0, topSymptoms: [], topServices: [],
-      ageGroups: {}, avgServiceTime: [], avgQueueTime: 0, topCorrelations: []
+      ageGroups: {}, avgServiceTime: [], avgQueueTime: 0, topCorrelations: [],
+      trendData: [],
+      predictionData: { range: '0–0', peakWindow: 'N/A', dayName: 'Tomorrow' },
+      queuePrediction: {
+        estimatedWait: 0,
+        description: "Waiting for data...",
+        example: "If a patient arrives now, the predicted waiting time is 0 minutes."
+      }
     };
-    const today = new Date();
+    const now = new Date();
+    const today = new Date(now);
     today.setHours(0, 0, 0, 0);
 
     const oneWeekAgo = new Date(today);
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    // --- TREND DATA CALCULATIONS (Local Filters) ---
+    // 1. Per Hour (Today)
+    const hourDataToday = Array.from({ length: 10 }, (_, i) => ({ hour: i + 8, count: 0 }));
+    patients.forEach(p => {
+      if (p.registeredAt) {
+        const d = new Date(p.registeredAt);
+        if (d >= today) {
+          const h = d.getHours();
+          if (h >= 8 && h <= 17) {
+            hourDataToday[h - 8].count++;
+          }
+        }
+      }
+    });
+
+    const formatHourLabel = (h) => {
+      if (h === 12) return '12 PM';
+      if (h < 12) return `${h} AM`;
+      return `${h - 12} PM`;
+    };
+
+    const hourlyTrend = hourDataToday.map(d => ({
+      label: formatHourLabel(d.hour),
+      count: d.count
+    }));
+
+    // 2. Today (Daily Trend for This Week)
+    const dayNamesSentence = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const startOfThisWeek = new Date(today);
+    // Adjust to this week's Monday
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    startOfThisWeek.setDate(diff);
+
+    const dailyDataThisWeek = Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(startOfThisWeek);
+      d.setDate(startOfThisWeek.getDate() + i);
+      return {
+        label: dayNamesSentence[i],
+        date: d.toISOString().split('T')[0],
+        count: 0
+      };
+    });
+
+    patients.forEach(p => {
+      if (p.registeredAt) {
+        const dStr = new Date(p.registeredAt).toISOString().split('T')[0];
+        const dayMatch = dailyDataThisWeek.find(day => day.date === dStr);
+        if (dayMatch) dayMatch.count++;
+      }
+    });
+
+    // 3. This Week (Weekly Trend for Last 8 Weeks)
+    const weeklyTrend = [];
+    for (let i = 7; i >= 0; i--) {
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - today.getDay() - (i * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      const count = patients.filter(p => {
+        if (!p.registeredAt) return false;
+        const pDate = new Date(p.registeredAt);
+        return pDate >= weekStart && pDate <= weekEnd;
+      }).length;
+
+      weeklyTrend.push({
+        label: `Week ${8 - i}`,
+        count: count
+      });
+    }
+
+    const trendDataMap = {
+      perHour: hourlyTrend,
+      today: dailyDataThisWeek.map(d => ({ label: d.label, count: d.count })),
+      thisWeek: weeklyTrend
+    };
+
+    // --- END TREND DATA CALCULATIONS ---
+
     // Patients per day of week
     const dayOfWeekData = { Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
     filteredPatients.forEach(p => {
       if (p.registeredAt) {
@@ -199,7 +293,9 @@ const Analytics = () => {
       return regDate >= oneWeekAgo;
     });*/}
 
-    // Walk-in vs Appointment counts (served only)
+    // Walk-in vs Appointment counts
+    const totalWalkIn = filteredPatients.filter(p => p.type === "Walk-in").length;
+    const totalAppointment = filteredPatients.filter(p => p.type === "Appointment").length;
     const servedWalkIn = filteredPatients.filter(p => p.type === "Walk-in" && p.status === "done").length;
     const servedAppointment = filteredPatients.filter(p => p.type === "Appointment" && p.status === "done").length;
     // No Show Patients (cancelled)
@@ -300,15 +396,17 @@ const Analytics = () => {
       }
     });
 
-    // Patient count trend by weeks (last 8 weeks)
+    // Patient count trend by weeks (last 8 weeks) - Use raw patients for full trend
     const weeklyData = [];
     for (let i = 7; i >= 0; i--) {
       const weekStart = new Date(today);
-      weekStart.setDate(weekStart.getDate() - (i * 7));
+      weekStart.setDate(weekStart.getDate() - (i * 7) - today.getDay());
+      weekStart.setHours(0, 0, 0, 0);
       const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
 
-      const count = filteredPatients.filter(p => {
+      const count = patients.filter(p => {
         if (!p.registeredAt) return false;
         const pDate = new Date(p.registeredAt);
         return pDate >= weekStart && pDate <= weekEnd;
@@ -398,6 +496,58 @@ const Analytics = () => {
       ? Math.round(queueTimeData.reduce((sum, time) => sum + time, 0) / queueTimeData.length)
       : 0;
 
+    // --- QUEUE TIME PREDICTION LOGIC ---
+    const waitTimesByHour = {};
+    const waitTimesByService = {};
+
+    patients.forEach(p => {
+      if (p.registeredAt && p.calledAt) {
+        const wait = Math.round((new Date(p.calledAt) - new Date(p.registeredAt)) / 60000);
+        const h = new Date(p.registeredAt).getHours();
+
+        if (wait > 0 && wait <= 240) {
+          if (!waitTimesByHour[h]) waitTimesByHour[h] = { total: 0, count: 0 };
+          waitTimesByHour[h].total += wait;
+          waitTimesByHour[h].count++;
+
+          if (p.services) {
+            p.services.forEach(s => {
+              const label = serviceLabels[s] || s;
+              if (!waitTimesByService[label]) waitTimesByService[label] = { total: 0, count: 0 };
+              waitTimesByService[label].total += wait;
+              waitTimesByService[label].count++;
+            });
+          }
+        }
+      }
+    });
+
+    const currentWaitingCount = patients.filter(p => !p.calledAt && p.status === 'waiting').length;
+
+    const getPredictedWait = (h, sLabel) => {
+      const hData = waitTimesByHour[h];
+      const sData = waitTimesByService[sLabel];
+
+      const hAvg = hData ? hData.total / hData.count : avgQueueTime || 15;
+      const sAvg = sData ? sData.total / sData.count : avgQueueTime || 15;
+
+      const baseWait = (hAvg + sAvg) / 2;
+      const congestionFactor = currentWaitingCount * 5;
+      return Math.round(baseWait + congestionFactor);
+    };
+
+    // Example Prediction for 10 AM and 'follow-up' (standardized consultation)
+    const exampleHour = 10;
+    const exampleServiceKey = 'follow-up';
+    const exampleServiceLabel = serviceLabels[exampleServiceKey] || "Consultation";
+    const predictedExampleWait = getPredictedWait(exampleHour, exampleServiceLabel);
+
+    const queuePrediction = {
+      estimatedWait: getPredictedWait(now.getHours(), "General Consultation"),
+      description: `If a patient arrives at 10 AM for ${exampleServiceLabel}, the predicted waiting time is ${predictedExampleWait} minutes.`,
+      example: `Based on ${currentWaitingCount} currently waiting patients and historical averages.`
+    };
+
     // Service-to-Symptom Correlation
     const symptomServiceMap = {};
 
@@ -427,15 +577,58 @@ const Analytics = () => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
+    // --- PATIENT VOLUME PREDICTION ---
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const tomorrowDayIdx = tomorrow.getDay(); // 0-6
+    const tomorrowDayName = dayNames[tomorrowDayIdx];
+
+    // Filter all historical patients who registered on this same weekday
+    const historicalSameDayPatients = patients.filter(p => {
+      if (!p.registeredAt) return false;
+      return new Date(p.registeredAt).getDay() === tomorrowDayIdx;
+    });
+
+    // Count unique dates for this weekday to calculate average
+    const uniqueDates = new Set(historicalSameDayPatients.map(p =>
+      new Date(p.registeredAt).toISOString().split('T')[0]
+    )).size || 1;
+
+    const avgForTomorrow = historicalSameDayPatients.length / uniqueDates;
+    const minPred = Math.max(0, Math.floor(avgForTomorrow * 0.9));
+    const maxPred = Math.ceil(avgForTomorrow * 1.1) + (tomorrowDayIdx === 0 || tomorrowDayIdx === 6 ? 0 : 5); // Add buffer for weekdays
+
+    // Peak hour for this specific weekday
+    const weekdayHourCounts = {};
+    historicalSameDayPatients.forEach(p => {
+      const h = new Date(p.registeredAt).getHours();
+      if (h >= 8 && h <= 17) {
+        weekdayHourCounts[h] = (weekdayHourCounts[h] || 0) + 1;
+      }
+    });
+
+    const peakHourTomorrow = Object.entries(weekdayHourCounts)
+      .sort((a, b) => b[1] - a[1])[0]?.[0] || 9;
+
+    const peakStart = formatTo12Hour(peakHourTomorrow).replace(':00', '');
+    const peakEnd = formatTo12Hour(parseInt(peakHourTomorrow) + 2).replace(':00', '');
+
+    const predictionData = {
+      range: `${minPred}–${maxPred}`,
+      peakWindow: `${peakStart}–${peakEnd}`,
+      dayName: tomorrowDayName
+    };
+
     return {
       patientsPerDay,
       patientsPerHour,
       heatmapData,
       weeklyData,
-      //totalToday: todayPatients.length,
-      //totalWeek: weekPatients.length,
+      predictionData,
       servedWalkIn,
       servedAppointment,
+      totalWalkIn,
+      totalAppointment,
       noShowPatients,
       topSymptoms,
       topServices,
@@ -443,10 +636,14 @@ const Analytics = () => {
       ageGroups,
       avgServiceTime,
       avgQueueTime,
-      topCorrelations
-      //peakHours
+      topCorrelations,
+      queuePrediction,
+      hourlyTrend,
+      dailyTrend: dailyDataThisWeek.map(d => ({ label: d.label, count: d.count })),
+      weeklyTrend,
+      trendData: trendDataMap[trendFilter]
     };
-  }, [filteredPatients, avgWaitTime]);
+  }, [filteredPatients, avgWaitTime, trendFilter]);
 
   // Colors for charts
   const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -535,17 +732,19 @@ const Analytics = () => {
 
     // NEW: Format Analysis Period precisely
     let analysisPeriod = getDateFilterLabel();
+    const formatSmallDate = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
     if (dateFilter === 'custom' && customStartDate && customEndDate) {
-      analysisPeriod = `${customStartDate} to ${customEndDate}`;
+      analysisPeriod = `${formatSmallDate(new Date(customStartDate))} to ${formatSmallDate(new Date(customEndDate))}`;
     } else if (dateFilter === 'thisWeek' || dateFilter === 'lastWeek') {
       const offset = dateFilter === 'thisWeek' ? 0 : 7;
       const start = new Date(now);
       start.setDate(now.getDate() - now.getDay() - offset);
       const end = new Date(start);
       end.setDate(start.getDate() + 6);
-      analysisPeriod = `${start.toLocaleDateString()} to ${end.toLocaleDateString()} (${getDateFilterLabel()})`;
+      analysisPeriod = `${formatSmallDate(start)} to ${formatSmallDate(end)} (${getDateFilterLabel()})`;
     } else if (dateFilter === 'today') {
-      analysisPeriod = dateStr;
+      analysisPeriod = formatSmallDate(now);
     }
 
     // Add logo - centered above clinic name
@@ -574,7 +773,6 @@ const Analytics = () => {
     doc.text(`Analysis Period: ${analysisPeriod}`, 14, 74);
 
     // Right column (aligned to the right)
-    doc.text(`Average Wait Time: ${avgWaitTime} mins`, 196, 68, { align: 'right' });
     doc.text(`Total Patients: ${filteredPatients.length}`, 196, 74, { align: 'right' });
 
     let yPosition = 86;
@@ -600,34 +798,25 @@ const Analytics = () => {
     });
     yPosition = doc.lastAutoTable.finalY + 10;
 
-    // Check if we need a new page
-    if (yPosition > 250) {
-      doc.addPage();
-      yPosition = 20;
-    }
-
-    // Patients per Day of Week
+    // AI Predictions Section
     doc.setFont(undefined, 'bold');
     doc.setFontSize(12);
-    doc.text('Patients per Day', 14, yPosition);
+    doc.text('Intelligent Predictions', 14, yPosition);
     yPosition += 6;
 
     autoTable(doc, {
       startY: yPosition,
-      head: [['Day', 'Patient Count']],
-      body: analytics.patientsPerDay.map(({ day, patients }) => [day, patients]),
-      headStyles: { fillColor: [16, 185, 129] },
+      head: [['Prediction Type', 'Forecast Details']],
+      body: [
+        ['Patient Volume (Tomorrow)', `${analytics.predictionData.range} patients, Peak Window: ${analytics.predictionData.peakWindow}`],
+        ['Queue Wait Time', `${analytics.queuePrediction.estimatedWait} mins estimated waiting time`],
+        ['Wait Time Example', analytics.queuePrediction.description]
+      ],
+      headStyles: { fillColor: [59, 130, 246] },
       styles: { fontSize: 9 },
       margin: { left: 14 }
     });
-
     yPosition = doc.lastAutoTable.finalY + 10;
-
-    // Check if we need a new page
-    if (yPosition > 250) {
-      doc.addPage();
-      yPosition = 20;
-    }
 
     // Average Service Time per Service
     doc.setFont(undefined, 'bold');
@@ -657,23 +846,41 @@ const Analytics = () => {
       yPosition += 10;
     }
 
-    // Check if we need a new page
+    // Patient Count Trend (Dynamic based on filter)
     if (yPosition > 250) {
       doc.addPage();
       yPosition = 20;
     }
 
-    // Weekly Patient Trend
+    let trendTitle = 'Patient Count Trend';
+    let trendHead = [['Time', 'Patient Count']];
+    let trendBody = [];
+    let trendColor = [139, 92, 246]; // Default purple
+
+    if (dateFilter === 'today') {
+      trendTitle = 'Hourly Patient Trend (Today)';
+      trendBody = analytics.hourlyTrend.map(d => [d.label, d.count]);
+      trendColor = [59, 130, 246]; // Blue
+    } else if (dateFilter === 'thisWeek' || dateFilter === 'lastWeek') {
+      trendTitle = `Daily Patient Trend (${getDateFilterLabel()})`;
+      trendBody = analytics.dailyTrend.map(d => [d.label, d.count]);
+      trendColor = [16, 185, 129]; // Green
+    } else {
+      trendTitle = 'Weekly Patient Trend (Last 8 Weeks)';
+      trendBody = analytics.weeklyTrend.map(d => [d.label, d.count]);
+      trendColor = [139, 92, 246]; // Purple
+    }
+
     doc.setFont(undefined, 'bold');
     doc.setFontSize(12);
-    doc.text('Patient Count Trend (Last 8 Weeks)', 14, yPosition);
+    doc.text(trendTitle, 14, yPosition);
     yPosition += 6;
 
     autoTable(doc, {
       startY: yPosition,
-      head: [['Week', 'Patient Count']],
-      body: analytics.weeklyData.map(({ week, patients }) => [week, patients]),
-      headStyles: { fillColor: [139, 92, 246] },
+      head: trendHead,
+      body: trendBody,
+      headStyles: { fillColor: trendColor },
       styles: { fontSize: 9 },
       margin: { left: 14 }
     });
@@ -815,6 +1022,11 @@ const Analytics = () => {
 }*/}
 
     // Symptom-to-Service Correlation
+    if (yPosition > 220) {
+      doc.addPage();
+      yPosition = 20;
+    }
+
     doc.setFont(undefined, 'bold');
     doc.setFontSize(12);
     doc.text('Symptom-to-Service Correlation (Top 10)', 14, yPosition);
@@ -852,41 +1064,6 @@ const Analytics = () => {
       yPosition = 20;
     }
 
-    // Peak Registration Hours Heatmap
-    doc.setFont(undefined, 'bold');
-    doc.setFontSize(12);
-    doc.text('Peak Hours Heatmap (Mon-Sat, 8AM-5PM)', 14, yPosition);
-    yPosition += 6;
-
-    // Prepare heatmap data for table
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const formatHourLabel = (hour) => {
-      if (hour === 12) return '12PM';
-      if (hour < 12) return `${hour}AM`;
-      return `${hour - 12}PM`;
-    };
-
-    const heatmapTableData = [];
-    for (let hour = 8; hour <= 17; hour++) {
-      const rowData = [formatHourLabel(hour)];
-      for (let day = 1; day <= 6; day++) {
-        const cell = analytics.heatmapData.find(d => d.hour === hour && d.day === day);
-        rowData.push(cell?.count || 0);
-      }
-      heatmapTableData.push(rowData);
-    }
-
-    autoTable(doc, {
-      startY: yPosition,
-      head: [['Time', ...days]],
-      body: heatmapTableData,
-      headStyles: { fillColor: [16, 185, 129], halign: 'center' },
-      styles: { fontSize: 8, halign: 'center' },
-      margin: { left: 14 },
-      columnStyles: {
-        0: { fontStyle: 'bold', fillColor: [243, 244, 246] }
-      }
-    });
 
     // Save the PDF
     doc.save(`Analytics_Report_${now.toISOString().split('T')[0]}.pdf`);
@@ -1074,74 +1251,152 @@ const Analytics = () => {
         <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
           {/* Patient Volume Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription className="flex items-center gap-2">
-                  <Activity className="w-4 h-4" />
-                  Walk-in Served
+            <Card className="lg:col-span-2 shadow-sm border-gray-100">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <CardDescription className="flex items-center gap-2 font-semibold text-gray-700">
+                  {patientStatsType === 'walkin' ? <Activity className="w-5 h-5 text-purple-600" /> :
+                    patientStatsType === 'appointment' ? <Calendar className="w-5 h-5 text-orange-600" /> :
+                      <XCircle className="w-5 h-5 text-red-600" />}
+                  {patientStatsType === 'walkin' ? "Total Walk-ins" :
+                    patientStatsType === 'appointment' ? "Total Appointments" :
+                      "Total No-shows"}
                 </CardDescription>
+                <div className="flex bg-gray-100 p-1 rounded-lg shrink-0 ml-4">
+                  <button
+                    onClick={() => setPatientStatsType('walkin')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all whitespace-nowrap ${patientStatsType === 'walkin' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    Walk-in
+                  </button>
+                  <button
+                    onClick={() => setPatientStatsType('appointment')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all whitespace-nowrap ${patientStatsType === 'appointment' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    Appt
+                  </button>
+                  <button
+                    onClick={() => setPatientStatsType('noshow')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all whitespace-nowrap ${patientStatsType === 'noshow' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    No-Show
+                  </button>
+                </div>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-purple-600">{analytics.servedWalkIn}</p>
+                <div className="flex items-baseline gap-2">
+                  <p className={`text-4xl font-bold tracking-tight ${patientStatsType === 'walkin' ? 'text-purple-600' :
+                    patientStatsType === 'appointment' ? 'text-orange-600' :
+                      'text-red-600'
+                    }`}>
+                    {patientStatsType === 'walkin' ? analytics.totalWalkIn :
+                      patientStatsType === 'appointment' ? analytics.totalAppointment :
+                        analytics.noShowPatients}
+                  </p>
+                  <span className="text-gray-500 text-sm font-medium">Patients</span>
+                </div>
+                <div className="text-xs text-gray-500 mt-4 flex items-center gap-1.5">
+                  <div className={`w-1.5 h-1.5 rounded-full ${patientStatsType === 'walkin' ? 'bg-purple-400' :
+                    patientStatsType === 'appointment' ? 'bg-orange-400' :
+                      'bg-red-400'
+                    }`} />
+                  {patientStatsType === 'walkin' ? `${analytics.servedWalkIn} served so far` :
+                    patientStatsType === 'appointment' ? `${analytics.servedAppointment} served so far` :
+                      "Total cancelled or missed appointments"}
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="shadow-sm border-indigo-100 bg-indigo-50/10">
               <CardHeader className="pb-3">
-                <CardDescription className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Appointments Served
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-orange-600">{analytics.servedAppointment}</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription className="flex items-center gap-2">
-                  <XCircle className="w-4 h-4" />
-                  No-show Patients
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-3xl font-bold text-red-600">{analytics.noShowPatients}</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardDescription className="flex items-center gap-2">
+                <CardDescription className="flex items-center gap-2 font-medium text-indigo-700">
                   <Clock className="w-4 h-4" />
-                  Avg Queue Time
+                  Queue Time Prediction
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold text-indigo-600">{analytics.avgQueueTime} mins</p>
-                <p className="text-xs text-gray-500 mt-2">Time before service starts</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-3xl font-bold text-indigo-700">{analytics.queuePrediction.estimatedWait} mins</p>
+                  <span className="text-xs text-indigo-500 font-medium">Est. Wait</span>
+                </div>
+                <p className="text-[11px] text-indigo-600/80 mt-2 leading-relaxed italic">
+                  "{analytics.queuePrediction.description}"
+                </p>
+                <p className="text-[10px] text-gray-500 mt-1">
+                  {analytics.queuePrediction.example}
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm border-blue-100 bg-blue-50/30">
+              <CardHeader className="pb-3">
+                <CardDescription className="flex items-center gap-2 font-medium text-blue-700">
+                  <TrendingUp className="w-4 h-4" />
+                  Volume Prediction
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-3xl font-bold text-blue-700">{analytics.predictionData.range}</p>
+                <p className="text-[11px] text-blue-600/80 mt-2 leading-relaxed">
+                  The system predicts <span className="font-semibold">{analytics.predictionData.range}</span> patients for {analytics.predictionData.dayName},
+                  with peak volume between <span className="font-semibold">{analytics.predictionData.peakWindow}</span>.
+                </p>
               </CardContent>
             </Card>
           </div>
 
           {/* Bar Charts Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Patients per Day */}
+            {/* Symptom-to-Service Correlation */}
             <Card>
               <CardHeader>
-                <CardTitle>Patients per Day</CardTitle>
-                <CardDescription>Distribution of patient visits by weekday</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  <ChartNoAxesCombined className="w-5 h-5 text-purple-600" />
+                  Symptom-to-Service Correlation
+                </CardTitle>
+                <CardDescription>Which symptoms lead to which services (Top 10)</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={analytics.patientsPerDay}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="day" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="patients" fill="#10b981" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {analytics.topCorrelations.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={analytics.topCorrelations} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis
+                        type="category"
+                        dataKey={(entry) => `${entry.symptom} → ${entry.service}`}
+                        width={150}
+                        tick={{ fontSize: 10 }}
+                      />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload;
+                            return (
+                              <div className="bg-white p-3 border rounded-lg shadow-lg">
+                                <p className="font-semibold text-sm">{data.symptom}</p>
+                                <p className="text-sm text-gray-600">→ {data.service}</p>
+                                <p className="text-sm font-medium text-purple-600">{data.count} patients</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar dataKey="count" fill="#8b5cf6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <ChartNoAxesCombined className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <p>No correlation data available yet</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Patient data with both symptoms and services will appear here
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -1199,89 +1454,146 @@ const Analytics = () => {
             </Card>
           </div>
 
-          {/* Patient Count Trend by Weeks */}
+          {/* Patient Count Trend */}
           <Card>
-            <CardHeader>
-              <CardTitle>Patient Count Trend (8 Weeks)</CardTitle>
-              <CardDescription>Weekly patient volume over time</CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+              <div>
+                <CardTitle>Patient Count Trend</CardTitle>
+                <CardDescription>
+                  {trendFilter === 'perHour' ? "Hourly patient volume (Today)" :
+                    trendFilter === 'today' ? "Daily patient volume (This Week)" :
+                      "Weekly patient volume (Last 8 Weeks)"}
+                </CardDescription>
+              </div>
+              <div className="flex bg-gray-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setTrendFilter('perHour')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${trendFilter === 'perHour' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  Per Hour
+                </button>
+                <button
+                  onClick={() => setTrendFilter('today')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${trendFilter === 'today' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  Per Day
+                </button>
+                <button
+                  onClick={() => setTrendFilter('thisWeek')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${trendFilter === 'thisWeek' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  8 Weeks
+                </button>
+              </div>
             </CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={analytics.weeklyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="patients" stroke="#8b5cf6" strokeWidth={2} />
+                <LineChart data={analytics.trendData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                  <XAxis
+                    dataKey="label"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: '#6b7280', fontSize: 12 }}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#3b82f6"
+                    strokeWidth={3}
+                    dot={{ fill: '#3b82f6', r: 4, strokeWidth: 2, stroke: '#fff' }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                    name="Patients"
+                  />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
 
-          {/* Symptoms & Services */}
+          {/* Symptoms & Services and Age Distribution Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Symptoms & Services Consolidated */}
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-red-600" />
-                  Most Prevalent Symptoms
-                </CardTitle>
-                <CardDescription>Top 5 reported symptoms</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    {topStatsType === 'symptoms' ? <Activity className="w-5 h-5 text-red-600" /> : <Stethoscope className="w-5 h-5 text-green-600" />}
+                    {topStatsType === 'symptoms' ? "Most Prevalent Symptoms" : "Most Requested Services"}
+                  </CardTitle>
+                  <CardDescription>
+                    {topStatsType === 'symptoms' ? "Top 5 reported symptoms" : "Top 5 medical services"}
+                  </CardDescription>
+                </div>
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => setTopStatsType('symptoms')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${topStatsType === 'symptoms' ? 'bg-white shadow text-red-600' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    Symptoms
+                  </button>
+                  <button
+                    onClick={() => setTopStatsType('services')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${topStatsType === 'services' ? 'bg-white shadow text-green-600' : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                  >
+                    Services
+                  </button>
+                </div>
               </CardHeader>
               <CardContent>
-                {analytics.topSymptoms.length > 0 ? (
-                  <div className="space-y-3">
-                    {analytics.topSymptoms.map(([symptom, count], idx) => (
-                      <div key={symptom} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-sm">
-                            {idx + 1}
+                {topStatsType === 'symptoms' ? (
+                  analytics.topSymptoms.length > 0 ? (
+                    <div className="space-y-3">
+                      {analytics.topSymptoms.map(([symptom, count], idx) => (
+                        <div key={symptom} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center font-bold text-sm">
+                              {idx + 1}
+                            </div>
+                            <span className="font-medium text-gray-900">{symptom}</span>
                           </div>
-                          <span className="font-medium text-gray-900">{symptom}</span>
+                          <Badge className="bg-red-600">{count} patients</Badge>
                         </div>
-                        <Badge className="bg-red-600">{count} patients</Badge>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 text-center py-8">No symptom data available</p>
+                  )
                 ) : (
-                  <p className="text-gray-400 text-center py-8">No symptom data available</p>
+                  analytics.topServices.length > 0 ? (
+                    <div className="grid grid-cols-1 gap-3">
+                      {analytics.topServices.map(([service, count], idx) => (
+                        <div key={service} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-sm">
+                              {idx + 1}
+                            </div>
+                            <span className="font-medium text-gray-900">{service}</span>
+                          </div>
+                          <Badge className="bg-green-600">{count} requests</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 text-center py-8">No service data available</p>
+                  )
                 )}
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Stethoscope className="w-5 h-5 text-green-600" />
-                  Most Requested Services
-                </CardTitle>
-                <CardDescription>Top 5 medical services</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {analytics.topServices.length > 0 ? (
-                  <div className="space-y-3">
-                    {analytics.topServices.map(([service, count], idx) => (
-                      <div key={service} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-sm">
-                            {idx + 1}
-                          </div>
-                          <span className="font-medium text-gray-900">{service}</span>
-                        </div>
-                        <Badge className="bg-green-600">{count} requests</Badge>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-400 text-center py-8">No service data available</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Age Distribution & Wait Time */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Age Distribution */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1315,97 +1627,8 @@ const Analytics = () => {
                 </div>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ChartNoAxesCombined className="w-5 h-5 text-purple-600" />
-                  Symptom-to-Service Correlation
-                </CardTitle>
-                <CardDescription>Which symptoms lead to which services (Top 10)</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {analytics.topCorrelations.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={analytics.topCorrelations} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis
-                        type="category"
-                        dataKey={(entry) => `${entry.symptom} → ${entry.service}`}
-                        width={150}
-                        tick={{ fontSize: 10 }}
-                      />
-                      <Tooltip
-                        content={({ active, payload }) => {
-                          if (active && payload && payload.length) {
-                            const data = payload[0].payload;
-                            return (
-                              <div className="bg-white p-3 border rounded-lg shadow-lg">
-                                <p className="font-semibold text-sm">{data.symptom}</p>
-                                <p className="text-sm text-gray-600">→ {data.service}</p>
-                                <p className="text-sm font-medium text-purple-600">{data.count} patients</p>
-                              </div>
-                            );
-                          }
-                          return null;
-                        }}
-                      />
-                      <Bar dataKey="count" fill="#8b5cf6" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <ChartNoAxesCombined className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                    <p>No correlation data available yet</p>
-                    <p className="text-sm text-gray-400 mt-1">
-                      Patient data with both symptoms and services will appear here
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
-          {/* Peak Hours Line Graph */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Peak Hours Distribution</CardTitle>
-              <CardDescription>Patient arrival patterns by hour (Mon-Sat, 8AM-5PM)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={350}>
-                <LineChart
-                  data={analytics.patientsPerHour}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="hour"
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    interval={0}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis
-                    label={{ value: 'Number of Patients', angle: -90, position: 'insideLeft' }}
-                    width={60}
-                  />
-                  <Tooltip />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="patients"
-                    stroke="#10b981"
-                    strokeWidth={3}
-                    dot={{ fill: '#10b981', r: 4 }}
-                    activeDot={{ r: 6 }}
-                    name="Patients"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+
         </div>
       </div>
     </div>

@@ -34,6 +34,9 @@ export const PatientProvider = ({ children }) => {
     isInactive: dbPatient.is_inactive || false,
     rejectionReason: dbPatient.rejection_reason,
     rejectedAt: dbPatient.rejected_at,
+    calledAt: dbPatient.called_at,
+    completedAt: dbPatient.completed_at,
+    queueExitTime: dbPatient.queue_exit_time,
     // Keep raw DB ID for reference/updates
     dbId: dbPatient.id,
     patientEmail: dbPatient.patient_email // NEW: Add patient email for access control
@@ -154,7 +157,29 @@ export const PatientProvider = ({ children }) => {
   }, [patients, isLoadingFromDB]);
 
   const [currentServing, setCurrentServing] = useState(null); // Start at null when loading from DB
-  const [avgWaitTime, setAvgWaitTime] = useState(15);
+
+  // ✅ NEW: Dynamic Average Wait Time calculation
+  const avgWaitTime = useMemo(() => {
+    const queueTimeData = [];
+    patients.forEach(p => {
+      // Only look at patients who have been called (have both registeredAt and calledAt)
+      if (p.registeredAt && p.calledAt) {
+        const registeredTime = new Date(p.registeredAt);
+        const calledTime = new Date(p.calledAt);
+        const queueTimeMinutes = Math.round((calledTime - registeredTime) / 60000);
+
+        // Only count reasonable times (1-240 minutes)
+        if (queueTimeMinutes > 0 && queueTimeMinutes <= 240) {
+          queueTimeData.push(queueTimeMinutes);
+        }
+      }
+    });
+
+    return queueTimeData.length > 0
+      ? Math.round(queueTimeData.reduce((sum, time) => sum + time, 0) / queueTimeData.length)
+      : 15; // Default to 15 if no data
+  }, [patients]);
+
   const [activeDoctors, setActiveDoctors] = useState([]);
 
   const [doctorCurrentServing, setDoctorCurrentServing] = useState(() => {

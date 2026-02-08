@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { doctors } from './doctorData';
 import { Label } from '@/components/ui/label';
 import Sidebar from "@/components/Sidebar";
-import { Clock, TrendingUp, Users, XCircle, CheckCircle2, Download, ChevronDown } from 'lucide-react';
+import { Clock, TrendingUp, Users, XCircle, CheckCircle2, Download, ChevronDown, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import logoImage from '@/assets/partner-logo.jpg'
@@ -21,6 +21,12 @@ const Dashboard = () => {
   const [selectedDoctor, setSelectedDoctor] = useState(null); // null = general view, number = specific doctor
   const [viewMode, setViewMode] = useState('general'); // 'general' or 'doctor'
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
+
+  // NEW: Date Filtering States
+  const [dateFilter, setDateFilter] = useState('today'); // 'today', 'thisWeek', 'lastWeek', 'custom'
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [showDateDropdown, setShowDateDropdown] = useState(false);
 
   // Add to the destructured context (around line 32)
   const {
@@ -71,6 +77,71 @@ const Dashboard = () => {
     return doctor ? doctor.name : 'Select Doctor';
   };
 
+  const getDateFilterLabel = () => {
+    switch (dateFilter) {
+      case 'today': return 'Today';
+      case 'thisWeek': return 'This Week';
+      case 'lastWeek': return 'Last Week';
+      case 'custom': return 'Custom Range';
+      default: return 'Today';
+    }
+  };
+
+  const isWithinDateRange = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    const now = new Date();
+
+    // Set 'now' as the reference for today
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+
+    if (dateFilter === 'today') {
+      return date >= startOfToday && date <= endOfToday;
+    }
+
+    if (dateFilter === 'thisWeek') {
+      // Start of week = Sunday
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      // End of week = Saturday
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+
+      return date >= startOfWeek && date <= endOfWeek;
+    }
+
+    if (dateFilter === 'lastWeek') {
+      // Start of last week = Previous Sunday
+      const startOfLastWeek = new Date(now);
+      startOfLastWeek.setDate(now.getDate() - now.getDay() - 7);
+      startOfLastWeek.setHours(0, 0, 0, 0);
+
+      // End of last week = Previous Saturday
+      const endOfLastWeek = new Date(startOfLastWeek);
+      endOfLastWeek.setDate(startOfLastWeek.getDate() + 6);
+      endOfLastWeek.setHours(23, 59, 59, 999);
+
+      return date >= startOfLastWeek && date <= endOfLastWeek;
+    }
+
+    if (dateFilter === 'custom') {
+      if (!customStartDate || !customEndDate) return true;
+      const start = new Date(customStartDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(customEndDate);
+      end.setHours(23, 59, 59, 999);
+      return date >= start && date <= end;
+    }
+
+    return true;
+  };
+
   // Download PDF Report Function
   const downloadReport = () => {
     const doc = new jsPDF();
@@ -89,6 +160,22 @@ const Dashboard = () => {
     const isDoctorView = viewMode === 'doctor' && selectedDoctor;
     const doctorName = isDoctorView ? doctors.find(d => d.id === selectedDoctor)?.name : 'All Doctors';
     const reportTitle = isDoctorView ? `${doctorName} - Queue Report` : 'Dashboard Report (All Doctors)';
+
+    // NEW: Format Analysis Period
+    let analysisPeriod = getDateFilterLabel();
+    if (dateFilter === 'custom' && customStartDate && customEndDate) {
+      analysisPeriod = `${customStartDate} to ${customEndDate}`;
+    } else if (dateFilter === 'today') {
+      analysisPeriod = dateStr;
+    } else if (dateFilter === 'thisWeek' || dateFilter === 'lastWeek') {
+      const now = new Date();
+      const offset = dateFilter === 'thisWeek' ? 0 : 7;
+      const start = new Date(now);
+      start.setDate(now.getDate() - now.getDay() - offset);
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      analysisPeriod = `${start.toLocaleDateString()} to ${end.toLocaleDateString()} (${getDateFilterLabel()})`;
+    }
 
     // Helper function to format services and symptoms
     const formatArray = (arr) => {
@@ -119,7 +206,7 @@ const Dashboard = () => {
 
     // Left column
     doc.text(`Generated: ${dateStr} at ${timeStr}`, 14, 68);
-    doc.text(`Analysis Period: ${dateStr}`, 14, 74);
+    doc.text(`Analysis Period: ${analysisPeriod}`, 14, 74);
 
     // Right column (aligned to the right)
     doc.text(`Doctor: ${doctorName}`, 196, 68, { align: 'right' });
@@ -139,116 +226,118 @@ const Dashboard = () => {
 
     let yPosition = 114;
 
-    // Active Queue Patients
-    doc.setFont(undefined, 'bold');
-    doc.setFontSize(12);
-    doc.text('Active Queue Patients', 14, yPosition);
-    yPosition += 6;
+    // Active Queue Patients - ONLY FOR TODAY
+    if (dateFilter === 'today') {
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(12);
+      doc.text('Active Queue Patients', 14, yPosition);
+      yPosition += 6;
 
-    if (filteredQueuePatients.length > 0) {
-      autoTable(doc, {
-        startY: yPosition,
-        head: [['Queue #', 'Name', 'Age', 'Phone', 'Doctor', 'Type', 'Symptoms', 'Services', 'Status']],
-        body: filteredQueuePatients.map(patient => [
-          `#${String(patient.queueNo).padStart(3, '0')}`,
-          patient.name,
-          patient.age,
-          patient.phoneNum || 'N/A',
-          patient.assignedDoctor?.name || 'Not Assigned',
-          patient.type,
-          formatArray(patient.symptoms),
-          formatArray(patient.services),
-          patient.status
-        ]),
-        headStyles: { fillColor: [1, 121, 185] },
-        styles: {
-          fontSize: 8,  // Changed from 7 to 8
-          cellPadding: 2, // Add consistent padding
-          overflow: 'linebreak',  // ADD THIS
-          cellWidth: 'wrap'        // ADD THIS
-        },
-        margin: { left: 10 },
-        columnStyles: {
-          0: { cellWidth: 18 },  // Queue #
-          1: { cellWidth: 20 },  // Name
-          2: { cellWidth: 12 },  // Age
-          3: { cellWidth: 23 },  // Phone
-          4: { cellWidth: 22 },  // Doctor (NEW)
-          5: { cellWidth: 20 },  // Type
-          6: { cellWidth: 25 },  // Symptoms
-          7: { cellWidth: 30 },  // Services
-          8: { cellWidth: 20 }   // Status
-        }
-      });
-      yPosition = doc.lastAutoTable.finalY + 10;
-    } else {
-      doc.setFont(undefined, 'normal');
-      doc.setFontSize(10);
-      doc.text('No active queue patients', 14, yPosition);
-      yPosition += 10;
-    }
+      if (filteredQueuePatients.length > 0) {
+        autoTable(doc, {
+          startY: yPosition,
+          head: [['Queue #', 'Name', 'Age', 'Phone', 'Doctor', 'Type', 'Symptoms', 'Services', 'Status']],
+          body: filteredQueuePatients.map(patient => [
+            `#${String(patient.queueNo).padStart(3, '0')}`,
+            patient.name,
+            patient.age,
+            patient.phoneNum || 'N/A',
+            patient.assignedDoctor?.name || 'Not Assigned',
+            patient.type,
+            formatArray(patient.symptoms),
+            formatArray(patient.services),
+            patient.status
+          ]),
+          headStyles: { fillColor: [1, 121, 185] },
+          styles: {
+            fontSize: 8,
+            cellPadding: 2,
+            overflow: 'linebreak',
+            cellWidth: 'wrap'
+          },
+          margin: { left: 10 },
+          columnStyles: {
+            0: { cellWidth: 18 },  // Queue #
+            1: { cellWidth: 20 },  // Name
+            2: { cellWidth: 12 },  // Age
+            3: { cellWidth: 23 },  // Phone
+            4: { cellWidth: 22 },  // Doctor
+            5: { cellWidth: 20 },  // Type
+            6: { cellWidth: 25 },  // Symptoms
+            7: { cellWidth: 30 },  // Services
+            8: { cellWidth: 20 }   // Status
+          }
+        });
+        yPosition = doc.lastAutoTable.finalY + 10;
+      } else {
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
+        doc.text('No active queue patients', 14, yPosition);
+        yPosition += 10;
+      }
 
-    // Check if we need a new page
-    if (yPosition > 250) {
-      doc.addPage();
-      yPosition = 20;
-    }
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
 
-    // Priority Patients
-    doc.setFont(undefined, 'bold');
-    doc.setFontSize(12);
-    doc.text('Priority Patients', 14, yPosition);
-    yPosition += 6;
+      // Priority Patients - ONLY FOR TODAY
+      doc.setFont(undefined, 'bold');
+      doc.setFontSize(12);
+      doc.text('Priority Patients', 14, yPosition);
+      yPosition += 6;
 
-    if (filteredPriorityPatients.length > 0) {
-      autoTable(doc, {
-        startY: yPosition,
-        head: [['Queue #', 'Name', 'Age', 'Phone', 'Doctor', 'Type', 'Symptoms', 'Services', 'Status']],
-        body: filteredPriorityPatients.map(patient => [
-          `#${String(patient.queueNo).padStart(3, '0')}`,
-          patient.name,
-          patient.age,
-          patient.phoneNum || 'N/A',
-          patient.assignedDoctor?.name || 'Not Assigned',
-          patient.type,
-          formatArray(patient.symptoms),  // NEW
-          formatArray(patient.services),  // NEW
-          patient.status
-        ]),
-        headStyles: {
-          fillColor: [180, 138, 34]
-        },
-        styles: {
-          fontSize: 8,  // Changed from 7 to 8
-          cellPadding: 2,  // Add consistent padding
-          overflow: 'linebreak',  // ADD THIS
-          cellWidth: 'wrap'        // ADD THIS
-        },
-        margin: { left: 10 },
-        columnStyles: {
-          0: { cellWidth: 18 },  // Queue #
-          1: { cellWidth: 20 },  // Name
-          2: { cellWidth: 12 },  // Age
-          3: { cellWidth: 23 },  // Phone
-          4: { cellWidth: 22 },  // Doctor (NEW)
-          5: { cellWidth: 20 },  // Type
-          6: { cellWidth: 25 },  // Symptoms
-          7: { cellWidth: 30 },  // Services
-          8: { cellWidth: 20 }   // Status
-        }
-      });
-      yPosition = doc.lastAutoTable.finalY + 10;
-    } else {
-      doc.setFont(undefined, 'normal');
-      doc.setFontSize(10);
-      doc.text('No priority patients', 14, yPosition);
-      yPosition += 10;
-    }
+      if (filteredPriorityPatients.length > 0) {
+        autoTable(doc, {
+          startY: yPosition,
+          head: [['Queue #', 'Name', 'Age', 'Phone', 'Doctor', 'Type', 'Symptoms', 'Services', 'Status']],
+          body: filteredPriorityPatients.map(patient => [
+            `#${String(patient.queueNo).padStart(3, '0')}`,
+            patient.name,
+            patient.age,
+            patient.phoneNum || 'N/A',
+            patient.assignedDoctor?.name || 'Not Assigned',
+            patient.type,
+            formatArray(patient.symptoms),
+            formatArray(patient.services),
+            patient.status
+          ]),
+          headStyles: {
+            fillColor: [180, 138, 34]
+          },
+          styles: {
+            fontSize: 8,
+            cellPadding: 2,
+            overflow: 'linebreak',
+            cellWidth: 'wrap'
+          },
+          margin: { left: 10 },
+          columnStyles: {
+            0: { cellWidth: 18 },  // Queue #
+            1: { cellWidth: 20 },  // Name
+            2: { cellWidth: 12 },  // Age
+            3: { cellWidth: 23 },  // Phone
+            4: { cellWidth: 22 },  // Doctor
+            5: { cellWidth: 20 },  // Type
+            6: { cellWidth: 25 },  // Symptoms
+            7: { cellWidth: 30 },  // Services
+            8: { cellWidth: 20 }   // Status
+          }
+        });
+        yPosition = doc.lastAutoTable.finalY + 10;
+      } else {
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
+        doc.text('No priority patients', 14, yPosition);
+        yPosition += 10;
+      }
 
-    // Check if we need a new page
-    if (yPosition > 250) {
-      doc.addPage();
-      yPosition = 20;
+      // Check if we need a new page
+      if (yPosition > 250) {
+        doc.addPage();
+        yPosition = 20;
+      }
     }
 
     // Completed Patients
@@ -499,10 +588,16 @@ const Dashboard = () => {
   // Exclude appointment patients that haven't been accepted yet
   // ✅ ADDED SAFETY CHECKS: Use ?. and || [] to prevent crashes on refresh
   const queuePatients = (patients || []).filter(p => {
+    if (dateFilter !== 'today') return false;
     if (p.isInactive) return false;
     if (p.type === "Appointment" && p.appointmentStatus !== "accepted") return false;
     if (p.status === "done" || p.status === "cancelled") return false;
     if (p.isPriority) return false;
+
+    // ✅ FIX: If patient is in an ongoing status, exclude from date filter check for the 'Today' view
+    const isOngoing = p.status === "waiting" || p.status === "in progress";
+    if (!isOngoing && !isWithinDateRange(p.registeredAt)) return false;
+
     return p.inQueue;
   });
 
@@ -510,17 +605,25 @@ const Dashboard = () => {
     if (p.isInactive) return false;
     // An appointment can only be 'done' if it was first 'accepted'
     if (p.type === "Appointment" && p.appointmentStatus !== "accepted") return false;
+    if (!isWithinDateRange(p.registeredAt)) return false;
     return p.status === "done" && p.inQueue;
   });
 
   const cancelPatients = (patients || []).filter(p => {
     if (p.isInactive) return false;
+    if (!isWithinDateRange(p.registeredAt)) return false;
     return p.status === "cancelled" && p.inQueue;
   });
 
   const priorityPatients = (patients || []).filter(p => {
+    if (dateFilter !== 'today') return false;
     if (p.isInactive) return false;
     if (p.status === "done" || p.status === "cancelled") return false;
+
+    // ✅ FIX: If priority patient is in an ongoing status, exclude from date filter check for the 'Today' view
+    const isOngoing = p.status === "waiting" || p.status === "in progress";
+    if (!isOngoing && !isWithinDateRange(p.registeredAt)) return false;
+
     return p.isPriority && p.inQueue;
   });
 
@@ -595,13 +698,77 @@ const Dashboard = () => {
                   </svg>
                   <span>TV Display</span>
                 </Button>
-                <Button
-                  onClick={downloadReport}
-                  className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download Report</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Button
+                      onClick={() => setShowDateDropdown(!showDateDropdown)}
+                      variant="outline"
+                      className="flex items-center gap-2 border-gray-300"
+                    >
+                      <Calendar className="w-4 h-4 text-gray-500" />
+                      <span>{getDateFilterLabel()}</span>
+                      <ChevronDown className={`w-4 h-4 transition-transform ${showDateDropdown ? 'rotate-180' : ''}`} />
+                    </Button>
+
+                    {showDateDropdown && (
+                      <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-2">
+                        {['today', 'thisWeek', 'lastWeek', 'custom'].map((option) => (
+                          <button
+                            key={option}
+                            onClick={() => {
+                              setDateFilter(option);
+                              if (option !== 'custom') setShowDateDropdown(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-md transition-colors ${dateFilter === option ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-100 text-gray-700'
+                              }`}
+                          >
+                            {option === 'today' ? 'Today' :
+                              option === 'thisWeek' ? 'This Week' :
+                                option === 'lastWeek' ? 'Last Week' : 'Custom Range'}
+                          </button>
+                        ))}
+
+                        {dateFilter === 'custom' && (
+                          <div className="mt-2 p-2 border-t border-gray-100 space-y-2">
+                            <div>
+                              <label className="text-[10px] uppercase font-bold text-gray-500">Start Date</label>
+                              <input
+                                type="date"
+                                value={customStartDate}
+                                onChange={(e) => setCustomStartDate(e.target.value)}
+                                className="w-full text-sm border rounded p-1"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] uppercase font-bold text-gray-500">End Date</label>
+                              <input
+                                type="date"
+                                value={customEndDate}
+                                onChange={(e) => setCustomEndDate(e.target.value)}
+                                className="w-full text-sm border rounded p-1"
+                              />
+                            </div>
+                            <Button
+                              size="sm"
+                              className="w-full mt-2"
+                              onClick={() => setShowDateDropdown(false)}
+                            >
+                              Apply Range
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={downloadReport}
+                    className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Download Report</span>
+                  </Button>
+                </div>
               </div>
               {/* Doctor Selector */}
               <div className="bg-white border-t border-gray-200 pt-11 lg:pt-4 mt-5">
@@ -914,26 +1081,100 @@ const Dashboard = () => {
 
               {/* Mobile: Stacked layout */}
               <div className="sm:hidden space-y-3 mb-3">
-                <div>
-                  <h1 className="text-lg font-bold text-gray-900">Dashboard</h1>
-                  <p className="text-xs text-gray-600">De Valley Medical Clinic Queue</p>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h1 className="text-lg font-bold text-gray-900">Dashboard</h1>
+                    <p className="text-xs text-gray-600">De Valley Medical Clinic Queue</p>
+                  </div>
+                  <Button
+                    onClick={() => window.open('/clinic-tv', '_blank')}
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 flex items-center gap-1 text-[10px]"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span>TV</span>
+                  </Button>
                 </div>
-                <Button
-                  onClick={() => window.open('/clinic-tv', '_blank')}
-                  className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <span>TV Display</span>
-                </Button>
-                <Button
-                  onClick={downloadReport}
-                  className="w-full bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  <span>Download Report</span>
-                </Button>
+
+                <div className="flex flex-col gap-2">
+                  <div className="relative">
+                    <Button
+                      onClick={() => setShowDateDropdown(!showDateDropdown)}
+                      variant="outline"
+                      size="sm"
+                      className="w-full flex items-center justify-between gap-2 border-gray-300"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-3 h-3 text-gray-500" />
+                        <span className="text-xs">{getDateFilterLabel()}</span>
+                      </div>
+                      <ChevronDown className={`w-3 h-3 transition-transform ${showDateDropdown ? 'rotate-180' : ''}`} />
+                    </Button>
+
+                    {showDateDropdown && (
+                      <div className="absolute left-0 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl z-50 p-2">
+                        {['today', 'thisWeek', 'lastWeek', 'custom'].map((option) => (
+                          <button
+                            key={option}
+                            onClick={() => {
+                              setDateFilter(option);
+                              if (option !== 'custom') setShowDateDropdown(false);
+                            }}
+                            className={`w-full text-left px-3 py-2 rounded-md transition-colors ${dateFilter === option ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-gray-100 text-gray-700'
+                              }`}
+                          >
+                            <span className="text-sm">
+                              {option === 'today' ? 'Today' :
+                                option === 'thisWeek' ? 'This Week' :
+                                  option === 'lastWeek' ? 'Last Week' : 'Custom Range'}
+                            </span>
+                          </button>
+                        ))}
+
+                        {dateFilter === 'custom' && (
+                          <div className="mt-2 p-2 border-t border-gray-100 space-y-2">
+                            <div>
+                              <label className="text-[10px] uppercase font-bold text-gray-500">Start Date</label>
+                              <input
+                                type="date"
+                                value={customStartDate}
+                                onChange={(e) => setCustomStartDate(e.target.value)}
+                                className="w-full text-xs border rounded p-1"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[10px] uppercase font-bold text-gray-500">End Date</label>
+                              <input
+                                type="date"
+                                value={customEndDate}
+                                onChange={(e) => setCustomEndDate(e.target.value)}
+                                className="w-full text-xs border rounded p-1"
+                              />
+                            </div>
+                            <Button
+                              size="sm"
+                              className="w-full mt-1 h-8 text-xs"
+                              onClick={() => setShowDateDropdown(false)}
+                            >
+                              Apply
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={downloadReport}
+                    size="sm"
+                    className="w-full bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2"
+                  >
+                    <Download className="w-3 h-3" />
+                    <span className="text-xs">Download Report</span>
+                  </Button>
+                </div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 pt-3 border-t border-gray-100">

@@ -1,9 +1,7 @@
 import React, { useState, useContext } from 'react';
 import Sidebar from "@/components/Sidebar";
 import { Calendar, Clock, Phone, User, Activity, Stethoscope, CheckCircle, XCircle, MessageSquare, Filter, Eye, AlertCircle } from 'lucide-react';
-//automatic added dialog in components/ui (run npx shadcn@latest add dialog to install + make dialog.jsx)
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-//automatic added textarea in components/ui (run npx shadcn@latest add textarea to install + make textarea.jsx)
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,8 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import './appointment-responsive.css'; // ADD THIS CSS FILE
 
-//THIS IS THE PATIENT PROFILE IN CLINIC UI
 const Appointment = () => {
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
@@ -32,8 +30,7 @@ const Appointment = () => {
   const allAppointments = (patients || [])
     .filter(p =>
       p.type === "Appointment" &&
-      p.status !== "done" &&
-      p.status !== "cancelled"
+      p.status !== "done"
     );
 
   // Helper function to check if appointment is in the future
@@ -51,7 +48,6 @@ const Appointment = () => {
     const endOfWeek = new Date(now);
     endOfWeek.setDate(endOfWeek.getDate() + 7);
 
-    // Reset time parts for accurate date comparison
     const appointmentDay = new Date(appointmentDate.getFullYear(), appointmentDate.getMonth(), appointmentDate.getDate());
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrowDay = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
@@ -84,13 +80,18 @@ const Appointment = () => {
           .filter(a => a.appointmentStatus === 'rejected')
           .sort((a, b) => new Date(b.rejectedAt || b.registeredAt) - new Date(a.rejectedAt || a.registeredAt));
 
+      case 'cancelled':
+        return allAppointments
+          .filter(a => a.appointmentStatus === 'cancelled')
+          .sort((a, b) => new Date(b.cancelledAt || b.registeredAt) - new Date(a.cancelledAt || a.registeredAt));
+
       case 'upcoming':
         return allAppointments
           .filter(a => a.appointmentStatus === 'accepted' && isFutureAppointment(a))
           .sort((a, b) => {
             const dateA = new Date(a.appointmentDateTime || a.appointment_datetime);
             const dateB = new Date(b.appointmentDateTime || b.appointment_datetime);
-            return dateA - dateB; // Sort by appointment time, earliest first
+            return dateA - dateB;
           });
 
       case 'all':
@@ -112,20 +113,15 @@ const Appointment = () => {
 
   // Service labels mapping
   const serviceLabels = {
-    // General
     pedia: "Pediatric Consultation",
     adult: "Adult Consultation",
     senior: "Senior Consultation (60+)",
     preventive: "Preventive/Annual Physical Exam",
     "follow-up": "Follow-up Consultation",
-
-    // Hematology
     cbc: "CBC (Complete Blood Count)",
     platelet: "Platelet Count",
     esr: "ESR (Inflammation Check)",
     abo: "Blood Type Test: ABO/Rh Typing",
-
-    // Immunology & Serology
     hbsag: "HBsAg (Hepatitis B Screening)",
     vdrl: "VDRL/RPR (Syphilis Screening)",
     antiHCV: "Anti-HCV (Hepatitis C Screening)",
@@ -134,8 +130,6 @@ const Appointment = () => {
     dengueNs1: "Dengue NS1 (Early Dengue Fever Test)",
     dengueDuo: "Dengue Duo: NS1, IgG+IgM (Complete Dengue Test)",
     typhidot: "Typhidot (Typhoid Fever Test)",
-
-    // Clinical Chemistry
     fbs: "FBS (Fasting Blood Sugar)",
     rbs: "RBS (Random Blood Sugar)",
     lipid: "Lipid Profile (Cholesterol and Fats Check)",
@@ -159,20 +153,14 @@ const Appointment = () => {
     ionizedCal: "Ionized Calcium (Free Calcium Level)",
     totalCal: "Total Calcium",
     chloride: "Chloride",
-
-    // Microscopy
     urinalysis: "Urinalysis",
     fecalysis: "Fecalysis (Stool Test)",
     pregnancyT: "Pregnancy Test",
     fecal: "Fecal Occult Blood (Hidden Blood in Stool)",
     semen: "Semen Analysis",
-
-    // Surgery
     "general surgery": "General Surgery Consultation",
     ent: "ENT (Ear, Nose, Throat) Consultation",
     orthopedic: "Orthopedic Surgery Consultation",
-
-    // Others
     tsh: "TSH (Thyroid Stimulating Hormone)",
     ft3: "FT3 (Free T3 Thyroid Hormone)",
     "75g": "75 Grams OGTT (Diabetes Glucose Challenge Test)",
@@ -188,7 +176,6 @@ const Appointment = () => {
     acceptAppointment(appointment.id);
   };
 
-  //replaced the direct reject handler
   const handleRejectClick = (appointment) => {
     setRejectionDialog({
       open: true,
@@ -197,14 +184,12 @@ const Appointment = () => {
     });
   };
 
-  //added rejection dialogue state to manage modal
   const [rejectionDialog, setRejectionDialog] = useState({
     open: false,
     appointment: null,
     reason: ""
   });
 
-  //Added the confirmation handler that saves the reason"
   const handleRejectConfirm = () => {
     if (!rejectionDialog.reason.trim()) {
       alert("Please provide a reason for rejection");
@@ -257,7 +242,6 @@ const Appointment = () => {
   const renderAppointmentCard = (appointment) => (
     <Card key={appointment.id} className="mb-4">
       <CardContent className="p-4">
-        {/* Header with Queue Number and Status */}
         <div className="flex items-center justify-between mb-3">
           <Badge variant="outline" className="font-mono">
             #{String(appointment.queueNo).padStart(3, '0')}
@@ -268,6 +252,10 @@ const Appointment = () => {
             <Badge variant="destructive" className="bg-red-600 text-white">
               Not Accepted
             </Badge>
+          ) : appointment.appointmentStatus === 'cancelled' ? (
+            <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
+              Cancelled
+            </Badge>
           ) : (
             <Badge variant="secondary" className="bg-amber-100 text-amber-700">
               Pending
@@ -275,14 +263,12 @@ const Appointment = () => {
           )}
         </div>
 
-        {/* Patient Name */}
         <div className="flex items-center gap-2 mb-3">
           <User className="w-4 h-4 text-gray-400" />
           <span className="font-semibold text-gray-900 text-lg">{appointment.name}</span>
           <span className="text-gray-500 text-sm">• {appointment.age} yrs</span>
         </div>
 
-        {/* Appointment Time */}
         <div className="flex items-center gap-2 mb-3 text-sm">
           <Clock className="w-4 h-4 text-gray-400" />
           <span className="text-gray-700">
@@ -290,7 +276,6 @@ const Appointment = () => {
           </span>
         </div>
 
-        {/* Doctor or Services */}
         {appointment.assignedDoctor ? (
           <div className="flex items-center gap-2 mb-3">
             <Stethoscope className="w-4 h-4 text-purple-600" />
@@ -320,7 +305,6 @@ const Appointment = () => {
           </div>
         )}
 
-        {/* Symptoms */}
         <div className="mb-4">
           <p className="text-xs text-gray-500 mb-1.5">Symptoms:</p>
           <div className="flex flex-wrap gap-1.5">
@@ -341,7 +325,6 @@ const Appointment = () => {
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex gap-2 pt-3 border-t">
           <Button
             size="sm"
@@ -379,7 +362,7 @@ const Appointment = () => {
     </Card>
   );
 
-  // Render appointment table for desktop
+  // UPDATED: Render appointment table for desktop - RESPONSIVE VERSION
   const renderAppointmentTable = (appointments) => (
     <>
       {/* Mobile Card View */}
@@ -387,19 +370,35 @@ const Appointment = () => {
         {appointments.map((appointment) => renderAppointmentCard(appointment))}
       </div>
 
-      {/* Desktop Table View */}
-      <div className="hidden lg:block overflow-x-auto">
-        <Table>
+      {/* Desktop Table View - RESPONSIVE */}
+      <div className="hidden lg:block overflow-x-auto max-w-full">
+        <Table className="min-w-full">
           <TableHeader>
             <TableRow className="bg-gray-50">
-              <TableHead className="font-semibold text-gray-700">Queue #</TableHead>
-              <TableHead className="font-semibold text-gray-700">Patient Name</TableHead>
-              <TableHead className="font-semibold text-gray-700">Age</TableHead>
-              <TableHead className="font-semibold text-gray-700">Appointment Time</TableHead>
-              <TableHead className="font-semibold text-gray-700">Doctor/Service</TableHead>
-              <TableHead className="font-semibold text-gray-700">Symptoms</TableHead>
-              <TableHead className="font-semibold text-gray-700 text-center">Status</TableHead>
-              <TableHead className="font-semibold text-gray-700 text-center">Actions</TableHead>
+              <TableHead className="font-semibold text-gray-700 px-2 xl:px-4 text-xs whitespace-nowrap">
+                Queue #
+              </TableHead>
+              <TableHead className="font-semibold text-gray-700 px-2 xl:px-4 text-xs whitespace-nowrap">
+                Patient Name
+              </TableHead>
+              <TableHead className="font-semibold text-gray-700 px-2 xl:px-4 text-xs whitespace-nowrap">
+                Age
+              </TableHead>
+              <TableHead className="font-semibold text-gray-700 px-2 xl:px-4 text-xs whitespace-nowrap">
+                Appointment Time
+              </TableHead>
+              <TableHead className="font-semibold text-gray-700 px-2 xl:px-4 text-xs whitespace-nowrap">
+                Doctor/Service
+              </TableHead>
+              <TableHead className="font-semibold text-gray-700 px-2 xl:px-4 text-xs whitespace-nowrap">
+                Symptoms
+              </TableHead>
+              <TableHead className="font-semibold text-gray-700 text-center px-2 xl:px-4 text-xs whitespace-nowrap">
+                Status
+              </TableHead>
+              <TableHead className="font-semibold text-gray-700 text-center px-2 xl:px-4 text-xs whitespace-nowrap">
+                Actions
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -408,102 +407,133 @@ const Appointment = () => {
                 key={appointment.id}
                 className="hover:bg-gray-50 transition-colors"
               >
-                <TableCell className="font-medium">
-                  <Badge variant="outline" className="font-mono">
+                {/* Queue Number */}
+                <TableCell className="font-medium px-2 xl:px-4">
+                  <Badge variant="outline" className="font-mono text-[10px] xl:text-xs">
                     #{String(appointment.queueNo).padStart(3, '0')}
                   </Badge>
                 </TableCell>
 
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-gray-400" />
-                    <span className="font-semibold text-gray-900">{appointment.name}</span>
+                {/* Patient Name */}
+                <TableCell className="px-2 xl:px-4">
+                  <div className="flex items-center gap-1 xl:gap-2">
+                    <User className="w-3 h-3 xl:w-4 xl:h-4 text-gray-400 flex-shrink-0" />
+                    <span
+                      className="font-semibold text-gray-900 text-xs xl:text-sm truncate max-w-[100px] xl:max-w-[150px]"
+                      title={appointment.name}
+                    >
+                      {appointment.name}
+                    </span>
                   </div>
                 </TableCell>
 
-                <TableCell>
-                  <span className="text-gray-700">{appointment.age} yrs</span>
+                {/* Age */}
+                <TableCell className="px-2 xl:px-4">
+                  <span className="text-gray-700 text-xs xl:text-sm whitespace-nowrap">
+                    {appointment.age} yrs
+                  </span>
                 </TableCell>
 
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-700 text-sm">
+                {/* Appointment Time */}
+                <TableCell className="px-2 xl:px-4">
+                  <div className="flex items-center gap-1 xl:gap-2">
+                    <Clock className="w-3 h-3 xl:w-4 xl:h-4 text-gray-400 flex-shrink-0" />
+                    <span className="text-gray-700 text-[11px] xl:text-sm whitespace-nowrap">
                       {formatDateShort(appointment.appointmentDateTime || appointment.appointment_datetime)}
                     </span>
                   </div>
                 </TableCell>
 
-                <TableCell>
+                {/* Doctor/Service */}
+                <TableCell className="px-2 xl:px-4 max-w-[150px] xl:max-w-[200px]">
                   {appointment.assignedDoctor ? (
-                    <div className="flex items-center gap-2">
-                      <Stethoscope className="w-4 h-4 text-purple-600" />
-                      <span className="text-purple-700 font-medium text-sm">
+                    <div className="flex items-center gap-1 xl:gap-2">
+                      <Stethoscope className="w-3 h-3 xl:w-4 xl:h-4 text-purple-600 flex-shrink-0" />
+                      <span
+                        className="text-purple-700 font-medium text-xs xl:text-sm truncate"
+                        title={appointment.assignedDoctor.name}
+                      >
                         {appointment.assignedDoctor.name}
                       </span>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-1 max-w-xs">
+                    <div className="flex flex-wrap gap-1">
                       {appointment.services && appointment.services.length > 0 ? (
                         <>
-                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] xl:text-xs bg-green-50 text-green-700 border-green-200 truncate max-w-[120px] xl:max-w-[150px]"
+                            title={getServiceLabel(appointment.services[0])}
+                          >
                             {getServiceLabel(appointment.services[0])}
                           </Badge>
                           {appointment.services.length > 1 && (
-                            <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600">
-                              +{appointment.services.length - 1} more
+                            <Badge variant="outline" className="text-[10px] xl:text-xs bg-gray-50 text-gray-600">
+                              +{appointment.services.length - 1}
                             </Badge>
                           )}
                         </>
                       ) : (
-                        <span className="text-gray-400 text-sm">None</span>
+                        <span className="text-gray-400 text-xs">None</span>
                       )}
                     </div>
                   )}
                 </TableCell>
 
-                <TableCell>
-                  <div className="flex flex-wrap gap-1 max-w-xs">
+                {/* Symptoms */}
+                <TableCell className="px-2 xl:px-4 max-w-[140px] xl:max-w-[180px]">
+                  <div className="flex flex-wrap gap-1">
                     {appointment.symptoms && appointment.symptoms.length > 0 ? (
                       <>
-                        <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] xl:text-xs bg-blue-50 text-blue-700 border-blue-200 truncate max-w-[100px] xl:max-w-[120px]"
+                          title={appointment.symptoms[0]}
+                        >
                           {appointment.symptoms[0]}
                         </Badge>
                         {appointment.symptoms.length > 1 && (
-                          <Badge variant="outline" className="text-xs bg-gray-50 text-gray-600">
-                            +{appointment.symptoms.length - 1} more
+                          <Badge variant="outline" className="text-[10px] xl:text-xs bg-gray-50 text-gray-600">
+                            +{appointment.symptoms.length - 1}
                           </Badge>
                         )}
                       </>
                     ) : (
-                      <span className="text-gray-400 text-sm">None</span>
+                      <span className="text-gray-400 text-xs">None</span>
                     )}
                   </div>
                 </TableCell>
 
-                <TableCell className="text-center">
+                {/* Status */}
+                <TableCell className="text-center px-2 xl:px-4">
                   {appointment.appointmentStatus === 'accepted' ? (
-                    <Badge className="bg-green-600">Accepted</Badge>
+                    <Badge className="bg-green-600 text-[10px] xl:text-xs whitespace-nowrap">Accepted</Badge>
                   ) : appointment.appointmentStatus === 'rejected' ? (
-                    <Badge variant="destructive" className="bg-red-600 text-white">
+                    <Badge variant="destructive" className="bg-red-600 text-white text-[10px] xl:text-xs whitespace-nowrap">
                       Not Accepted
                     </Badge>
+                  ) : appointment.appointmentStatus === 'cancelled' ? (
+                    <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300 text-[10px] xl:text-xs whitespace-nowrap">
+                      Cancelled
+                    </Badge>
                   ) : (
-                    <Badge variant="secondary" className="bg-amber-100 text-amber-700">
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] xl:text-xs whitespace-nowrap">
                       Pending
                     </Badge>
                   )}
                 </TableCell>
 
-                <TableCell>
-                  <div className="flex items-center justify-center gap-2">
+                {/* Actions */}
+                <TableCell className="px-2 xl:px-4">
+                  <div className="flex items-center justify-center gap-1 xl:gap-2">
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-7 w-7 p-0"
                       onClick={() => handleViewDetails(appointment)}
+                      title="View Details"
                     >
-                      <Eye className="w-4 h-4" />
+                      <Eye className="w-3 h-3 xl:w-4 xl:h-4" />
                     </Button>
 
                     {(!appointment.appointmentStatus || appointment.appointmentStatus === 'pending') && (
@@ -511,18 +541,20 @@ const Appointment = () => {
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                          className="text-green-600 hover:text-green-700 hover:bg-green-50 h-7 w-7 p-0"
                           onClick={() => handleAccept(appointment)}
+                          title="Accept"
                         >
-                          <CheckCircle className="w-4 h-4" />
+                          <CheckCircle className="w-3 h-3 xl:w-4 xl:h-4" />
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 h-7 w-7 p-0"
                           onClick={() => handleRejectClick(appointment)}
+                          title="Decline"
                         >
-                          <XCircle className="w-4 h-4" />
+                          <XCircle className="w-3 h-3 xl:w-4 xl:h-4" />
                         </Button>
                       </>
                     )}
@@ -540,8 +572,8 @@ const Appointment = () => {
     <div className="flex w-full min-h-screen">
       <Sidebar nav={nav} handleNav={handleNav} />
 
-      {/* MAIN CONTENT */}
-      <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300">
+      {/* MAIN CONTENT - UPDATED WITH overflow-x-hidden */}
+      <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300 overflow-x-hidden">
         {/* Header */}
         <div className="bg-white shadow-sm pt-12 lg:pt-3">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
@@ -621,6 +653,20 @@ const Appointment = () => {
               </Button>
 
               <Button
+                onClick={() => setActiveFilter('cancelled')}
+                variant={activeFilter === 'cancelled' ? 'default' : 'outline'}
+                className={activeFilter === 'cancelled'
+                  ? 'bg-orange-500 hover:bg-orange-600'
+                  : 'hover:bg-gray-100'
+                }
+              >
+                Cancelled
+                <Badge variant="secondary" className="ml-2 bg-white text-gray-700">
+                  {allAppointments.filter(a => a.appointmentStatus === 'cancelled').length}
+                </Badge>
+              </Button>
+
+              <Button
                 onClick={() => setActiveFilter('upcoming')}
                 variant={activeFilter === 'upcoming' ? 'default' : 'outline'}
                 className={activeFilter === 'upcoming'
@@ -680,12 +726,12 @@ const Appointment = () => {
                   {activeFilter === 'pending' && 'No pending appointments'}
                   {activeFilter === 'accepted' && 'No accepted appointments'}
                   {activeFilter === 'rejected' && 'No rejected appointments'}
+                  {activeFilter === 'cancelled' && 'No cancelled appointments'}
                   {activeFilter === 'upcoming' && 'No upcoming appointments'}
                 </p>
               </CardContent>
             </Card>
           ) : activeFilter === 'upcoming' && groupedUpcoming ? (
-            // Grouped view for upcoming appointments
             <div className="space-y-6">
               {groupedUpcoming.today.length > 0 && (
                 <Card>
@@ -744,7 +790,6 @@ const Appointment = () => {
               )}
             </div>
           ) : (
-            // Regular table view for other filters
             <Card>
               <CardHeader>
                 <CardTitle>
@@ -752,6 +797,7 @@ const Appointment = () => {
                   {activeFilter === 'pending' && 'Pending Appointments'}
                   {activeFilter === 'accepted' && 'Accepted Appointments'}
                   {activeFilter === 'rejected' && 'Not Accepted Appointments'}
+                  {activeFilter === 'cancelled' && 'Cancelled Appointments'}
                 </CardTitle>
                 <CardDescription>
                   {filteredAppointments.length} appointment{filteredAppointments.length !== 1 ? 's' : ''}
@@ -780,18 +826,20 @@ const Appointment = () => {
 
           {selectedAppointment && (
             <div className="space-y-4 mt-4">
-              {/* Status Badge */}
               <div className="flex items-center gap-2">
                 {selectedAppointment.appointmentStatus === 'accepted' ? (
                   <Badge className="bg-green-600">Accepted</Badge>
                 ) : selectedAppointment.appointmentStatus === 'rejected' ? (
                   <Badge variant="destructive" className="bg-red-600 text-white">Not Accepted</Badge>
+                ) : (selectedAppointment.appointmentStatus === 'cancelled' || selectedAppointment.status === 'cancelled') ? (
+                  <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
+                    Cancelled
+                  </Badge>
                 ) : (
                   <Badge variant="secondary" className="bg-amber-100 text-amber-700">Pending</Badge>
                 )}
               </div>
 
-              {/* Patient Info Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                   <Clock className="w-5 h-5 text-green-600 flex-shrink-0" />
@@ -828,7 +876,6 @@ const Appointment = () => {
                 </div>
               </div>
 
-              {/* Symptoms */}
               <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
                 <div className="flex items-center gap-2 mb-2">
                   <Activity className="w-5 h-5 text-blue-600" />
@@ -847,7 +894,6 @@ const Appointment = () => {
                 </div>
               </div>
 
-              {/* Doctor or Services */}
               {selectedAppointment.assignedDoctor ? (
                 <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
                   <div className="flex items-center gap-2 mb-2">
@@ -881,25 +927,33 @@ const Appointment = () => {
                 </div>
               )}
 
-              {/* Rejection Reason */}
-              {selectedAppointment.appointmentStatus === 'rejected' && selectedAppointment.rejectionReason && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              {(selectedAppointment.appointmentStatus === 'rejected' || selectedAppointment.status === 'cancelled') && selectedAppointment.rejectionReason && (
+                <div className={`p-4 border rounded-lg ${selectedAppointment.status === 'cancelled' ? 'bg-orange-50 border-orange-200' : 'bg-red-50 border-red-200'}`}>
                   <div className="flex items-start gap-3">
-                    <MessageSquare className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <MessageSquare className={`w-5 h-5 flex-shrink-0 mt-0.5 ${selectedAppointment.status === 'cancelled' ? 'text-orange-600' : 'text-red-600'}`} />
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-red-900 mb-1">Reason for Appointment Refusal</p>
-                      <p className="text-sm text-red-800">{selectedAppointment.rejectionReason}</p>
-                      {selectedAppointment.rejectedAt && (
-                        <p className="text-xs text-red-600 mt-1">
-                          Not Accepted on {formatDateTime(selectedAppointment.rejectedAt)}
-                        </p>
+                      <p className={`text-sm font-semibold mb-1 ${selectedAppointment.status === 'cancelled' ? 'text-orange-900' : 'text-red-900'}`}>
+                        {selectedAppointment.status === 'cancelled' ? 'Reason for Cancellation' : 'Reason for Appointment Refusal'}
+                      </p>
+                      <p className={`text-sm ${selectedAppointment.status === 'cancelled' ? 'text-orange-800' : 'text-red-800'}`}>{selectedAppointment.rejectionReason}</p>
+                      {selectedAppointment.status === 'cancelled' ? (
+                        selectedAppointment.cancelledAt && (
+                          <p className="text-xs text-orange-600 mt-1">
+                            Cancelled on {formatDateTime(selectedAppointment.cancelledAt)}
+                          </p>
+                        )
+                      ) : (
+                        selectedAppointment.rejectedAt && (
+                          <p className="text-xs text-red-600 mt-1">
+                            Not Accepted on {formatDateTime(selectedAppointment.rejectedAt)}
+                          </p>
+                        )
                       )}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Action Buttons */}
               {(!selectedAppointment.appointmentStatus || selectedAppointment.appointmentStatus === 'pending') && (
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
                   <Button

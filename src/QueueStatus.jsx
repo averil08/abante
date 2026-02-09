@@ -36,6 +36,8 @@ const QueueStatus = () => {
   });
   const [isPatientAccess, setIsPatientAccess] = useState(getInitialPatientAccess());
   const [showDoneModal, setShowDoneModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
 
   // Get current logged-in patient's email
   const currentPatientEmail = localStorage.getItem('currentPatientEmail');
@@ -69,6 +71,7 @@ const QueueStatus = () => {
     setActivePatient,
     clearActivePatient,
     requeuePatient,
+    cancelPatient,
     isLoadingFromDB
   } = useContext(PatientContext);
 
@@ -403,6 +406,20 @@ const QueueStatus = () => {
     }
   };
 
+  const handleConfirmCancel = () => {
+    if (!cancellationReason.trim()) return;
+
+    cancelPatient(currentPatient.queueNo, cancellationReason);
+    setShowCancelModal(false);
+    clearActivePatient();
+
+    // Redirect to book appointment form
+    const params = new URLSearchParams();
+    if (isPatientAccess) params.append('view', 'patient');
+    params.append('type', 'appointment');
+    navigate(`/checkin?${params.toString()}`);
+  };
+
   const PushNotification = () => {
     if (!showNotification) return null;
 
@@ -487,6 +504,48 @@ const QueueStatus = () => {
     );
   };
 
+  const CancelConfirmationModal = () => {
+    if (!showCancelModal) return null;
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+        <div className="bg-white p-4 sm:p-6 md:p-8 rounded-lg shadow-2xl max-w-md w-full animate-fade-in">
+          <div className="flex items-center justify-center mb-4">
+            <XCircle className="w-10 h-10 sm:w-12 sm:h-12 text-red-600" />
+          </div>
+          <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 mb-2 text-center">
+            Cancel Appointment
+          </h3>
+          <p className="text-sm sm:text-base text-gray-600 mb-4 text-center">
+            Please provide a reason for cancelling your appointment.
+          </p>
+          <div className="mb-4">
+            <textarea
+              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 min-h-[100px] text-sm sm:text-base"
+              placeholder="Enter cancellation reason..."
+              value={cancellationReason}
+              onChange={(e) => setCancellationReason(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <button
+              onClick={() => setShowCancelModal(false)}
+              className="flex-1 px-4 py-2.5 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors font-medium text-sm sm:text-base"
+            >
+              Back
+            </button>
+            <button
+              onClick={handleConfirmCancel}
+              disabled={!cancellationReason.trim()}
+              className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Confirm Cancellation
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (isLoadingFromDB) {
     return (
       <div className="min-h-screen flex items-center justify-center text-gray-700 px-4">
@@ -544,6 +603,7 @@ const QueueStatus = () => {
             <Sidebar nav={nav} handleNav={handleNav} />
           )}
           <DoneConfirmationModal />
+          <CancelConfirmationModal />
           <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 p-3 sm:p-4">
             <div className="max-w-[800px] mt-4 sm:mt-8 md:mt-12 lg:mt-[50px] w-full mx-auto space-y-4 sm:space-y-6">
               <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-6 text-center">
@@ -636,6 +696,15 @@ const QueueStatus = () => {
                   >
                     Done
                   </Button>
+
+                  <Button
+                    variant="ghost"
+                    className="w-full text-xs sm:text-sm md:text-base lg:text-lg py-2.5 sm:py-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    size="lg"
+                    onClick={() => setShowCancelModal(true)}
+                  >
+                    Cancel Appointment
+                  </Button>
                 </div>
               </div>
 
@@ -656,6 +725,7 @@ const QueueStatus = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
         <DoneConfirmationModal />
+        <CancelConfirmationModal />
         <div className="flex-1 p-3 sm:p-4">
           <div className="max-w-[800px] mt-4 sm:mt-8 md:mt-12 lg:mt-[50px] w-full mx-auto space-y-4 sm:space-y-6">
             <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-6 text-center">
@@ -749,6 +819,15 @@ const QueueStatus = () => {
                 >
                   Done
                 </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full text-xs sm:text-sm md:text-base lg:text-lg py-2.5 sm:py-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  size="lg"
+                  onClick={() => setShowCancelModal(true)}
+                >
+                  Cancel Appointment
+                </Button>
               </div>
             </div>
 
@@ -776,6 +855,7 @@ const QueueStatus = () => {
             <Sidebar nav={nav} handleNav={handleNav} />
           )}
           <DoneConfirmationModal />
+          <CancelConfirmationModal />
           <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 p-3 sm:p-4">
             <div className="max-w-[800px] mt-4 sm:mt-8 md:mt-12 lg:mt-[50px] w-full mx-auto space-y-4 sm:space-y-6">
               <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-6 text-center">
@@ -836,26 +916,43 @@ const QueueStatus = () => {
                   </div>
                 </div>
 
-                {currentPatient.rejectionReason && (
-                  <div className="mt-4 sm:mt-6 p-2.5 sm:p-3 md:p-4 bg-red-100 rounded-lg sm:rounded-xl border border-red-300">
+                {(currentPatient.rejectionReason || currentPatient.status === 'cancelled') && (
+                  <div className={`mt-4 sm:mt-6 p-2.5 sm:p-3 md:p-4 rounded-lg sm:rounded-xl border ${currentPatient.status === 'cancelled' ? 'bg-orange-100 border-orange-300' : 'bg-red-100 border-red-300'}`}>
                     <div className="flex items-start gap-2 sm:gap-3">
-                      <MessageSquare className="w-4 h-4 sm:w-5 sm:h-6 text-red-700 mt-0.5 flex-shrink-0" />
+                      <MessageSquare className={`w-4 h-4 sm:w-5 sm:h-6 mt-0.5 flex-shrink-0 ${currentPatient.status === 'cancelled' ? 'text-orange-700' : 'text-red-700'}`} />
                       <div className="text-left text-xs sm:text-sm md:text-base lg:text-lg">
-                        <p className="font-semibold text-red-900 mb-2">Reason for Appointment Refusal:</p>
-                        <p className="text-[10px] xs:text-xs sm:text-sm text-red-800 mb-2">
-                          {currentPatient.rejectionReason}
+                        <p className={`font-semibold mb-2 ${currentPatient.status === 'cancelled' ? 'text-orange-900' : 'text-red-900'}`}>
+                          {currentPatient.status === 'cancelled' ? 'Reason for Cancellation:' : 'Reason for Appointment Refusal:'}
                         </p>
-                        {currentPatient.rejectedAt && (
-                          <p className="text-[10px] xs:text-xs text-red-700 italic">
-                            Not approved on {new Date(currentPatient.rejectedAt).toLocaleString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                              hour: 'numeric',
-                              minute: '2-digit',
-                              hour12: true
-                            })}
-                          </p>
+                        <p className={`text-[10px] xs:text-xs sm:text-sm mb-2 ${currentPatient.status === 'cancelled' ? 'text-orange-800' : 'text-red-800'}`}>
+                          {currentPatient.rejectionReason || 'No reason provided'}
+                        </p>
+                        {currentPatient.status === 'cancelled' ? (
+                          currentPatient.cancelledAt && (
+                            <p className="text-[10px] xs:text-xs text-orange-700 italic">
+                              Cancelled on {new Date(currentPatient.cancelledAt).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              })}
+                            </p>
+                          )
+                        ) : (
+                          currentPatient.rejectedAt && (
+                            <p className="text-[10px] xs:text-xs text-red-700 italic">
+                              Not approved on {new Date(currentPatient.rejectedAt).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: 'numeric',
+                                minute: '2-digit',
+                                hour12: true
+                              })}
+                            </p>
+                          )
                         )}
                       </div>
                     </div>
@@ -894,6 +991,15 @@ const QueueStatus = () => {
                   >
                     Done
                   </Button>
+
+                  <Button
+                    variant="ghost"
+                    className="w-full text-xs sm:text-sm md:text-base lg:text-lg py-2.5 sm:py-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    size="lg"
+                    onClick={() => setShowCancelModal(true)}
+                  >
+                    Cancel Appointment
+                  </Button>
                 </div>
               </div>
             </div>
@@ -906,6 +1012,7 @@ const QueueStatus = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
         <DoneConfirmationModal />
+        <CancelConfirmationModal />
         <div className="flex-1 p-3 sm:p-4">
           <div className="max-w-[800px] mt-4 sm:mt-8 md:mt-12 lg:mt-[50px] w-full mx-auto space-y-4 sm:space-y-6">
             <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-6 text-center">
@@ -1025,6 +1132,15 @@ const QueueStatus = () => {
                 >
                   Done
                 </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full text-xs sm:text-sm md:text-base lg:text-lg py-2.5 sm:py-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  size="lg"
+                  onClick={() => setShowCancelModal(true)}
+                >
+                  Cancel Appointment
+                </Button>
               </div>
             </div>
           </div>
@@ -1044,6 +1160,7 @@ const QueueStatus = () => {
         )}
         <PushNotification />
         <DoneConfirmationModal />
+        <CancelConfirmationModal />
         <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 p-3 sm:p-4">
           <div className="max-w-[800px] mt-4 sm:mt-8 md:mt-12 lg:mt-[50px] w-full mx-auto space-y-4 sm:space-y-6">
             <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-6 text-center">
@@ -1146,6 +1263,15 @@ const QueueStatus = () => {
                 >
                   Done
                 </Button>
+
+                <Button
+                  variant="ghost"
+                  className="w-full text-xs sm:text-sm md:text-base lg:text-lg py-2.5 sm:py-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  size="lg"
+                  onClick={() => setShowCancelModal(true)}
+                >
+                  Cancel Appointment
+                </Button>
               </div>
             </div>
 
@@ -1167,6 +1293,7 @@ const QueueStatus = () => {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
       <PushNotification />
       <DoneConfirmationModal />
+      <CancelConfirmationModal />
       <div className="flex-1 p-3 sm:p-4">
         <div className="max-w-[800px] mt-4 sm:mt-8 md:mt-12 lg:mt-[50px] w-full mx-auto space-y-4 sm:space-y-6">
           <div className="bg-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-4 md:p-6 text-center">
@@ -1269,6 +1396,15 @@ const QueueStatus = () => {
                 onClick={handleDoneClick}
               >
                 Done
+              </Button>
+
+              <Button
+                variant="ghost"
+                className="w-full text-xs sm:text-sm md:text-base lg:text-lg py-2.5 sm:py-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+                size="lg"
+                onClick={() => setShowCancelModal(true)}
+              >
+                Cancel Appointment
               </Button>
             </div>
           </div>

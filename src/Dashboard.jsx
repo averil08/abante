@@ -607,6 +607,13 @@ const Dashboard = () => {
     return p.status === "cancelled" && p.inQueue;
   });
 
+  const getCancellationReasonLabel = (patient) => {
+    if (patient.rejectionReason) {
+      return patient.rejectionReason;
+    }
+    return 'No reason provided';
+  };
+
   const priorityPatients = (patients || []).filter(p => {
     if (dateFilter !== 'today') return false;
     if (p.isInactive) return false;

@@ -4,12 +4,12 @@ import { supabase } from "./lib/supabaseClient";
 import LandingPage from "./LandingPage";
 import Signup from "./Signup";
 import Login from "./Login";
+import { PatientProvider } from './PatientContext';
 import QueueStatus from './QueueStatus';
 import Dashboard from './Dashboard';
 import Analytics from './Analytics';
 import Checkin from './Checkin';
 import Appointment from './Appointment';
-import { PatientProvider } from './PatientContext';
 import PatientProfile from "./PatientProfile";
 import Homepage from "./Homepage";
 import AppointmentHistory from "./AppointmentHistory";
@@ -47,13 +47,13 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
-          
+
           {/* Example of Protected Route: If no session, send them to login */}
-          <Route 
-            path="/dashboard" 
-            element={session ? <Dashboard /> : <Navigate to="/login" />} 
+          <Route
+            path="/dashboard"
+            element={session ? <Dashboard /> : <Navigate to="/login" />}
           />
-          
+
           {/* Add your other routes below */}
           <Route path="/signup" element={<Signup />} />
           <Route path="/checkin" element={<Checkin />} />

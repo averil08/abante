@@ -362,13 +362,16 @@ const QueueStatus = () => {
     }
   }, [currentPatient, currentServing, queueNumber, notificationType, isAppointmentPending]);
 
-  const handleRequeue = () => {
-    const oldQueueNo = queueNumber;
-    requeuePatient(oldQueueNo);
-    setTimeout(() => {
-      const newTicket = patients.find(p =>
-        p.requeued && p.originalQueueNo === oldQueueNo && !p.isInactive
-      );
+  // New state for requeue
+  const [isRequeuing, setIsRequeuing] = useState(false);
+
+  const handleRequeue = async () => {
+    if (isRequeuing) return; // Prevent double clicks
+    setIsRequeuing(true);
+
+    try {
+      const oldQueueNo = queueNumber;
+      const newTicket = await requeuePatient(oldQueueNo);
 
       if (newTicket) {
         setActivePatient(newTicket);
@@ -377,10 +380,18 @@ const QueueStatus = () => {
         setNotificationMessage("You've been added back to the queue!");
       }
       setNotificationType("success");
+      setShowNotification(true);
       setTimeout(() => {
         setShowNotification(false);
       }, 3000);
-    }, 100);
+    } catch (error) {
+      console.error("Requeue failed:", error);
+      setNotificationMessage("Failed to requeue. Please try again.");
+      setNotificationType("error");
+      setShowNotification(true);
+    } finally {
+      setIsRequeuing(false);
+    }
   };
 
   const handleDoneClick = () => {
@@ -435,11 +446,12 @@ const QueueStatus = () => {
             <div className="mt-3 pl-8">
               <Button
                 onClick={handleRequeue}
-                className="bg-white text-red-600 hover:bg-gray-100"
+                disabled={isRequeuing}
+                className="bg-white text-red-600 hover:bg-gray-100 disabled:opacity-50"
                 size="sm"
               >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Requeue
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRequeuing ? 'animate-spin' : ''}`} />
+                {isRequeuing ? 'Requeuing...' : 'Requeue'}
               </Button>
             </div>
           )}

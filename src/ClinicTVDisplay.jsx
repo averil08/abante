@@ -15,7 +15,6 @@ const ClinicTVDisplay = () => {
     return () => clearInterval(timer);
   }, []);
 
-  //🔴 REPLACE FROM HERE
   // ✅ CRITICAL: Listen for localStorage changes from Dashboard
   useEffect(() => {
     const handleStorageChange = (e) => {
@@ -47,16 +46,13 @@ const ClinicTVDisplay = () => {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
-  //🔴 REPLACE TO HERE
 
-  //🔴 REPLACE FROM HERE
   // Also sync with context patients (for initial load)
   useEffect(() => {
     if (patients && patients.length > 0) {
       setSyncedPatients(patients);
     }
   }, [patients]);
-  //🔴 REPLACE TO HERE
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('en-US', {
@@ -78,16 +74,28 @@ const ClinicTVDisplay = () => {
 
   // ✅ Use syncedPatients instead of patients
   const doctorsInfo = useMemo(() => {
-  // Guard: If syncedPatients is null or undefined, use an empty array
   const currentData = syncedPatients || []; 
   console.log('🔄 Recalculating doctor info with', currentData.length, 'patients');
+  
+  // ✅ ADD THIS HELPER FUNCTION
+  const isToday = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    const now = new Date();
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date(now);
+    endOfToday.setHours(23, 59, 59, 999);
+    return date >= startOfToday && date <= endOfToday;
+  };
   
   return doctors.map(doctor => {
     const currentServingPatient = currentData.find(p => 
       !p.isInactive && 
       p.assignedDoctor?.id === doctor.id &&
       p.status === "in progress" &&
-      p.inQueue
+      p.inQueue &&
+      (p.status === "in progress" || isToday(p.registeredAt)) // ✅ ADDED
     );
     
     const doctorPatients = currentData
@@ -95,24 +103,26 @@ const ClinicTVDisplay = () => {
         !p.isInactive && 
         p.assignedDoctor?.id === doctor.id &&
         p.status === "waiting" &&
-        p.inQueue
+        p.inQueue &&
+        isToday(p.registeredAt) // ✅ ADDED - Only show today's patients
       )
       .sort((a, b) => a.queueNo - b.queueNo);
-    const info = {
-      doctorId: doctor.id,
-      doctorName: doctor.name,
-      currentServing: currentServingPatient ? currentServingPatient.queueNo : null,
-      waitingNumbers: doctorPatients.slice(0, 3).map(p => p.queueNo)
-    };
-    
-    console.log(`📊 ${doctor.name}:`, {
-      serving: info.currentServing,
-      waiting: info.waitingNumbers
+        
+      const info = {
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        currentServing: currentServingPatient ? currentServingPatient.queueNo : null,
+        waitingNumbers: doctorPatients.slice(0, 3).map(p => p.queueNo)
+      };
+      
+      console.log(`📊 ${doctor.name}:`, {
+        serving: info.currentServing,
+        waiting: info.waitingNumbers
+      });
+      
+      return info;
     });
-    
-    return info;
-  });
-}, [syncedPatients]);
+  }, [syncedPatients]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-100 via-white to-red-100 p-4">

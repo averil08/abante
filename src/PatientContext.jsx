@@ -69,6 +69,16 @@ export const PatientProvider = ({ children }) => {
         // Restore currentServing
         const inProgressPatient = transformedPatients.find(p => p.status === "in progress" && !p.isInactive);
         setCurrentServing(inProgressPatient ? inProgressPatient.queueNo : null);
+
+        // ✅ CRITICAL FIX: Restore active patient synchronously BEFORE hiding loading screen
+        const persistedId = localStorage.getItem('activePatientId');
+        if (persistedId) {
+          const foundPatient = transformedPatients.find(p => p.id === persistedId);
+          if (foundPatient) {
+            console.log("⚡ Sync-restorating active patient from storage:", foundPatient.name);
+            setActivePatient(foundPatient);
+          }
+        }
       }
     } catch (error) {
       console.error('⚠️ Failed to load from database:', error);

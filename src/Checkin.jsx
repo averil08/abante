@@ -696,6 +696,14 @@ function Checkin() {
     // ✅✅✅ KEY FIX: Only depend on length, not the whole array!
   }, [isFromPatientSidebar, selectedPatientType, isPatientLoggedIn, patients?.length]);
 
+  // ✅ FORCE CLEAR SESSION ON MOUNT IF CLINIC VIEW
+  useEffect(() => {
+    if (viewMode === 'clinic') {
+      console.log('🏥 Clinic View detected on mount - clearing active patient session.');
+      clearActivePatient();
+    }
+  }, []); // Run once on mount
+
   // Reset the ref when patient type is selected (so we can check again if they go back)
   useEffect(() => {
     if (selectedPatientType) {
@@ -705,7 +713,8 @@ function Checkin() {
 
   // ✅ Navigation redirect - simple and clean
   // GUARD: Do NOT redirect if we are starting a NEW booking flow (e.g. Guest flow or sidebar button)
-  if (activePatient && !isNewBooking) {
+  // ALSO: Do NOT redirect if we are in 'clinic' view (so staff can scan QR codes despite active patient session)
+  if (activePatient && !isNewBooking && viewMode !== 'clinic') {
     const params = new URLSearchParams();
     if (isPatientAccess) params.append('view', 'patient');
     if (isFromPatientSidebar) params.append('from', 'patient-sidebar');
@@ -740,7 +749,13 @@ function Checkin() {
               </div>
               <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
                 <Button className="flex-1 bg-green-600 hover:bg-green-700 text-white" disabled><QrCode className="w-5 h-5 mr-2" />Clinic View (Current)</Button>
-                <Button onClick={() => { setViewMode('patient'); setIsPatientAccess(false); setIsQRCodeAccess(false); }} variant="outline" className="flex-1 border-green-600 text-green-600 hover:bg-green-50"><User className="w-5 h-5 mr-2" />Switch to Patient View</Button>
+                <Button onClick={() => {
+                  // ✅ FORCE CLEAR SESSION: Staff view should always be fresh
+                  clearActivePatient();
+                  setViewMode('patient');
+                  setIsPatientAccess(false);
+                  setIsQRCodeAccess(false);
+                }} variant="outline" className="flex-1 border-green-600 text-green-600 hover:bg-green-50"><User className="w-5 h-5 mr-2" />Switch to Patient View</Button>
               </div>
             </CardContent>
           </Card>
@@ -759,7 +774,15 @@ function Checkin() {
           <Card className="w-full max-w-md shadow-xl border-t-4 border-green-600">
             {!isFromSidebar && (
               <div className="p-4 border-b border-gray-200">
-                <Button onClick={() => isPatientAccess ? navigate('/') : setViewMode('clinic')} variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50">← Back</Button>
+                <Button onClick={() => {
+                  if (isPatientAccess) {
+                    navigate('/');
+                  } else {
+                    // ✅ CLEAR SESSION when going back to Clinic View
+                    clearActivePatient();
+                    setViewMode('clinic');
+                  }
+                }} variant="outline" size="sm" className="text-green-600 border-green-600 hover:bg-green-50">← Back</Button>
               </div>
             )}
             <div className="flex justify-center items-center mt-4"><img src={Logo} alt="Logo" className="w-[190px] h-auto" /></div>

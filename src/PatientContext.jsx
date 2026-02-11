@@ -172,6 +172,7 @@ export const PatientProvider = ({ children }) => {
   }, [patients, isLoadingFromDB]);
 
   const [currentServing, setCurrentServing] = useState(null); // Start at null when loading from DB
+  const [manualWaitTimeAdjustment, setManualWaitTimeAdjustment] = useState(0); // NEW: Manual adjustment state
 
   // ✅ NEW: Dynamic Average Wait Time calculation
   const avgWaitTime = useMemo(() => {
@@ -190,10 +191,13 @@ export const PatientProvider = ({ children }) => {
       }
     });
 
-    return queueTimeData.length > 0
+    const calculatedAvg = queueTimeData.length > 0
       ? Math.round(queueTimeData.reduce((sum, time) => sum + time, 0) / queueTimeData.length)
       : 15; // Default to 15 if no data
-  }, [patients]);
+
+    // Return calculated average + manual adjustment (ensure it doesn't go below 0)
+    return Math.max(0, calculatedAvg + manualWaitTimeAdjustment);
+  }, [patients, manualWaitTimeAdjustment]);
 
   const [activeDoctors, setActiveDoctors] = useState([]);
 
@@ -679,11 +683,11 @@ export const PatientProvider = ({ children }) => {
   };
 
   const addWaitTime = () => {
-    setAvgWaitTime(prev => prev + 5);
+    setManualWaitTimeAdjustment(prev => prev + 5);
   };
 
   const reduceWaitTime = () => {
-    setAvgWaitTime(prev => Math.max(5, prev - 5));
+    setManualWaitTimeAdjustment(prev => prev - 5);
   };
 
   const getDoctorCurrentServing = (doctorId) => {

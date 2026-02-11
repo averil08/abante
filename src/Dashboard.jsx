@@ -21,6 +21,7 @@ const Dashboard = () => {
   const [selectedDoctor, setSelectedDoctor] = useState(null); // null = general view, number = specific doctor
   const [viewMode, setViewMode] = useState('general'); // 'general' or 'doctor'
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
+  const [queueError, setQueueError] = useState(null); // NEW: Error state
 
   // NEW: Date Filtering States
   const [dateFilter, setDateFilter] = useState('today'); // 'today', 'thisWeek', 'lastWeek', 'custom'
@@ -450,6 +451,13 @@ const Dashboard = () => {
 
 
   const handleCallNext = () => {
+    // ✅ NEW: Check if any doctor's queue is started
+    if (activeDoctors.length === 0) {
+      setQueueError("You can’t call a patient. Start a doctor’s queue first.");
+      setTimeout(() => setQueueError(null), 5000); // Auto-dismiss after 5 seconds
+      return;
+    }
+
     // ✅ NEW: If no one is currently being served, start the queue
     if (!currentServing) {
       // First check for priority patients from the FILTERED list
@@ -1184,6 +1192,22 @@ const Dashboard = () => {
         </div>
 
         <div className="max-w-7xl mx-auto p-4 sm:p-6">
+          {queueError && (
+            <div className="mb-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md shadow-sm flex items-center justify-between">
+                <div className="flex items-center">
+                  <XCircle className="h-5 w-5 text-red-400 mr-3" />
+                  <p className="text-sm text-red-700 font-medium">{queueError}</p>
+                </div>
+                <button
+                  onClick={() => setQueueError(null)}
+                  className="text-red-400 hover:text-red-500 transition-colors"
+                >
+                  <XCircle className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
             {/* Current Serving */}
             <Card>
@@ -1230,7 +1254,14 @@ const Dashboard = () => {
                           </p>
                           <div className="space-y-2">
                             <Button
-                              onClick={() => callNextPatientForDoctor(selectedDoctor)}
+                              onClick={() => {
+                                if (!isDoctorActive(selectedDoctor)) {
+                                  setQueueError(`You can’t call a patient. Start ${doctors.find(d => d.id === selectedDoctor)?.name}'s queue first.`);
+                                  setTimeout(() => setQueueError(null), 5000);
+                                  return;
+                                }
+                                callNextPatientForDoctor(selectedDoctor);
+                              }}
                               className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base"
                               disabled={getDoctorPatientCount(selectedDoctor) === 0}
                             >

@@ -136,7 +136,7 @@ const Analytics = () => {
 
   // Calculate analytics
   const analytics = useMemo(() => {
-    if (!filteredPatients || filteredPatients.length === 0) return {
+    if (!patients) return {
       patientsPerDay: [], patientsPerHour: [], heatmapData: [],
       weeklyData: [], servedWalkIn: 0, servedAppointment: 0,
       totalWalkIn: 0, totalAppointment: 0,
@@ -281,18 +281,6 @@ const Analytics = () => {
       patients
     }));
 
-    // Today's patients
-    {/*const todayPatients = patients.filter(p => {
-      const regDate = p.registeredAt ? new Date(p.registeredAt) : today;
-      return regDate >= today;
-    });
-*/}
-    // This week's patients
-    {/*const weekPatients = patients.filter(p => {
-      const regDate = p.registeredAt ? new Date(p.registeredAt) : today;
-      return regDate >= oneWeekAgo;
-    });*/}
-
     // Walk-in vs Appointment counts
     const totalWalkIn = filteredPatients.filter(p => p.type === "Walk-in").length;
     const totalAppointment = filteredPatients.filter(p => p.type === "Appointment").length;
@@ -424,10 +412,12 @@ const Analytics = () => {
     // Object to store service time data
     const serviceTimeData = {};
 
-    // Loop through all patients
-    filteredPatients.forEach(p => {
-      // Only look at completed patients with valid timestamps
-      if (p.status === "done" && p.calledAt && p.completedAt && p.services) {
+    // Loop through ALL patients (not filtered) to get historical average
+    // Only analyze patients with service and valid timestamps
+    patients.forEach(p => {
+      // STRICT CHECK: Must be done, have timestamps, and HAVE SERVICES
+      if (p.status === "done" && p.calledAt && p.completedAt &&
+        p.services && p.services.length > 0) {
 
         // Convert timestamp strings to Date objects
         const calledTime = new Date(p.calledAt);
@@ -468,7 +458,7 @@ const Analytics = () => {
         count: data.count// How many times done
       }))
       .sort((a, b) => b.avgTime - a.avgTime)// Sort slowest first
-      .slice(0, 5);// Keep top  only
+      .slice(0, 5);// Keep top only
 
     // Calculate average queue time (waiting time before being called)
     const queueTimeData = [];
@@ -643,7 +633,7 @@ const Analytics = () => {
       weeklyTrend,
       trendData: trendDataMap[trendFilter]
     };
-  }, [filteredPatients, avgWaitTime, trendFilter]);
+  }, [filteredPatients, avgWaitTime, trendFilter, patients]); // Added 'patients' to dependency array
 
   // Colors for charts
   const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];

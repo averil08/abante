@@ -1,4 +1,4 @@
-import { doctors } from './doctorData';
+import { doctors, assignDoctor } from './doctorData';
 import React, { useState, useContext, useEffect, useRef, useMemo } from "react";
 import { PatientContext } from "./PatientContext";
 import Sidebar from "@/components/Sidebar";
@@ -23,7 +23,16 @@ import {
 function Checkin() {
   //============= CONSTANTS & CONTEXT ==============
   const navigate = useNavigate();
-  const { patients, addPatient, setActivePatient, activePatient, clearActivePatient, getAvailableSlots, isLoadingFromDB } = useContext(PatientContext);
+  const {
+    patients,
+    addPatient,
+    setActivePatient,
+    activePatient,
+    clearActivePatient,
+    getAvailableSlots,
+    isLoadingFromDB,
+    activeDoctors // NEW: Destructure activeDoctors
+  } = useContext(PatientContext);
 
   //=========== HELPER FUNCTIONS (URL PARAMS) ===========
   const getInitialViewMode = () => {
@@ -395,6 +404,15 @@ function Checkin() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    // ✅ NEW: Automatically assign doctor if not chosen by patient
+    // If walk-in or appointment without specific doctor, find the best active doctor
+    let autoAssignedDoctor = null;
+    if (bookingMode !== 'doctor' || !selectedDoctor) {
+      console.log('🔄 Attempting automatic doctor assignment...');
+      autoAssignedDoctor = assignDoctor(formData.services || [], patients, activeDoctors || []);
+    }
+    const finalDoctor = selectedDoctor || autoAssignedDoctor;
+
     const dataToSubmit = {
       ...formData,
       name: formData.name || "Guest Patient",
@@ -405,7 +423,8 @@ function Checkin() {
       ),
       // If booking by doctor, clear services. If by service, clear physician.
       services: bookingMode === 'doctor' ? [] : formData.services,
-      physician: bookingMode === 'doctor' && selectedDoctor ? selectedDoctor.name : null
+      physician: finalDoctor?.name || (bookingMode === 'doctor' && selectedDoctor ? selectedDoctor.name : null),
+      assignedDoctorName: finalDoctor?.name || null // Pass to registration logic
     };
 
     try {
@@ -489,6 +508,11 @@ function Checkin() {
             name: selectedDoctor.name,
             specialization: selectedDoctor.specialization
           } : null,
+          assignedDoctor: finalDoctor ? {
+            id: finalDoctor.id,
+            name: finalDoctor.name,
+            specialization: finalDoctor.specialization
+          } : null, // NEW: Include assignedDoctor in local state immediately
           bookingMode: bookingMode,
           status: "waiting",
           appointmentStatus: selectedPatientType === "Appointment" ? "pending" : null,

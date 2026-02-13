@@ -26,6 +26,7 @@ export const registerWalkInPatient = async (patientData) => {
             age: parseInt(patientData.age),
             phone_num: patientData.phoneNum,
             physician: patientData.physician || null,
+            assigned_doctor_name: patientData.assignedDoctorName || patientData.physician || null,
             symptoms: patientData.symptoms || [],
             services: patientData.services || [],
             days_since_onset: patientData.daysSinceOnSet ? parseInt(patientData.daysSinceOnSet) : null,
@@ -85,6 +86,7 @@ export const registerAppointmentPatient = async (formData, appointmentDateTime) 
             phone_num: formData.phoneNum,
             patient_type: "appointment",
             physician: formData.physician || null,
+            assigned_doctor_name: formData.assignedDoctorName || formData.physician || null,
             symptoms: formData.symptoms || [],
             services: formData.services || [],
             status: 'waiting',
@@ -458,8 +460,11 @@ export const loginUser = async (email, password) => {
   }
 
   if (staffProfile) {
-    console.log("Role Found: Staff");
-    return { success: true, user, role: 'staff' };
+    console.log("Full Staff Profile from DB:", staffProfile);
+    // ✅ FIX: Use 'staff_role' column from clinic_staff table
+    const finalRole = (staffProfile.staff_role || user.user_metadata?.role || 'staff').toLowerCase();
+    console.log("Final Computed Role:", finalRole);
+    return { success: true, user, role: finalRole };
   }
 
   // 4. CHECK PATIENT TABLE

@@ -64,10 +64,13 @@ function Login() {
 
       if (result.success) {
         // 2. Role Verification 
-        // Checks the metadata role we set during Signup
-        const intendedRole = isPatientLogin ? 'patient' : 'staff';
+        const role = (result.role || "").toLowerCase();
+        const isStaffPortal = !isPatientLogin;
+        const hasAccess = isPatientLogin
+          ? role === 'patient'
+          : (role === 'staff' || role === 'doctor' || role === 'secretary');
 
-        if (result.role !== intendedRole) {
+        if (!hasAccess) {
           showMessage(
             "Access Denied",
             `This account is registered as a ${result.role}. Please use the correct login portal.`,
@@ -78,6 +81,9 @@ function Login() {
         }
 
         // 3. Store in localStorage for your existing filtering logic
+        const userRole = (result.role || "").toLowerCase();
+        localStorage.setItem('userRole', userRole);
+
         if (isPatientLogin) {
           localStorage.setItem('currentPatientEmail', formData.email.toLowerCase().trim());
           localStorage.setItem('isPatientLoggedIn', 'true');
@@ -98,7 +104,14 @@ function Login() {
           if (isPatientLogin) {
             navigate("/homepage");
           } else {
-            navigate("/dashboard");
+            // Redirect based on role (case-insensitive check)
+            const userRole = (result.role || "").toLowerCase();
+            if (userRole === 'doctor') {
+              navigate("/doctor-selection");
+            } else {
+              // Both 'staff' and 'secretary' go to the main dashboard
+              navigate("/dashboard");
+            }
           }
         }, 1500);
       } else {

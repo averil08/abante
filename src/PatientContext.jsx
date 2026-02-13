@@ -514,8 +514,14 @@ export const PatientProvider = ({ children }) => {
 
       // 2. Determine Doctor Assignment - If they preferred a doctor during booking, keep it
       let assignedDoctor = patient.assignedDoctor;
-      if (!assignedDoctor && patient.bookingMode === 'doctor' && patient.preferredDoctor) {
-        assignedDoctor = doctors.find(d => d.id === patient.preferredDoctor.id);
+      if (!assignedDoctor) {
+        if (patient.bookingMode === 'doctor' && patient.preferredDoctor) {
+          assignedDoctor = doctors.find(d => d.id === patient.preferredDoctor.id);
+        } else {
+          // ✅ NEW: Auto-assign upon acceptance if no doctor assigned
+          console.log(`🔄 Auto-assigning doctor for accepted appointment ${patientId}...`);
+          assignedDoctor = assignDoctor(patient.services || [], patients, activeDoctors);
+        }
       }
 
       // 3. Prepare updates

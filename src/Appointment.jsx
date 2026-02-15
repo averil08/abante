@@ -395,7 +395,7 @@ const Appointment = () => {
             View
           </Button>
 
-          {(!appointment.appointmentStatus || appointment.appointmentStatus === 'pending') && (
+          {(!appointment.appointmentStatus || appointment.appointmentStatus === 'pending') && !isDoctor && (
             <>
               <Button
                 size="sm"
@@ -549,7 +549,7 @@ const Appointment = () => {
                       <Eye className="w-4 h-4" />
                     </Button>
 
-                    {(!appointment.appointmentStatus || appointment.appointmentStatus === 'pending') && (
+                    {(!appointment.appointmentStatus || appointment.appointmentStatus === 'pending') && !isDoctor && (
                       <>
                         <Button
                           size="sm"
@@ -1041,7 +1041,7 @@ const Appointment = () => {
               )}
 
               {/* Action Buttons */}
-              {(!selectedAppointment.appointmentStatus || selectedAppointment.appointmentStatus === 'pending') && (
+              {(!selectedAppointment.appointmentStatus || selectedAppointment.appointmentStatus === 'pending') && !isDoctor && (
                 <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
                   <Button
                     onClick={() => {

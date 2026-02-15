@@ -246,6 +246,8 @@ export const PatientProvider = ({ children }) => {
       const isWalkIn = patient.type !== 'Appointment';
 
       if (patient.status === 'in progress' && patient.assignedDoctor && !patient.isInactive && (isAcceptedAppointment || isWalkIn)) {
+        // Debug log to trace which patient is being selected
+        // console.log(`Debug: Doctor ${patient.assignedDoctor.name} serving Ticket #${patient.queueNo}`);
         currentServing[patient.assignedDoctor.id] = patient.queueNo;
       }
     });
@@ -738,43 +740,35 @@ export const PatientProvider = ({ children }) => {
       updatePatientStatus(currentPatientQueueNo, 'done');
     }
 
-    // Helper to check if a date is today
-    const isToday = (dateString) => {
-      if (!dateString) return false;
-      const date = new Date(dateString);
-      const now = new Date();
-      return date.toDateString() === now.toDateString();
-    };
+    // Note: Removed strict isToday check & manual state setting to fix sync issues
 
+    // Find next priority patient (waiting, assigned to this doctor)
     const nextPriorityPatient = patients.find(p =>
       p.status === "waiting" &&
       p.inQueue &&
       p.isPriority &&
       p.assignedDoctor?.id === dId &&
-      !p.isInactive &&
-      isToday(p.registeredAt)
+      !p.isInactive
     );
 
     if (nextPriorityPatient) {
+      console.log(`Debug: Calling Priority Patient ${nextPriorityPatient.queueNo}`);
       updatePatientStatus(nextPriorityPatient.queueNo, 'in progress');
-      setDoctorCurrentServingPatient(dId, nextPriorityPatient.queueNo);
       return;
     }
 
+    // Find next normal patient
     const nextWaitingPatient = patients.find(p =>
       p.status === "waiting" &&
       p.inQueue &&
       !p.isPriority &&
       p.assignedDoctor?.id === dId &&
-      !p.isInactive &&
-      isToday(p.registeredAt)
+      !p.isInactive
     );
 
     if (nextWaitingPatient) {
+      console.log(`Debug: Calling Waiting Patient ${nextWaitingPatient.queueNo}`);
       updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
-      setDoctorCurrentServingPatient(dId, nextWaitingPatient.queueNo);
-    } else {
-      setDoctorCurrentServingPatient(dId, null);
     }
   };
 
@@ -786,26 +780,18 @@ export const PatientProvider = ({ children }) => {
 
     cancelPatient(currentPatientQueueNo);
 
-    // Helper to check if a date is today
-    const isToday = (dateString) => {
-      if (!dateString) return false;
-      const date = new Date(dateString);
-      const now = new Date();
-      return date.toDateString() === now.toDateString();
-    };
+    // Note: Removed strict isToday check & manual state setting to fix sync issues
 
     const nextPriorityPatient = patients.find(p =>
       p.status === "waiting" &&
       p.inQueue &&
       p.isPriority &&
       p.assignedDoctor?.id === dId &&
-      !p.isInactive &&
-      isToday(p.registeredAt)
+      !p.isInactive
     );
 
     if (nextPriorityPatient) {
       updatePatientStatus(nextPriorityPatient.queueNo, 'in progress');
-      setDoctorCurrentServingPatient(dId, nextPriorityPatient.queueNo);
       return;
     }
 
@@ -814,15 +800,11 @@ export const PatientProvider = ({ children }) => {
       p.inQueue &&
       !p.isPriority &&
       p.assignedDoctor?.id === dId &&
-      !p.isInactive &&
-      isToday(p.registeredAt)
+      !p.isInactive
     );
 
     if (nextWaitingPatient) {
       updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
-      setDoctorCurrentServingPatient(dId, nextWaitingPatient.queueNo);
-    } else {
-      setDoctorCurrentServingPatient(dId, null);
     }
   };
 

@@ -7,6 +7,7 @@ import img1 from '../assets/logo-valley.png';
 const Sidebar = ({ nav, handleNav }) => {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const userRole = localStorage.getItem('userRole'); // NEW: Get user role
 
   const handleLogoutClick = () => {
     setShowLogoutModal(true);
@@ -31,37 +32,45 @@ const Sidebar = ({ nav, handleNav }) => {
           <li
             className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
             onClick={() => navigate("/dashboard")}>
-            <Users className="w-5 h-5 text-green-600 group-hover:text-white" /> 
+            <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
             Clinic Dashboard
           </li>
-          <li
-            className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
-            onClick={() => navigate("/analytics")}>
-            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" /> 
-            Clinic Analytics
-          </li>
+          {userRole !== 'doctor' && (
+            <>
+              <li
+                className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
+                onClick={() => navigate("/analytics")}>
+                <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" />
+                Clinic Analytics
+              </li>
+            </>
+          )}
 
           <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointment")}>
             <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
             Appointments
           </li>
 
-          <li
-            className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
-            onClick={() => navigate("/checkin")}>
-            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" /> 
-            Patient Check-In
-          </li>
-          <li
-            className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
-            onClick={() => navigate("/patientprofile")}>
-            <NotebookText className="w-5 h-5 text-green-600 group-hover:text-white" /> 
-            Patient Profile
-          </li>
+          {userRole !== 'doctor' && (
+            <>
+              <li
+                className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
+                onClick={() => navigate("/checkin")}>
+                <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" />
+                Patient Check-In
+              </li>
+              <li
+                className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
+                onClick={() => navigate("/patientprofile")}>
+                <NotebookText className="w-5 h-5 text-green-600 group-hover:text-white" />
+                Patient Profile
+              </li>
+            </>
+          )}
           <li
             className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
             onClick={handleLogoutClick}>
-            <DoorOpen className="w-5 h-5 text-green-600 group-hover:text-white" /> 
+            <DoorOpen className="w-5 h-5 text-green-600 group-hover:text-white" />
             Log Out
           </li>
         </ul>
@@ -83,35 +92,41 @@ const Sidebar = ({ nav, handleNav }) => {
           <li
             className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
             onClick={() => navigate("/dashboard")}>
-            <Users className="w-5 h-5 text-green-600 group-hover:text-white" /> 
+            <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
             Clinic Dashboard
           </li>
-          <li
-            className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
-            onClick={() => navigate("/analytics")}>
-            <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" /> 
-            Clinic Analytics
-          </li>
+          {userRole !== 'doctor' && (
+            <li
+              className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
+              onClick={() => navigate("/analytics")}>
+              <ChartNoAxesCombined className="w-5 h-5 text-green-600 group-hover:text-white" />
+              Clinic Analytics
+            </li>
+          )}
           <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointment")}>
             <Calendar className="w-5 h-5 text-green-600 group-hover:text-white" />
             Appointments
           </li>
-          <li
-            className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
-            onClick={() => navigate("/checkin")}>
-            <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" /> 
-            Patient Check-In
-          </li>
-          <li
-            className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
-            onClick={() => navigate("/patientprofile")}>
-            <NotebookText className="w-5 h-5 text-green-600 group-hover:text-white" /> 
-            Patient Profile
-          </li>
+          {userRole !== 'doctor' && (
+            <>
+              <li
+                className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
+                onClick={() => navigate("/checkin")}>
+                <TicketCheck className="w-5 h-5 text-green-600 group-hover:text-white" />
+                Patient Check-In
+              </li>
+              <li
+                className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
+                onClick={() => navigate("/patientprofile")}>
+                <NotebookText className="w-5 h-5 text-green-600 group-hover:text-white" />
+                Patient Profile
+              </li>
+            </>
+          )}
           <li
             className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white cursor-pointer"
             onClick={handleLogoutClick}>
-            <DoorOpen className="w-5 h-5 text-green-600 group-hover:text-white" /> 
+            <DoorOpen className="w-5 h-5 text-green-600 group-hover:text-white" />
             Log Out
           </li>
         </ul>

@@ -46,6 +46,9 @@ const Dashboard = () => {
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
   const [queueError, setQueueError] = useState(null); // NEW: Error state
 
+  // NEW: Filter Tabs State
+  const [activeTab, setActiveTab] = useState('active'); // 'active', 'done', 'cancelled'
+
   // NEW: Date Filtering States
   const [dateFilter, setDateFilter] = useState('today'); // 'today', 'thisWeek', 'lastWeek', 'custom'
   const [customStartDate, setCustomStartDate] = useState('');
@@ -892,9 +895,9 @@ const Dashboard = () => {
 
   return (
     <div className="flex w-full min-h-screen overflow-x-hidden">
-      {!isDoctor && <Sidebar nav={nav} handleNav={handleNav} />}
+      <Sidebar nav={nav} handleNav={handleNav} />
 
-      <div className={`flex-1 min-h-screen bg-gray-50 transition-all duration-300 overflow-x-hidden ${!isDoctor ? 'ml-0 md:ml-52' : 'ml-0'}`}>
+      <div className={`flex-1 min-h-screen bg-gray-50 transition-all duration-300 overflow-x-hidden ml-0 md:ml-52`}>
         <div className="max-w-[100vw]">
           <div className="bg-white shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
@@ -915,16 +918,6 @@ const Dashboard = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                     <span>TV Display</span>
-                  </Button>
-                )}
-                {isDoctor && (
-                  <Button
-                    onClick={handleLogout}
-                    variant="outline"
-                    className="border-red-600 text-red-600 hover:bg-red-50 flex items-center gap-2"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Log Out</span>
                   </Button>
                 )}
                 <div className="flex items-center gap-2">
@@ -1331,19 +1324,7 @@ const Dashboard = () => {
                       <span>TV</span>
                     </Button>
                   )}
-                  {isDoctor && (
-                    <Button
-                      onClick={handleLogout}
-                      variant="outline"
-                      size="sm"
-                      className="border-red-600 text-red-600 hover:bg-red-50 flex items-center gap-1 text-[10px]"
-                    >
-                      <LogOut className="w-3 h-3" />
-                      <span>Log Out</span>
-                    </Button>
-                  )}
                 </div>
-
                 <div className="flex flex-col gap-2">
                   <div className="relative">
                     <Button
@@ -1461,891 +1442,933 @@ const Dashboard = () => {
               </div>
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
-            {/* Current Serving */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardDescription className="text-xs sm:text-sm">
-                    {viewMode === 'doctor' ? `${doctors.find(d => d.id === selectedDoctor)?.name} - Current Serving` : 'General Queue - Current Serving'}
-                  </CardDescription>
-                  <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+
+          {/* NEW: Filter Tabs */}
+          <div className="flex space-x-1 rounded-xl bg-gray-100 p-1 mb-6">
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-blue-400 focus:outline-none focus:ring-2 ${activeTab === 'active'
+                ? 'bg-white text-blue-700 shadow'
+                : 'text-gray-500 hover:bg-white/[0.12] hover:text-gray-700'
+                }`}
+            >
+              Active Queue
+            </button>
+            <button
+              onClick={() => setActiveTab('done')}
+              className={`w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-emerald-400 focus:outline-none focus:ring-2 ${activeTab === 'done'
+                ? 'bg-white text-emerald-700 shadow'
+                : 'text-gray-500 hover:bg-white/[0.12] hover:text-gray-700'
+                }`}
+            >
+              Done Patients
+            </button>
+            <button
+              onClick={() => setActiveTab('cancelled')}
+              className={`w-full rounded-lg py-2.5 text-sm font-medium leading-5 ring-white ring-opacity-60 ring-offset-2 ring-offset-red-400 focus:outline-none focus:ring-2 ${activeTab === 'cancelled'
+                ? 'bg-white text-red-700 shadow'
+                : 'text-gray-500 hover:bg-white/[0.12] hover:text-gray-700'
+                }`}
+            >
+              Cancelled Patients
+            </button>
+          </div>
+
+          {activeTab === 'active' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6">
+              {/* Current Serving */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="text-xs sm:text-sm">
+                      {viewMode === 'doctor' ? `${doctors.find(d => d.id === selectedDoctor)?.name} - Current Serving` : 'General Queue - Current Serving'}
+                    </CardDescription>
+                    <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {viewMode === 'general' ? (
+                    <>
+                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">
+                        {currentServing ? `#${String(currentServing).padStart(3, '0')}` : 'No Patient'}
+                      </p>
+                      <div className="space-y-2">
+                        {!isDoctor && (
+                          <>
+                            <Button
+                              onClick={handleCallNext}
+                              className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base"
+                            >
+                              Call Next Patient
+                            </Button>
+                            <Button
+                              onClick={handleCancel}
+                              variant="outline"
+                              className="w-full text-red-600 border-red-300 hover:bg-red-50 text-sm sm:text-base"
+                              disabled={!currentServing}
+                            >
+                              <XCircle className="w-4 h-4 mr-2" />
+                              Cancel (No Show)
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {(() => {
+                        const doctorCurrentPatient = getDoctorCurrentServing(selectedDoctor);
+                        return (
+                          <>
+                            <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">
+                              {doctorCurrentPatient ? `#${String(doctorCurrentPatient).padStart(3, '0')}` : 'No Patient'}
+                            </p>
+                            <div className="space-y-2">
+                              {!isDoctor && (
+                                <>
+                                  <Button
+                                    onClick={() => {
+                                      if (!isDoctorActive(selectedDoctor)) {
+                                        setQueueError(`You can’t call a patient. Start ${doctors.find(d => d.id === selectedDoctor)?.name}'s queue first.`);
+                                        setTimeout(() => setQueueError(null), 5000);
+                                        return;
+                                      }
+                                      callNextPatientForDoctor(selectedDoctor);
+                                    }}
+                                    className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base"
+                                    disabled={getDoctorPatientCount(selectedDoctor) === 0}
+                                  >
+                                    Call Next Patient
+                                  </Button>
+                                  <Button
+                                    onClick={() => cancelPatientForDoctor(selectedDoctor)}
+                                    variant="outline"
+                                    className="w-full text-red-600 border-red-300 hover:bg-red-50 text-sm sm:text-base"
+                                    disabled={!doctorCurrentPatient && getDoctorPatientCount(selectedDoctor) === 0}
+                                  >
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    Cancel (No Show)
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Avg Wait Time */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="text-xs sm:text-sm">Avg Wait Time</CardDescription>
+                    <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">{avgWaitTime} mins</p>
+                  <div className="space-y-2">
+                    {!isDoctor && (
+                      <Button onClick={addWaitTime} variant="outline" className="w-full text-sm sm:text-base">
+                        Add Time (+5 mins)
+                      </Button>
+                    )}
+                    {/*<Button onClick={reduceWaitTime} variant="outline" className="w-full text-sm sm:text-base">
+                    Reduce Time (-5 mins)
+                  </Button>*/}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Total Patients Waiting */}
+              <Card className="sm:col-span-2 lg:col-span-1">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="text-xs sm:text-sm">
+                      {viewMode === 'doctor' ? `${doctors.find(d => d.id === selectedDoctor)?.name} - Waiting` : 'Total Patients Waiting'}
+                    </CardDescription>
+                    <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-4">
+                    {viewMode === 'general'
+                      ? totalWaiting
+                      : filteredQueuePatients.filter(p => p.status === "waiting").length
+                    }
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-500">Currently in queue</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Patient Queue Table */}
+          {activeTab === 'active' && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base sm:text-lg">Patient Queue (Active)</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Patients currently in progress or waiting</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {filteredQueuePatients.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                      <p>
+                        {viewMode === 'doctor'
+                          ? `No active patients for ${doctors.find(d => d.id === selectedDoctor)?.name}`
+                          : 'No active queue patients'
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Mobile Card View */}
+                      <div className="block lg:hidden space-y-4">
+                        {filteredQueuePatients.map(patient => (
+                          <Card key={`active-mob-${patient.queueNo}`} className="border-l-4 border-l-blue-200">
+                            <CardContent className="pt-4">
+                              <div className="flex justify-between items-start mb-3">
+                                <div>
+                                  <p className="font-bold text-lg text-gray-900">
+                                    #{String(patient.queueNo).padStart(3, '0')}
+                                  </p>
+                                  <p className="text-sm text-gray-600">{patient.name}</p>
+                                </div>
+                                <Badge
+                                  variant={
+                                    patient.status === 'done' ? 'default' :
+                                      patient.status === 'in progress' ? 'secondary' :
+                                        patient.status === 'cancelled' ? 'destructive' :
+                                          'outline'
+                                  }
+                                  className={
+                                    patient.status === 'done'
+                                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                      : patient.status === 'in progress'
+                                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-100'
+                                        : patient.status === 'cancelled'
+                                          ? 'bg-red-100 text-red-700 hover:bg-red-100'
+                                          : ''
+                                  }
+                                >
+                                  {patient.status}
+                                </Badge>
+                              </div>
+
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Age:</span>
+                                  <span className="font-medium">{patient.age}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Phone:</span>
+                                  <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Type:</span>
+                                  <span className="font-medium">{patient.type}</span>
+                                </div>
+
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Doctor:</span>
+                                  <span className="font-medium">{patient.assignedDoctor?.name || 'Not Assigned'}</span>
+                                </div>
+
+                                <div className="pt-2 border-t">
+                                  <p className="text-gray-600 mb-1">Symptoms:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {patient.symptoms && patient.symptoms.length > 0 ? (
+                                      patient.symptoms.map((symptom, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                          {symptom}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-gray-400 text-xs">None</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="pt-2">
+                                  <p className="text-gray-600 mb-1">Services:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {patient.services && patient.services.length > 0 ? (
+                                      patient.services.map((serviceId, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                          {getServiceLabel(serviceId)}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-gray-400 text-xs">None</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+
+                      <div className="hidden lg:block max-h-[600px] overflow-y-auto custom-scrollbar">
+                        <table className="w-full border-collapse relative table-auto">
+                          <thead className="sticky top-0 z-10">
+                            <tr className="bg-blue-100 shadow-sm">
+                              <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Queue #</th>
+                              <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Name</th>
+                              <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Age</th>
+                              <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Phone</th>
+                              <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Doctor</th>
+                              <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Type</th>
+                              <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Symptoms</th>
+                              <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Services</th>
+                              <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Status</th>
+                              {isDoctor && <th className="border px-2 py-2 text-center text-xs font-medium text-gray-600">Actions</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredQueuePatients.map(patient => (
+                              <tr key={`active-dsk-${patient.id || patient.queueNo}`} className={`border-b transition-colors ${patient.status === 'in progress' ? 'bg-blue-50/50 hover:bg-blue-50' : 'hover:bg-gray-50'}`}>
+                                <td className="p-2 align-middle text-xs font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
+                                <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
+                                <td className="p-2 align-middle text-xs">{patient.age}</td>
+                                <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
+                                <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name}>{patient.assignedDoctor?.name || 'Not Assigned'}</td>
+                                <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
+                                <td className="p-2 align-middle text-xs">
+                                  <div className="flex flex-wrap gap-1">
+                                    {patient.symptoms && patient.symptoms.length > 0 ? (
+                                      patient.symptoms.map((symptom, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                          {symptom}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-gray-400 text-xs">None</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-2 align-middle text-xs">
+                                  <div className="flex flex-wrap gap-1">
+                                    {patient.services && patient.services.length > 0 ? (
+                                      patient.services.map((serviceId, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                          {getServiceLabel(serviceId)}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-gray-400 text-xs">None</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-2 align-middle text-xs">
+                                  <Badge
+                                    variant={
+                                      patient.status === 'done' ? 'default' :
+                                        patient.status === 'in progress' ? 'secondary' :
+                                          patient.status === 'cancelled' ? 'destructive' :
+                                            'outline'
+                                    }
+                                    className={`text-[10px] px-1 py-0 ${patient.status === 'done'
+                                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                      : patient.status === 'in progress'
+                                        ? 'bg-blue-100 text-blue-700 hover:bg-blue-100'
+                                        : patient.status === 'cancelled'
+                                          ? 'bg-red-100 text-red-700 hover:bg-red-100'
+                                          : 'bg-gray-100 text-gray-700 hover:bg-gray-100'
+                                      }`}
+                                  >
+                                    {patient.status}
+                                  </Badge>
+                                </td>
+                                {isDoctor && (
+                                  <td className="p-2 align-middle text-center">
+                                    <Button
+                                      onClick={() => {
+                                        setSelectedPatientForProfile(patient);
+                                        setShowProfileModal(true);
+                                      }}
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      title="View Full Profile"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* ✅ FIXED: Priority Patients Table - Removed Action Column, Added Status Column */}
+              <Card className="mt-6">
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-yellow-500" />
+                    <div>
+                      <CardTitle className="text-base sm:text-lg">Priority Patients</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">Patients who are PWD, Pregnant or Senior Citizen</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {filteredPriorityPatients.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                      <p>
+                        {viewMode === 'doctor'
+                          ? `No priority patients for ${doctors.find(d => d.id === selectedDoctor)?.name}`
+                          : 'No priority consultations yet'
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Mobile Card View - NO ACTION BUTTONS */}
+                      <div className="block lg:hidden space-y-4">
+                        {filteredPriorityPatients.map(patient => (
+                          <Card key={`priority-mob-${patient.queueNo}`} className={`border-l-4 ${patient.status === 'waiting' ? 'border-l-yellow-600' : patient.status === 'in progress' ? 'border-l-green-600' : 'border-l-emerald-600'}`}>
+                            <CardContent className="pt-4">
+                              <div className="flex justify-between items-start mb-3">
+                                <div>
+                                  <p className="font-bold text-lg text-gray-900">
+                                    #{String(patient.queueNo).padStart(3, '0')}
+                                  </p>
+                                  <p className="text-sm text-gray-600">{patient.name}</p>
+                                </div>
+                                <Badge
+                                  variant={
+                                    patient.status === 'done' ? 'default' :
+                                      patient.status === 'in progress' ? 'secondary' :
+                                        patient.status === 'cancelled' ? 'destructive' :
+                                          'outline'
+                                  }
+                                  className={
+                                    patient.status === 'done'
+                                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                      : patient.status === 'in progress'
+                                        ? 'bg-green-100 text-green-700 hover:bg-green-100'
+                                        : patient.status === 'cancelled'
+                                          ? 'bg-red-100 text-red-700 hover:bg-red-100'
+                                          : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100'
+                                  }
+                                >
+                                  {patient.status}
+                                </Badge>
+                              </div>
+
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Age:</span>
+                                  <span className="font-medium">{patient.age}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Phone:</span>
+                                  <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Type:</span>
+                                  <span className="font-medium">{patient.type}</span>
+                                </div>
+
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Doctor:</span>
+                                  <span className="font-medium">{patient.assignedDoctor?.name || 'Not Assigned'}</span>
+                                </div>
+
+                                <div className="pt-2 border-t">
+                                  <p className="text-gray-600 mb-1">Symptoms:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {patient.symptoms && patient.symptoms.length > 0 ? (
+                                      patient.symptoms.map((symptom, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                          {symptom}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-gray-400 text-xs">None</span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="pt-2">
+                                  <p className="text-gray-600 mb-1">Services:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {patient.services && patient.services.length > 0 ? (
+                                      patient.services.map((serviceId, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                          {getServiceLabel(serviceId)}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-gray-400 text-xs">None</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+
+                      {/* Desktop Table View - STATUS COLUMN INSTEAD OF ACTION */}
+                      <div className="hidden lg:block max-h-[600px] overflow-y-auto custom-scrollbar">
+                        <table className="w-full border-collapse relative table-auto">
+                          <thead className="sticky top-0 z-10">
+                            <tr className="bg-yellow-100 shadow-sm">
+                              <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Queue #</th>
+                              <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Name</th>
+                              <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Age</th>
+                              <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Phone</th>
+                              <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Doctor</th>
+                              <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Type</th>
+                              <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Symptoms</th>
+                              <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Services</th>
+                              <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Status</th>
+                              {isDoctor && <th className="border px-2 py-2 text-center text-xs font-medium text-gray-600">Actions</th>}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filteredPriorityPatients.map(patient => (
+                              <tr key={`priority-dsk-${patient.queueNo}`} className="border-b transition-colors hover:bg-yellow-50">
+                                <td className="p-2 align-middle text-xs font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
+                                <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
+                                <td className="p-2 align-middle text-xs">{patient.age}</td>
+                                <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
+                                <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name}>{patient.assignedDoctor?.name || 'Not Assigned'}</td>
+                                <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
+                                <td className="p-2 align-middle text-xs">
+                                  <div className="flex flex-wrap gap-1">
+                                    {patient.symptoms && patient.symptoms.length > 0 ? (
+                                      patient.symptoms.map((symptom, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                          {symptom}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-gray-400 text-xs">None</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-2 align-middle text-xs">
+                                  <div className="flex flex-wrap gap-1">
+                                    {patient.services && patient.services.length > 0 ? (
+                                      patient.services.map((serviceId, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                          {getServiceLabel(serviceId)}
+                                        </Badge>
+                                      ))
+                                    ) : (
+                                      <span className="text-gray-400 text-xs">None</span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="p-2 align-middle text-xs">
+                                  <Badge
+                                    variant={
+                                      patient.status === 'done' ? 'default' :
+                                        patient.status === 'in progress' ? 'secondary' :
+                                          patient.status === 'cancelled' ? 'destructive' :
+                                            'outline'
+                                    }
+                                    className={`text-[10px] px-1 py-0 ${patient.status === 'done'
+                                      ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
+                                      : patient.status === 'in progress'
+                                        ? 'bg-green-100 text-green-700 hover:bg-green-100'
+                                        : patient.status === 'cancelled'
+                                          ? 'bg-red-100 text-red-700 hover:bg-red-100'
+                                          : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100'
+                                      }`}
+                                  >
+                                    {patient.status}
+                                  </Badge>
+                                </td>
+                                {isDoctor && (
+                                  <td className="p-2 align-middle text-center">
+                                    <Button
+                                      onClick={() => {
+                                        setSelectedPatientForProfile(patient);
+                                        setShowProfileModal(true);
+                                      }}
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      title="View Full Profile"
+                                    >
+                                      <Eye className="w-4 h-4" />
+                                    </Button>
+                                  </td>
+                                )}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {/* Done Patients Table */}
+          {activeTab === 'done' && (
+            <Card className="mt-6">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Done Patients</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Patients who have completed their consultation</CardDescription>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
-                {viewMode === 'general' ? (
-                  <>
-                    <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">
-                      {currentServing ? `#${String(currentServing).padStart(3, '0')}` : 'No Patient'}
+                {filteredDonePatients.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <p>
+                      {viewMode === 'doctor'
+                        ? `No completed patients for ${doctors.find(d => d.id === selectedDoctor)?.name}`
+                        : 'No completed consultations yet'
+                      }
                     </p>
-                    <div className="space-y-2">
-                      {!isDoctor && (
-                        <>
-                          <Button
-                            onClick={handleCallNext}
-                            className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base"
-                          >
-                            Call Next Patient
-                          </Button>
-                          <Button
-                            onClick={handleCancel}
-                            variant="outline"
-                            className="w-full text-red-600 border-red-300 hover:bg-red-50 text-sm sm:text-base"
-                            disabled={!currentServing}
-                          >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Cancel (No Show)
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </>
+                  </div>
                 ) : (
                   <>
-                    {(() => {
-                      const doctorCurrentPatient = getDoctorCurrentServing(selectedDoctor);
-                      return (
-                        <>
-                          <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">
-                            {doctorCurrentPatient ? `#${String(doctorCurrentPatient).padStart(3, '0')}` : 'No Patient'}
-                          </p>
-                          <div className="space-y-2">
-                            {!isDoctor && (
-                              <>
-                                <Button
-                                  onClick={() => {
-                                    if (!isDoctorActive(selectedDoctor)) {
-                                      setQueueError(`You can’t call a patient. Start ${doctors.find(d => d.id === selectedDoctor)?.name}'s queue first.`);
-                                      setTimeout(() => setQueueError(null), 5000);
-                                      return;
-                                    }
-                                    callNextPatientForDoctor(selectedDoctor);
-                                  }}
-                                  className="w-full bg-green-600 hover:bg-green-700 text-sm sm:text-base"
-                                  disabled={getDoctorPatientCount(selectedDoctor) === 0}
-                                >
-                                  Call Next Patient
-                                </Button>
-                                <Button
-                                  onClick={() => cancelPatientForDoctor(selectedDoctor)}
-                                  variant="outline"
-                                  className="w-full text-red-600 border-red-300 hover:bg-red-50 text-sm sm:text-base"
-                                  disabled={!doctorCurrentPatient && getDoctorPatientCount(selectedDoctor) === 0}
-                                >
-                                  <XCircle className="w-4 h-4 mr-2" />
-                                  Cancel (No Show)
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </>
-                      );
-                    })()}
+                    {/* Mobile Card View */}
+                    <div className="block lg:hidden space-y-4">
+                      {filteredDonePatients.map(patient => (
+                        <Card key={`done-mob-${patient.queueNo}`} className="border-l-4 border-l-emerald-600">
+                          <CardContent className="pt-4">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <p className="font-bold text-lg text-gray-900">
+                                  #{String(patient.queueNo).padStart(3, '0')}
+                                </p>
+                                <p className="text-sm text-gray-600">{patient.name}</p>
+                              </div>
+                              <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                Completed
+                              </Badge>
+                            </div>
+
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Age:</span>
+                                <span className="font-medium">{patient.age}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Phone:</span>
+                                <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Type:</span>
+                                <span className="font-medium">{patient.type}</span>
+                              </div>
+
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Doctor:</span>
+                                <span className="font-medium">{patient.assignedDoctor?.name || 'Not Assigned'}</span>
+                              </div>
+
+                              <div className="pt-2 border-t">
+                                <p className="text-gray-600 mb-1">Symptoms:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {patient.symptoms && patient.symptoms.length > 0 ? (
+                                    patient.symptoms.map((symptom, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                        {symptom}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">None</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="pt-2">
+                                <p className="text-gray-600 mb-1">Services:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {patient.services && patient.services.length > 0 ? (
+                                    patient.services.map((serviceId, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                        {getServiceLabel(serviceId)}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">None</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden lg:block max-h-[600px] overflow-y-auto custom-scrollbar">
+                      <table className="w-full border-collapse relative table-auto">
+                        <thead className="sticky top-0 z-10">
+                          <tr className="bg-emerald-100 shadow-sm">
+                            <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Queue #</th>
+                            <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Name</th>
+                            <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Age</th>
+                            <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Phone</th>
+                            <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Doctor</th>
+                            <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Type</th>
+                            <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Symptoms</th>
+                            <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Services</th>
+                            {isDoctor && <th className="border px-2 py-2 text-center text-xs font-medium text-gray-600">Actions</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredDonePatients.map(patient => (
+                            <tr key={`done-dsk-${patient.queueNo}`} className="border-b transition-colors hover:bg-emerald-50">
+                              <td className="p-2 align-middle text-xs font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
+                              <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
+                              <td className="p-2 align-middle text-xs">{patient.age}</td>
+                              <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
+                              <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name}>{patient.assignedDoctor?.name || 'Not Assigned'}</td>
+                              <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
+                              <td className="p-2 align-middle text-xs">
+                                <div className="flex flex-wrap gap-1">
+                                  {patient.symptoms && patient.symptoms.length > 0 ? (
+                                    patient.symptoms.map((symptom, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                        {symptom}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">None</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-2 align-middle text-xs">
+                                <div className="flex flex-wrap gap-1">
+                                  {patient.services && patient.services.length > 0 ? (
+                                    patient.services.map((serviceId, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                        {getServiceLabel(serviceId)}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">None</span>
+                                  )}
+                                </div>
+                              </td>
+                              {isDoctor && (
+                                <td className="p-2 align-middle text-center">
+                                  <Button
+                                    onClick={() => {
+                                      setSelectedPatientForProfile(patient);
+                                      setShowProfileModal(true);
+                                    }}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    title="View Full Profile"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </>
                 )}
               </CardContent>
             </Card>
-
-            {/* Avg Wait Time */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardDescription className="text-xs sm:text-sm">Avg Wait Time</CardDescription>
-                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">{avgWaitTime} mins</p>
-                <div className="space-y-2">
-                  {!isDoctor && (
-                    <Button onClick={addWaitTime} variant="outline" className="w-full text-sm sm:text-base">
-                      Add Time (+5 mins)
-                    </Button>
-                  )}
-                  {/*<Button onClick={reduceWaitTime} variant="outline" className="w-full text-sm sm:text-base">
-                    Reduce Time (-5 mins)
-                  </Button>*/}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Total Patients Waiting */}
-            <Card className="sm:col-span-2 lg:col-span-1">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardDescription className="text-xs sm:text-sm">
-                    {viewMode === 'doctor' ? `${doctors.find(d => d.id === selectedDoctor)?.name} - Waiting` : 'Total Patients Waiting'}
-                  </CardDescription>
-                  <Users className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-4">
-                  {viewMode === 'general'
-                    ? totalWaiting
-                    : filteredQueuePatients.filter(p => p.status === "waiting").length
-                  }
-                </p>
-                <p className="text-xs sm:text-sm text-gray-500">Currently in queue</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Patient Queue Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base sm:text-lg">Patient Queue (Active)</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Patients currently in progress or waiting</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {filteredQueuePatients.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Users className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p>
-                    {viewMode === 'doctor'
-                      ? `No active patients for ${doctors.find(d => d.id === selectedDoctor)?.name}`
-                      : 'No active queue patients'
-                    }
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {/* Mobile Card View */}
-                  <div className="block lg:hidden space-y-4">
-                    {filteredQueuePatients.map(patient => (
-                      <Card key={`active-mob-${patient.queueNo}`} className="border-l-4 border-l-blue-200">
-                        <CardContent className="pt-4">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <p className="font-bold text-lg text-gray-900">
-                                #{String(patient.queueNo).padStart(3, '0')}
-                              </p>
-                              <p className="text-sm text-gray-600">{patient.name}</p>
-                            </div>
-                            <Badge
-                              variant={
-                                patient.status === 'done' ? 'default' :
-                                  patient.status === 'in progress' ? 'secondary' :
-                                    patient.status === 'cancelled' ? 'destructive' :
-                                      'outline'
-                              }
-                              className={
-                                patient.status === 'done'
-                                  ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                                  : patient.status === 'in progress'
-                                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-100'
-                                    : patient.status === 'cancelled'
-                                      ? 'bg-red-100 text-red-700 hover:bg-red-100'
-                                      : ''
-                              }
-                            >
-                              {patient.status}
-                            </Badge>
-                          </div>
-
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Age:</span>
-                              <span className="font-medium">{patient.age}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Phone:</span>
-                              <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Type:</span>
-                              <span className="font-medium">{patient.type}</span>
-                            </div>
-
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Doctor:</span>
-                              <span className="font-medium">{patient.assignedDoctor?.name || 'Not Assigned'}</span>
-                            </div>
-
-                            <div className="pt-2 border-t">
-                              <p className="text-gray-600 mb-1">Symptoms:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {patient.symptoms && patient.symptoms.length > 0 ? (
-                                  patient.symptoms.map((symptom, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                      {symptom}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="pt-2">
-                              <p className="text-gray-600 mb-1">Services:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {patient.services && patient.services.length > 0 ? (
-                                  patient.services.map((serviceId, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                      {getServiceLabel(serviceId)}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-
-                  <div className="hidden lg:block max-h-[600px] overflow-y-auto custom-scrollbar">
-                    <table className="w-full border-collapse relative table-auto">
-                      <thead className="sticky top-0 z-10">
-                        <tr className="bg-blue-100 shadow-sm">
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Queue #</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Name</th>
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Age</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Phone</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Doctor</th>
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Type</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Symptoms</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Services</th>
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Status</th>
-                          {isDoctor && <th className="border px-2 py-2 text-center text-xs font-medium text-gray-600">Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredQueuePatients.map(patient => (
-                          <tr key={`active-dsk-${patient.id || patient.queueNo}`} className={`border-b transition-colors ${patient.status === 'in progress' ? 'bg-blue-50/50 hover:bg-blue-50' : 'hover:bg-gray-50'}`}>
-                            <td className="p-2 align-middle text-xs font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
-                            <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
-                            <td className="p-2 align-middle text-xs">{patient.age}</td>
-                            <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
-                            <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name}>{patient.assignedDoctor?.name || 'Not Assigned'}</td>
-                            <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
-                            <td className="p-2 align-middle text-xs">
-                              <div className="flex flex-wrap gap-1">
-                                {patient.symptoms && patient.symptoms.length > 0 ? (
-                                  patient.symptoms.map((symptom, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                      {symptom}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-2 align-middle text-xs">
-                              <div className="flex flex-wrap gap-1">
-                                {patient.services && patient.services.length > 0 ? (
-                                  patient.services.map((serviceId, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                      {getServiceLabel(serviceId)}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-2 align-middle text-xs">
-                              <Badge
-                                variant={
-                                  patient.status === 'done' ? 'default' :
-                                    patient.status === 'in progress' ? 'secondary' :
-                                      patient.status === 'cancelled' ? 'destructive' :
-                                        'outline'
-                                }
-                                className={`text-[10px] px-1 py-0 ${patient.status === 'done'
-                                  ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                                  : patient.status === 'in progress'
-                                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-100'
-                                    : patient.status === 'cancelled'
-                                      ? 'bg-red-100 text-red-700 hover:bg-red-100'
-                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-100'
-                                  }`}
-                              >
-                                {patient.status}
-                              </Badge>
-                            </td>
-                            {isDoctor && (
-                              <td className="p-2 align-middle text-center">
-                                <Button
-                                  onClick={() => {
-                                    setSelectedPatientForProfile(patient);
-                                    setShowProfileModal(true);
-                                  }}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  title="View Full Profile"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* ✅ FIXED: Priority Patients Table - Removed Action Column, Added Status Column */}
-          <Card className="mt-6">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-yellow-500" />
-                <div>
-                  <CardTitle className="text-base sm:text-lg">Priority Patients</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Patients who are PWD, Pregnant or Senior Citizen</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {filteredPriorityPatients.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p>
-                    {viewMode === 'doctor'
-                      ? `No priority patients for ${doctors.find(d => d.id === selectedDoctor)?.name}`
-                      : 'No priority consultations yet'
-                    }
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {/* Mobile Card View - NO ACTION BUTTONS */}
-                  <div className="block lg:hidden space-y-4">
-                    {filteredPriorityPatients.map(patient => (
-                      <Card key={`priority-mob-${patient.queueNo}`} className={`border-l-4 ${patient.status === 'waiting' ? 'border-l-yellow-600' : patient.status === 'in progress' ? 'border-l-green-600' : 'border-l-emerald-600'}`}>
-                        <CardContent className="pt-4">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <p className="font-bold text-lg text-gray-900">
-                                #{String(patient.queueNo).padStart(3, '0')}
-                              </p>
-                              <p className="text-sm text-gray-600">{patient.name}</p>
-                            </div>
-                            <Badge
-                              variant={
-                                patient.status === 'done' ? 'default' :
-                                  patient.status === 'in progress' ? 'secondary' :
-                                    patient.status === 'cancelled' ? 'destructive' :
-                                      'outline'
-                              }
-                              className={
-                                patient.status === 'done'
-                                  ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                                  : patient.status === 'in progress'
-                                    ? 'bg-green-100 text-green-700 hover:bg-green-100'
-                                    : patient.status === 'cancelled'
-                                      ? 'bg-red-100 text-red-700 hover:bg-red-100'
-                                      : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100'
-                              }
-                            >
-                              {patient.status}
-                            </Badge>
-                          </div>
-
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Age:</span>
-                              <span className="font-medium">{patient.age}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Phone:</span>
-                              <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Type:</span>
-                              <span className="font-medium">{patient.type}</span>
-                            </div>
-
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Doctor:</span>
-                              <span className="font-medium">{patient.assignedDoctor?.name || 'Not Assigned'}</span>
-                            </div>
-
-                            <div className="pt-2 border-t">
-                              <p className="text-gray-600 mb-1">Symptoms:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {patient.symptoms && patient.symptoms.length > 0 ? (
-                                  patient.symptoms.map((symptom, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                      {symptom}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="pt-2">
-                              <p className="text-gray-600 mb-1">Services:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {patient.services && patient.services.length > 0 ? (
-                                  patient.services.map((serviceId, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                      {getServiceLabel(serviceId)}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-
-                  {/* Desktop Table View - STATUS COLUMN INSTEAD OF ACTION */}
-                  <div className="hidden lg:block max-h-[600px] overflow-y-auto custom-scrollbar">
-                    <table className="w-full border-collapse relative table-auto">
-                      <thead className="sticky top-0 z-10">
-                        <tr className="bg-yellow-100 shadow-sm">
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Queue #</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Name</th>
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Age</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Phone</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Doctor</th>
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Type</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Symptoms</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Services</th>
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Status</th>
-                          {isDoctor && <th className="border px-2 py-2 text-center text-xs font-medium text-gray-600">Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredPriorityPatients.map(patient => (
-                          <tr key={`priority-dsk-${patient.queueNo}`} className="border-b transition-colors hover:bg-yellow-50">
-                            <td className="p-2 align-middle text-xs font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
-                            <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
-                            <td className="p-2 align-middle text-xs">{patient.age}</td>
-                            <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
-                            <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name}>{patient.assignedDoctor?.name || 'Not Assigned'}</td>
-                            <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
-                            <td className="p-2 align-middle text-xs">
-                              <div className="flex flex-wrap gap-1">
-                                {patient.symptoms && patient.symptoms.length > 0 ? (
-                                  patient.symptoms.map((symptom, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                      {symptom}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-2 align-middle text-xs">
-                              <div className="flex flex-wrap gap-1">
-                                {patient.services && patient.services.length > 0 ? (
-                                  patient.services.map((serviceId, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                      {getServiceLabel(serviceId)}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-2 align-middle text-xs">
-                              <Badge
-                                variant={
-                                  patient.status === 'done' ? 'default' :
-                                    patient.status === 'in progress' ? 'secondary' :
-                                      patient.status === 'cancelled' ? 'destructive' :
-                                        'outline'
-                                }
-                                className={`text-[10px] px-1 py-0 ${patient.status === 'done'
-                                  ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100'
-                                  : patient.status === 'in progress'
-                                    ? 'bg-green-100 text-green-700 hover:bg-green-100'
-                                    : patient.status === 'cancelled'
-                                      ? 'bg-red-100 text-red-700 hover:bg-red-100'
-                                      : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-100'
-                                  }`}
-                              >
-                                {patient.status}
-                              </Badge>
-                            </td>
-                            {isDoctor && (
-                              <td className="p-2 align-middle text-center">
-                                <Button
-                                  onClick={() => {
-                                    setSelectedPatientForProfile(patient);
-                                    setShowProfileModal(true);
-                                  }}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  title="View Full Profile"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Done Patients Table */}
-          <Card className="mt-6">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                <div>
-                  <CardTitle className="text-base sm:text-lg">Done Patients</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Patients who have completed their consultation</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {filteredDonePatients.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p>
-                    {viewMode === 'doctor'
-                      ? `No completed patients for ${doctors.find(d => d.id === selectedDoctor)?.name}`
-                      : 'No completed consultations yet'
-                    }
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {/* Mobile Card View */}
-                  <div className="block lg:hidden space-y-4">
-                    {filteredDonePatients.map(patient => (
-                      <Card key={`done-mob-${patient.queueNo}`} className="border-l-4 border-l-emerald-600">
-                        <CardContent className="pt-4">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <p className="font-bold text-lg text-gray-900">
-                                #{String(patient.queueNo).padStart(3, '0')}
-                              </p>
-                              <p className="text-sm text-gray-600">{patient.name}</p>
-                            </div>
-                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                              Completed
-                            </Badge>
-                          </div>
-
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Age:</span>
-                              <span className="font-medium">{patient.age}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Phone:</span>
-                              <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Type:</span>
-                              <span className="font-medium">{patient.type}</span>
-                            </div>
-
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Doctor:</span>
-                              <span className="font-medium">{patient.assignedDoctor?.name || 'Not Assigned'}</span>
-                            </div>
-
-                            <div className="pt-2 border-t">
-                              <p className="text-gray-600 mb-1">Symptoms:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {patient.symptoms && patient.symptoms.length > 0 ? (
-                                  patient.symptoms.map((symptom, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                      {symptom}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="pt-2">
-                              <p className="text-gray-600 mb-1">Services:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {patient.services && patient.services.length > 0 ? (
-                                  patient.services.map((serviceId, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                      {getServiceLabel(serviceId)}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-
-                  {/* Desktop Table View */}
-                  <div className="hidden lg:block max-h-[600px] overflow-y-auto custom-scrollbar">
-                    <table className="w-full border-collapse relative table-auto">
-                      <thead className="sticky top-0 z-10">
-                        <tr className="bg-emerald-100 shadow-sm">
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Queue #</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Name</th>
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Age</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Phone</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Doctor</th>
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Type</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Symptoms</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Services</th>
-                          {isDoctor && <th className="border px-2 py-2 text-center text-xs font-medium text-gray-600">Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredDonePatients.map(patient => (
-                          <tr key={`done-dsk-${patient.queueNo}`} className="border-b transition-colors hover:bg-emerald-50">
-                            <td className="p-2 align-middle text-xs font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
-                            <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
-                            <td className="p-2 align-middle text-xs">{patient.age}</td>
-                            <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
-                            <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name}>{patient.assignedDoctor?.name || 'Not Assigned'}</td>
-                            <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
-                            <td className="p-2 align-middle text-xs">
-                              <div className="flex flex-wrap gap-1">
-                                {patient.symptoms && patient.symptoms.length > 0 ? (
-                                  patient.symptoms.map((symptom, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                      {symptom}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="p-2 align-middle text-xs">
-                              <div className="flex flex-wrap gap-1">
-                                {patient.services && patient.services.length > 0 ? (
-                                  patient.services.map((serviceId, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                      {getServiceLabel(serviceId)}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </td>
-                            {isDoctor && (
-                              <td className="p-2 align-middle text-center">
-                                <Button
-                                  onClick={() => {
-                                    setSelectedPatientForProfile(patient);
-                                    setShowProfileModal(true);
-                                  }}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  title="View Full Profile"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+          )}
 
           {/* Cancel Patients Table */}
-          <Card className="mt-6">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-red-600" />
-                <div>
-                  <CardTitle className="text-base sm:text-lg">Cancelled Patients</CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Patients who missed their turn in queue</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {filteredCancelPatients.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
-                  <p>
-                    {viewMode === 'doctor'
-                      ? `No cancelled patients for ${doctors.find(d => d.id === selectedDoctor)?.name}`
-                      : 'No cancelled consultations yet'
-                    }
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {/* Mobile Card View */}
-                  <div className="block lg:hidden space-y-4">
-                    {filteredCancelPatients.map(patient => (
-                      <Card key={`cancel-${patient.queueNo}`} className="border-l-4 border-l-red-200">
-                        <CardContent className="pt-4">
-                          <div className="flex justify-between items-start mb-3">
-                            <div>
-                              <p className="font-bold text-lg text-gray-900">
-                                #{String(patient.queueNo).padStart(3, '0')}
-                              </p>
-                              <p className="text-sm text-gray-600">{patient.name}</p>
-                            </div>
-                            <Badge className="bg-red-200 text-red-500 hover:bg-red-200">
-                              Cancelled
-                            </Badge>
-                          </div>
-
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Age:</span>
-                              <span className="font-medium">{patient.age}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Phone:</span>
-                              <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Type:</span>
-                              <span className="font-medium">{patient.type}</span>
-                            </div>
-
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Doctor:</span>
-                              <span className="font-medium">{patient.assignedDoctor?.name || 'Not Assigned'}</span>
-                            </div>
-
-                            <div className="pt-2 border-t">
-                              <p className="text-gray-600 mb-1">Symptoms:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {patient.symptoms && patient.symptoms.length > 0 ? (
-                                  patient.symptoms.map((symptom, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                      {symptom}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="pt-2">
-                              <p className="text-gray-600 mb-1">Services:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {patient.services && patient.services.length > 0 ? (
-                                  patient.services.map((serviceId, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                      {getServiceLabel(serviceId)}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+          {activeTab === 'cancelled' && (
+            <Card className="mt-6">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-red-600" />
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Cancelled Patients</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Patients who missed their turn in queue</CardDescription>
                   </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {filteredCancelPatients.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <CheckCircle2 className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                    <p>
+                      {viewMode === 'doctor'
+                        ? `No cancelled patients for ${doctors.find(d => d.id === selectedDoctor)?.name}`
+                        : 'No cancelled consultations yet'
+                      }
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Mobile Card View */}
+                    <div className="block lg:hidden space-y-4">
+                      {filteredCancelPatients.map(patient => (
+                        <Card key={`cancel-${patient.queueNo}`} className="border-l-4 border-l-red-200">
+                          <CardContent className="pt-4">
+                            <div className="flex justify-between items-start mb-3">
+                              <div>
+                                <p className="font-bold text-lg text-gray-900">
+                                  #{String(patient.queueNo).padStart(3, '0')}
+                                </p>
+                                <p className="text-sm text-gray-600">{patient.name}</p>
+                              </div>
+                              <Badge className="bg-red-200 text-red-500 hover:bg-red-200">
+                                Cancelled
+                              </Badge>
+                            </div>
 
-                  {/* Desktop Table View */}
-                  <div className="hidden lg:block max-h-[600px] overflow-y-auto custom-scrollbar">
-                    <table className="w-full border-collapse relative table-auto">
-                      <thead className="sticky top-0 z-10">
-                        <tr className="bg-red-100 shadow-sm">
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Queue #</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Name</th>
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Age</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Phone</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Doctor</th>
-                          <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Type</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Symptoms</th>
-                          <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Services</th>
-                          {isDoctor && <th className="border px-2 py-2 text-center text-xs font-medium text-gray-600">Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredCancelPatients.map(patient => (
-                          <tr key={`cancel-dsk-${patient.queueNo}`} className="border-b transition-colors hover:bg-red-50">
-                            <td className="p-2 align-middle text-xs font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
-                            <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
-                            <td className="p-2 align-middle text-xs">{patient.age}</td>
-                            <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
-                            <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name}>{patient.assignedDoctor?.name || 'Not Assigned'}</td>
-                            <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
-                            <td className="p-2 align-middle text-xs">
-                              <div className="flex flex-wrap gap-1">
-                                {patient.symptoms && patient.symptoms.length > 0 ? (
-                                  patient.symptoms.map((symptom, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
-                                      {symptom}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Age:</span>
+                                <span className="font-medium">{patient.age}</span>
                               </div>
-                            </td>
-                            <td className="p-2 align-middle text-xs">
-                              <div className="flex flex-wrap gap-1">
-                                {patient.services && patient.services.length > 0 ? (
-                                  patient.services.map((serviceId, idx) => (
-                                    <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                                      {getServiceLabel(serviceId)}
-                                    </Badge>
-                                  ))
-                                ) : (
-                                  <span className="text-gray-400 text-xs">None</span>
-                                )}
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Phone:</span>
+                                <span className="font-medium">{patient.phoneNum || 'N/A'}</span>
                               </div>
-                            </td>
-                            {isDoctor && (
-                              <td className="p-2 align-middle text-center">
-                                <Button
-                                  onClick={() => {
-                                    setSelectedPatientForProfile(patient);
-                                    setShowProfileModal(true);
-                                  }}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  title="View Full Profile"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              </td>
-                            )}
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Type:</span>
+                                <span className="font-medium">{patient.type}</span>
+                              </div>
+
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Doctor:</span>
+                                <span className="font-medium">{patient.assignedDoctor?.name || 'Not Assigned'}</span>
+                              </div>
+
+                              <div className="pt-2 border-t">
+                                <p className="text-gray-600 mb-1">Symptoms:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {patient.symptoms && patient.symptoms.length > 0 ? (
+                                    patient.symptoms.map((symptom, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                        {symptom}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">None</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="pt-2">
+                                <p className="text-gray-600 mb-1">Services:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {patient.services && patient.services.length > 0 ? (
+                                    patient.services.map((serviceId, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                        {getServiceLabel(serviceId)}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">None</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+
+                    {/* Desktop Table View */}
+                    <div className="hidden lg:block max-h-[600px] overflow-y-auto custom-scrollbar">
+                      <table className="w-full border-collapse relative table-auto">
+                        <thead className="sticky top-0 z-10">
+                          <tr className="bg-red-100 shadow-sm">
+                            <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Queue #</th>
+                            <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Name</th>
+                            <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Age</th>
+                            <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Phone</th>
+                            <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Doctor</th>
+                            <th className="border px-2 py-2 text-left text-xs font-medium text-gray-600">Type</th>
+                            <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Symptoms</th>
+                            <th className="border px-3 py-2 text-left text-xs font-medium text-gray-600">Services</th>
+                            {isDoctor && <th className="border px-2 py-2 text-center text-xs font-medium text-gray-600">Actions</th>}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                        </thead>
+                        <tbody>
+                          {filteredCancelPatients.map(patient => (
+                            <tr key={`cancel-dsk-${patient.queueNo}`} className="border-b transition-colors hover:bg-red-50">
+                              <td className="p-2 align-middle text-xs font-semibold">#{String(patient.queueNo).padStart(3, '0')}</td>
+                              <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
+                              <td className="p-2 align-middle text-xs">{patient.age}</td>
+                              <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
+                              <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name}>{patient.assignedDoctor?.name || 'Not Assigned'}</td>
+                              <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
+                              <td className="p-2 align-middle text-xs">
+                                <div className="flex flex-wrap gap-1">
+                                  {patient.symptoms && patient.symptoms.length > 0 ? (
+                                    patient.symptoms.map((symptom, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                        {symptom}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">None</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="p-2 align-middle text-xs">
+                                <div className="flex flex-wrap gap-1">
+                                  {patient.services && patient.services.length > 0 ? (
+                                    patient.services.map((serviceId, idx) => (
+                                      <Badge key={idx} variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                        {getServiceLabel(serviceId)}
+                                      </Badge>
+                                    ))
+                                  ) : (
+                                    <span className="text-gray-400 text-xs">None</span>
+                                  )}
+                                </div>
+                              </td>
+                              {isDoctor && (
+                                <td className="p-2 align-middle text-center">
+                                  <Button
+                                    onClick={() => {
+                                      setSelectedPatientForProfile(patient);
+                                      setShowProfileModal(true);
+                                    }}
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    title="View Full Profile"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
       <VisitHistoryModal />

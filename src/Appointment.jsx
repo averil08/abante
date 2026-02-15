@@ -106,12 +106,18 @@ const Appointment = () => {
     return true;
   };
 
+  // NEW: Get user role and doctor ID
+  const userRole = localStorage.getItem('userRole');
+  const storedDoctorId = localStorage.getItem('selectedDoctorId');
+  const isDoctor = userRole === 'doctor';
+
   // Filter appointments (patients with type "Appointment")
   const allAppointments = (patients || [])
     .filter(p =>
       p.type === "Appointment" &&
       p.status !== "done" &&
-      p.status !== "cancelled"
+      p.status !== "cancelled" &&
+      (!isDoctor || (storedDoctorId && p.assignedDoctor?.id === Number(storedDoctorId))) // NEW: Doctor filter
     );
 
   // Get filtered appointments based on criteria

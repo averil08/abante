@@ -633,14 +633,16 @@ const Dashboard = () => {
     if (p.status === "done" || p.status === "cancelled") return false;
     if (p.isPriority) return false;
 
-    // ✅ FIX: For appointments, only show if it's for today
-    if (p.type === "Appointment" && !isWithinDateRange(p.appointmentDateTime)) return false;
+    // ✅ FIX: Strict Type-Aware Date Checks
 
-    // ✅ FIX: If patient is in an ongoing status, exclude from date filter check for the 'Today' view
-    const isOngoing = p.status === "waiting" || p.status === "in progress";
-    if (!isOngoing && !isWithinDateRange(p.registeredAt)) return false;
+    // 1. Appointments: Check appointmentDateTime
+    if (p.type === "Appointment") {
+      return isWithinDateRange(p.appointmentDateTime);
+    }
 
-    return p.inQueue;
+    // 2. Walk-Ins: Check registeredAt
+    // Removed isOngoing bypass - strictly check today's date
+    return isWithinDateRange(p.registeredAt);
   });
 
   const donePatients = (patients || []).filter(p => {
@@ -664,14 +666,16 @@ const Dashboard = () => {
     if (p.isInactive) return false;
     if (p.status === "done" || p.status === "cancelled") return false;
 
-    // ✅ FIX: For appointments, only show if it's for today
-    if (p.type === "Appointment" && !isWithinDateRange(p.appointmentDateTime)) return false;
+    // ✅ FIX: Strict Type-Aware Date Checks
 
-    // ✅ FIX: If priority patient is in an ongoing status, exclude from date filter check for the 'Today' view
-    const isOngoing = p.status === "waiting" || p.status === "in progress";
-    if (!isOngoing && !isWithinDateRange(p.registeredAt)) return false;
+    // 1. Appointments: Check appointmentDateTime
+    if (p.type === "Appointment") {
+      return isWithinDateRange(p.appointmentDateTime);
+    }
 
-    return p.isPriority && p.inQueue;
+    // 2. Walk-Ins: Check registeredAt
+    // Removed isOngoing bypass - strictly check today's date
+    return isWithinDateRange(p.registeredAt) && p.isPriority && p.inQueue;
   });
 
   // NEW: Filter patients based on selected doctor

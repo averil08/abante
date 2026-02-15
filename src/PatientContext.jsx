@@ -688,29 +688,49 @@ export const PatientProvider = ({ children }) => {
     }
   };
 
+  // Helper to check if a date is today (re-declared here for scope, or move outside)
+  const isToday = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    const now = new Date();
+    return date.toDateString() === now.toDateString();
+  };
+
+  // Smart Date Check Helper (re-declared here for scope, or move outside)
+  const isForToday = (p) => {
+    if (p.type === 'Appointment') {
+      return isToday(p.appointmentDateTime);
+    }
+    return isToday(p.registeredAt);
+  };
+
   const callNextPatient = () => {
-    setPatients(prev =>
-      prev.map(p => {
-        if (p.queueNo === currentServing) {
-          return {
-            ...p,
-            status: "done",
-            completedAt: new Date().toISOString(),
-            queueExitTime: p.queueExitTime || new Date().toISOString()
-          };
-        }
-        if (p.queueNo === currentServing + 1) {
-          return {
-            ...p,
-            status: "in progress",
-            calledAt: new Date().toISOString(),
-            queueExitTime: new Date().toISOString()
-          };
-        }
-        return p;
-      })
+    // 1. Mark current patient as done
+    if (currentServing) {
+      updatePatientStatus(currentServing, 'done');
+    }
+
+    // 2. Find next patient
+    // Priority: Priority patient first? Or just Queue Order?
+    // Let's assume Queue Order for general view, but filtered for TODAY.
+
+    const nextPatient = patients.find(p =>
+      p.status === "waiting" &&
+      p.inQueue &&
+      !p.isInactive &&
+      p.queueNo > (currentServing || 0) && // Must be after current
+      isForToday(p) // MUST be for today
     );
-    setCurrentServing(prev => prev + 1);
+
+    if (nextPatient) {
+      console.log(`Debug: General Queue Calling Waiting Patient ${nextPatient.queueNo}`);
+      updatePatientStatus(nextPatient.queueNo, 'in progress');
+      setCurrentServing(nextPatient.queueNo);
+    } else {
+      console.log("Debug: No valid next patient found for General Queue.");
+      // No more patients in queue for today
+      setCurrentServing(null);
+    }
   };
 
   const addWaitTime = () => {
@@ -740,15 +760,30 @@ export const PatientProvider = ({ children }) => {
       updatePatientStatus(currentPatientQueueNo, 'done');
     }
 
-    // Note: Removed strict isToday check & manual state setting to fix sync issues
+    // Helper to check if a date is today
+    const isToday = (dateString) => {
+      if (!dateString) return false;
+      const date = new Date(dateString);
+      const now = new Date();
+      return date.toDateString() === now.toDateString();
+    };
 
-    // Find next priority patient (waiting, assigned to this doctor)
+    // Smart Date Check Helper
+    const isForToday = (p) => {
+      if (p.type === 'Appointment') {
+        return isToday(p.appointmentDateTime);
+      }
+      return isToday(p.registeredAt);
+    };
+
+    // Find next priority patient (waiting, assigned to this doctor, FOR TODAY)
     const nextPriorityPatient = patients.find(p =>
       p.status === "waiting" &&
       p.inQueue &&
       p.isPriority &&
       p.assignedDoctor?.id === dId &&
-      !p.isInactive
+      !p.isInactive &&
+      isForToday(p)
     );
 
     if (nextPriorityPatient) {
@@ -757,13 +792,14 @@ export const PatientProvider = ({ children }) => {
       return;
     }
 
-    // Find next normal patient
+    // Find next normal patient (waiting, assigned to this doctor, FOR TODAY)
     const nextWaitingPatient = patients.find(p =>
       p.status === "waiting" &&
       p.inQueue &&
       !p.isPriority &&
       p.assignedDoctor?.id === dId &&
-      !p.isInactive
+      !p.isInactive &&
+      isForToday(p)
     );
 
     if (nextWaitingPatient) {
@@ -780,14 +816,29 @@ export const PatientProvider = ({ children }) => {
 
     cancelPatient(currentPatientQueueNo);
 
-    // Note: Removed strict isToday check & manual state setting to fix sync issues
+    // Helper to check if a date is today
+    const isToday = (dateString) => {
+      if (!dateString) return false;
+      const date = new Date(dateString);
+      const now = new Date();
+      return date.toDateString() === now.toDateString();
+    };
+
+    // Smart Date Check Helper
+    const isForToday = (p) => {
+      if (p.type === 'Appointment') {
+        return isToday(p.appointmentDateTime);
+      }
+      return isToday(p.registeredAt);
+    };
 
     const nextPriorityPatient = patients.find(p =>
       p.status === "waiting" &&
       p.inQueue &&
       p.isPriority &&
       p.assignedDoctor?.id === dId &&
-      !p.isInactive
+      !p.isInactive &&
+      isForToday(p)
     );
 
     if (nextPriorityPatient) {
@@ -800,7 +851,8 @@ export const PatientProvider = ({ children }) => {
       p.inQueue &&
       !p.isPriority &&
       p.assignedDoctor?.id === dId &&
-      !p.isInactive
+      !p.isInactive &&
+      isForToday(p)
     );
 
     if (nextWaitingPatient) {

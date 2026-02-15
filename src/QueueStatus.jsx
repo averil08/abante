@@ -113,6 +113,14 @@ const QueueStatus = () => {
       // Check if appointment is accepted (or not an appointment)
       if (p.type === "Appointment" && p.appointmentStatus !== "accepted") return false;
 
+      // NEW: Only show appointment patients for today
+      if (p.type === "Appointment") {
+        if (!p.appointmentDateTime) return false;
+        const appDate = new Date(p.appointmentDateTime);
+        const today = new Date();
+        if (appDate.toDateString() !== today.toDateString()) return false;
+      }
+
       // Compare by ID if both have IDs, otherwise compare by name
       const sameDoctor = p.assignedDoctor.id && currentPatient.assignedDoctor.id
         ? p.assignedDoctor.id === currentPatient.assignedDoctor.id

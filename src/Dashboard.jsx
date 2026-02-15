@@ -990,13 +990,15 @@ const Dashboard = () => {
                     )}
                   </div>
 
-                  <Button
-                    onClick={downloadReport}
-                    className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>Download Report</span>
-                  </Button>
+                  {!isDoctor && (
+                    <Button
+                      onClick={downloadReport}
+                      className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download Report</span>
+                    </Button>
+                  )}
                 </div>
               </div>
               {/* Doctor Selector */}
@@ -1410,14 +1412,16 @@ const Dashboard = () => {
                     )}
                   </div>
 
-                  <Button
-                    onClick={downloadReport}
-                    size="sm"
-                    className="w-full bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2"
-                  >
-                    <Download className="w-3 h-3" />
-                    <span className="text-xs">Download Report</span>
-                  </Button>
+                  {!isDoctor && (
+                    <Button
+                      onClick={downloadReport}
+                      size="sm"
+                      className="w-full bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span className="text-xs">Download Report</span>
+                    </Button>
+                  )}
                 </div>
               </div>
 

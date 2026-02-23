@@ -8,8 +8,9 @@ const Homepage = () => {
   const handleNav = () => setNav(!nav);
   const { patients, activePatient } = useContext(PatientContext);
 
-  // State for specialization filter
+  // State for specialization filter and search
   const [selectedSpecialization, setSelectedSpecialization] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Get current day of the week
   const getCurrentDay = () => {
@@ -253,15 +254,21 @@ const Homepage = () => {
     }
   ];
 
-  // Filter doctors based on selected specialization
+  // Filter doctors based on selected specialization and search query
   const getFilteredDoctors = () => {
-    if (selectedSpecialization === 'all') {
-      return doctors;
+    let result = doctors;
+
+    if (selectedSpecialization !== 'all') {
+      const categoryDoctorIds = specializationCategories[selectedSpecialization].doctorIds;
+      result = result.filter(doctor => categoryDoctorIds.includes(doctor.id));
     }
 
-    const categoryDoctorIds = specializationCategories[selectedSpecialization].doctorIds;
+    if (searchQuery.trim() !== '') {
+      const lowerQuery = searchQuery.toLowerCase();
+      result = result.filter(doctor => doctor.name.toLowerCase().includes(lowerQuery));
+    }
 
-    return doctors.filter(doctor => categoryDoctorIds.includes(doctor.id));
+    return result;
   };
 
   const filteredDoctors = getFilteredDoctors();
@@ -300,6 +307,24 @@ const Homepage = () => {
             <h2 className="text-xl font-bold text-gray-900 mb-4">Doctor Duty Schedule</h2>
             <p className="text-sm text-gray-600 mb-6">View our doctors' specializations and availability</p>
 
+            {/* Search Bar */}
+            <div className="mb-6">
+              <div className="relative max-w-md">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search doctor by name..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+              </div>
+            </div>
+
             {/* Specialization Filter Buttons */}
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Filter by Specialization</h3>
@@ -309,8 +334,8 @@ const Homepage = () => {
                     key={key}
                     onClick={() => setSelectedSpecialization(key)}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedSpecialization === key
-                        ? 'bg-blue-600 text-white shadow-md'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                       }`}
                   >
                     {value.label}

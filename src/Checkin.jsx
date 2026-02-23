@@ -157,7 +157,9 @@ function Checkin() {
   const sessionClearedRef = useRef(false);
 
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
     age: "",
     phoneNum: "",
     physician: "",
@@ -170,6 +172,14 @@ function Checkin() {
     isReturningPatient: false,
     otherSymptomText: "",
   });
+  const [touched, setTouched] = useState({});
+  const [errors, setErrors] = useState({});
+
+  // Helper: compose full name from parts
+  const getFullName = (data) => {
+    const parts = [data.firstName, data.middleName, data.lastName].filter(Boolean);
+    return parts.join(" ").trim();
+  };
 
   const symptomsList = [
     'Fever', 'Cough', 'Sore Throat', 'Headache', 'Stomach Pain',
@@ -332,16 +342,50 @@ function Checkin() {
     setExpandedCategory(expandedCategory === id ? null : id);
   };
 
+  const validateField = (id, value) => {
+    let error = "";
+    if (!value && ['firstName', 'lastName', 'age', 'phoneNum'].includes(id)) {
+      error = "This field is required.";
+    } else if (id === "phoneNum" && value) {
+      if (!/^\d{11}$/.test(value)) {
+        error = "Phone number must be exactly 11 digits.";
+      } else if (!value.startsWith("09")) {
+        error = "Phone number must start with 09.";
+      }
+    } else if (id === "age" && value && (value <= 0 || value > 150)) {
+      error = "Please enter a valid age.";
+    }
+    return error;
+  };
+
+  const handleBlur = (e) => {
+    const { id, value } = e.target;
+    setTouched((prev) => ({ ...prev, [id]: true }));
+    setErrors((prev) => ({ ...prev, [id]: validateField(id, value) }));
+  };
+
   const handleInputChange = (e) => {
     const { id, value } = e.target;
-    setFormData({ ...formData, [id]: value });
+    setFormData((prev) => {
+      const newData = { ...prev, [id]: value };
+      if (touched[id]) {
+        setErrors((prevErr) => ({ ...prevErr, [id]: validateField(id, value) }));
+      }
+      return newData;
+    });
   };
 
   const handlePhoneChange = (e) => {
     const value = e.target.value;
     // Only allow digits and limit to 11 characters
     const digitsOnly = value.replace(/\D/g, '').slice(0, 11);
-    setFormData({ ...formData, phoneNum: digitsOnly });
+    setFormData((prev) => {
+      const newData = { ...prev, phoneNum: digitsOnly };
+      if (touched.phoneNum) {
+        setErrors((prevErr) => ({ ...prevErr, phoneNum: validateField("phoneNum", digitsOnly) }));
+      }
+      return newData;
+    });
   };
 
   const handleSymptomChange = (symptom, isChecked) => {
@@ -388,7 +432,9 @@ function Checkin() {
 
   const resetForm = () => {
     setFormData({
-      name: "",
+      firstName: "",
+      middleName: "",
+      lastName: "",
       age: "",
       phoneNum: "",
       physician: "",
@@ -405,38 +451,46 @@ function Checkin() {
     setAvailableSlots(1);
     setBookingMode('service');
     setSelectedDoctor(null);
+    setTouched({});
+    setErrors({});
   };
 
   const handlePatientSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // ✅ NEW: Automatically assign doctor if not chosen by patient
-    // If walk-in or appointment without specific doctor, find the best active doctor
+    // ✅ FIXED: Only attempt auto-assignment for service-based walk-ins when a queue IS active.
+    // Doctor-mode bookings store the preference; actual assignment happens in PatientContext
+    // once that doctor's queue is started (preventing premature assignment).
     let autoAssignedDoctor = null;
-    if (bookingMode !== 'doctor' || !selectedDoctor) {
-      console.log('🔄 Attempting automatic doctor assignment...');
+    if (bookingMode !== 'doctor') {
+      // Service mode — try to match an active doctor right now
       autoAssignedDoctor = assignDoctor(formData.services || [], patients, activeDoctors || []);
+      if (!autoAssignedDoctor) {
+        console.log('⏳ No active doctor match at registration time — will be assigned when a queue starts.');
+      }
     }
-    const finalDoctor = selectedDoctor || autoAssignedDoctor;
+    // For doctor-mode: finalDoctor is intentionally null here — the preferredDoctor field
+    // will trigger assignment in PatientContext when that doctor\'s queue starts.
+    const finalDoctor = autoAssignedDoctor; // Never use selectedDoctor as finalDoctor directly
 
+    const composedName = getFullName(formData) || "Guest Patient";
     const dataToSubmit = {
       ...formData,
-      name: formData.name || "Guest Patient",
-      fullName: formData.name || "Guest Patient",
-      // Handle "Other" symptom
+      name: composedName,
+      fullName: composedName,
       symptoms: formData.symptoms.map(s =>
         s === 'Other' ? `Other: ${formData.otherSymptomText}` : s
       ),
-      // If booking by doctor, clear services. If by service, clear physician.
       services: bookingMode === 'doctor' ? [] : formData.services,
-      physician: finalDoctor?.name || (bookingMode === 'doctor' && selectedDoctor ? selectedDoctor.name : null),
-      assignedDoctorName: finalDoctor?.name || null // Pass to registration logic
+      // Do NOT write a doctor name to the DB at submit time for doctor-mode.
+      physician: finalDoctor?.name || null,
+      assignedDoctorName: finalDoctor?.name || null
     };
 
     try {
       if (isFromPatientSidebar) {
-        if (!formData.name || !formData.age || !formData.phoneNum) {
+        if ((!formData.firstName && !formData.lastName) || !formData.age || !formData.phoneNum) {
           showMessage(
             "Profile Incomplete",
             "Please complete your profile in Settings before booking an appointment.",
@@ -446,6 +500,20 @@ function Checkin() {
           return;
         }
       }
+
+      if (formData.phoneNum) {
+        if (formData.phoneNum.length !== 11) {
+          showMessage("Validation Error", "Phone number must be exactly 11 digits.", false);
+          setIsSubmitting(false);
+          return;
+        }
+        if (!formData.phoneNum.startsWith("09")) {
+          showMessage("Validation Error", "Phone number must start with 09.", false);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       let result;
 
       if (selectedPatientType === "Walk-in") {
@@ -482,7 +550,7 @@ function Checkin() {
 
         const findExistingPatient = () => {
           if (!formData.isReturningPatient) return null;
-          const normalizedName = normalizeName(formData.name);
+          const normalizedName = normalizeName(composedName);
           for (const patient of patients) {
             if (patient.isInactive) continue;
             const existingNormalizedName = normalizeName(patient.name);
@@ -497,7 +565,7 @@ function Checkin() {
         const newPatient = {
           id: dbId,
           dbId: dbId,
-          name: formData.name || "Guest Patient",
+          name: composedName,
           age: formData.age,
           phoneNum: formData.phoneNum,
           type: selectedPatientType,
@@ -510,26 +578,28 @@ function Checkin() {
           priorityType: formData.priorityType,
           isReturningPatient: formData.isReturningPatient,
           patientEmail: currentPatientEmail || null,
+          // Store the doctor choice as preferredDoctor for deferred assignment
           preferredDoctor: bookingMode === 'doctor' && selectedDoctor ? {
             id: selectedDoctor.id,
             name: selectedDoctor.name,
             specialization: selectedDoctor.specialization
           } : null,
+          // assignedDoctor is only set if an active-queue match was found right now (service mode)
           assignedDoctor: finalDoctor ? {
             id: finalDoctor.id,
             name: finalDoctor.name,
             specialization: finalDoctor.specialization
-          } : null, // NEW: Include assignedDoctor in local state immediately
+          } : null,
           bookingMode: bookingMode,
           status: "waiting",
           appointmentStatus: selectedPatientType === "Appointment" ? "pending" : null,
-          inQueue: selectedPatientType === "Walk-in", // Only walk-ins go directly to queue
+          inQueue: selectedPatientType === "Walk-in",
           queueNo: dbPatient?.queue_no || (selectedPatientType === "Walk-in" ? (Math.max(0, ...patients.map(p => p.queueNo || 0)) + 1) : null),
           registeredAt: new Date().toISOString()
         };
 
         if (existingPatient && formData.isReturningPatient) {
-          const newNameCapitals = (formData.name.match(/[A-Z]/g) || []).length;
+          const newNameCapitals = (composedName.match(/[A-Z]/g) || []).length;
           const existingNameCapitals = (existingPatient.name.match(/[A-Z]/g) || []).length;
           if (existingNameCapitals >= newNameCapitals) {
             newPatient.name = existingPatient.name;
@@ -552,8 +622,8 @@ function Checkin() {
         resetForm();
 
         const successMsg = selectedPatientType === "Walk-in"
-          ? `Registration completed for ${newPatient.name}. You're in the queue!`
-          : `Appointment request submitted for ${newPatient.name}. Please wait for confirmation.`;
+          ? `Registration completed for ${composedName}. You're in the queue!`
+          : `Appointment request submitted for ${composedName}. Please wait for confirmation.`;
 
         showMessage("Success", successMsg, true);
 
@@ -648,9 +718,16 @@ function Checkin() {
           console.log('📋 Loading profile data for:', currentEmail);
           console.log('📋 Profile data:', userProfile);
 
+          // Split fullName into parts when loading from profile
+          const nameParts = (userProfile.fullName || '').trim().split(/\s+/);
+          const loadedFirstName = nameParts[0] || '';
+          const loadedLastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+          const loadedMiddleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
           setFormData(prev => ({
             ...prev,
-            name: userProfile.fullName || prev.name,
+            firstName: loadedFirstName || prev.firstName,
+            middleName: loadedMiddleName || prev.middleName,
+            lastName: loadedLastName || prev.lastName,
             age: userProfile.age || prev.age,
             phoneNum: userProfile.phoneNumber || prev.phoneNum,
           }));
@@ -872,11 +949,11 @@ function Checkin() {
                     </div>
                   </div>
 
-                  {formData.name && formData.age && formData.phoneNum ? (
+                  {getFullName(formData) && formData.age && formData.phoneNum ? (
                     <div className="space-y-2 bg-white p-4 rounded-md border border-green-200">
                       <div className="flex justify-between items-center py-2 border-b border-gray-100">
                         <span className="text-sm text-gray-600 font-medium">Name:</span>
-                        <span className="font-semibold text-gray-900">{formData.name}</span>
+                        <span className="font-semibold text-gray-900">{getFullName(formData)}</span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b border-gray-100">
                         <span className="text-sm text-gray-600 font-medium">Age:</span>
@@ -990,15 +1067,38 @@ function Checkin() {
               {!isFromPatientSidebar && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2"><Label htmlFor="name">Full Name *</Label><Input id="name" type="text" value={formData.name} onChange={handleInputChange} required /></div>
-                    <div className="space-y-2"><Label htmlFor="age">Age *</Label><Input id="age" type="number" value={formData.age} onChange={handleInputChange} required /></div>
+                    <div className="space-y-2">
+                      <Label htmlFor="firstName">First Name <span className="text-red-600">*</span></Label>
+                      <Input id="firstName" type="text" value={formData.firstName} onChange={handleInputChange} onBlur={handleBlur} className={touched.firstName && errors.firstName ? "border-red-500" : ""} required placeholder="e.g. Juan" />
+                      {touched.firstName && errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lastName">Surname / Last Name <span className="text-red-600">*</span></Label>
+                      <Input id="lastName" type="text" value={formData.lastName} onChange={handleInputChange} onBlur={handleBlur} className={touched.lastName && errors.lastName ? "border-red-500" : ""} required placeholder="e.g. Dela Cruz" />
+                      {touched.lastName && errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
+                    </div>
                   </div>
-                  <div className="space-y-2"><Label htmlFor="phoneNum">Phone Number *</Label><Input id="phoneNum" type="tel" value={formData.phoneNum} onChange={handlePhoneChange} maxLength={11} pattern="[0-9]*" inputMode="numeric" required /></div>
+                  <div className="space-y-2">
+                    <Label htmlFor="middleName">Middle Name <span className="text-gray-400 font-normal">(optional)</span></Label>
+                    <Input id="middleName" type="text" value={formData.middleName} onChange={handleInputChange} placeholder="e.g. Santos" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="age">Age <span className="text-red-600">*</span></Label>
+                      <Input id="age" type="number" value={formData.age} onChange={handleInputChange} onBlur={handleBlur} className={touched.age && errors.age ? "border-red-500" : ""} required />
+                      {touched.age && errors.age && <p className="text-xs text-red-500 mt-1">{errors.age}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phoneNum">Phone Number <span className="text-red-600">*</span></Label>
+                      <Input id="phoneNum" type="tel" value={formData.phoneNum} onChange={handlePhoneChange} onBlur={handleBlur} className={touched.phoneNum && errors.phoneNum ? "border-red-500" : ""} maxLength={11} minLength={11} pattern="[0-9]{11}" inputMode="numeric" required />
+                      {touched.phoneNum && errors.phoneNum && <p className="text-xs text-red-500 mt-1">{errors.phoneNum}</p>}
+                    </div>
+                  </div>
                 </>
               )}
 
               <div className="space-y-3 p-4 rounded-lg border-2 border-blue-300 bg-blue-50">
-                <Label className="text-blue-800 font-bold">Are you a new or returning patient? *</Label>
+                <Label className="text-blue-800 font-bold">Are you a new or returning patient? <span className="text-red-600">*</span></Label>
                 <div className="space-y-3">
                   <div className="flex items-center"><input type="radio" id="newPatient" name="patientType" checked={!formData.isReturningPatient} onChange={() => setFormData(p => ({ ...p, isReturningPatient: false }))} className="h-4 w-4" required /><Label htmlFor="newPatient" className="ml-2">New Patient</Label></div>
                   <div className="flex items-center"><input type="radio" id="returningPatient" name="patientType" checked={formData.isReturningPatient} onChange={() => setFormData(p => ({ ...p, isReturningPatient: true }))} className="h-4 w-4" required /><Label htmlFor="returningPatient" className="ml-2">Returning Patient</Label></div>
@@ -1044,7 +1144,7 @@ function Checkin() {
               {/* DOCTOR SELECTION SECTION */}
               {selectedPatientType === "Appointment" && bookingMode === 'doctor' && (
                 <div className="space-y-3 p-4 rounded-lg border border-indigo-300 bg-indigo-50">
-                  <Label className="text-indigo-800 font-bold">Select Doctor *</Label>
+                  <Label className="text-indigo-800 font-bold">Select Doctor <span className="text-red-600">*</span></Label>
 
                   {!formData.appointmentDateTime && (
                     <div className="bg-yellow-50 border border-yellow-300 rounded-md p-3 mb-3">

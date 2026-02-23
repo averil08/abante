@@ -11,17 +11,54 @@ import { useNavigate } from "react-router-dom";
 function Signup() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    fullName: "",
+    firstName: "",
+    middleName: "",
+    lastName: "",
     phoneNumber: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+  const [touched, setTouched] = useState({});
+  const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleInputChange = (e) => {
+  const validateField = (id, value, currentData) => {
+    let error = "";
+    if (!value && id !== "middleName") {
+      error = "This field is required.";
+    } else if (id === "phoneNumber" && value) {
+      if (!/^\d{11}$/.test(value)) {
+        error = "Phone number must be exactly 11 digits.";
+      } else if (!value.startsWith("09")) {
+        error = "Phone number must start with 09.";
+      }
+    } else if (id === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      error = "Invalid email format.";
+    } else if (id === "password" && value && value.length < 6) {
+      error = "Password must be at least 6 characters.";
+    } else if (id === "confirmPassword" && value && value !== currentData.password) {
+      error = "Passwords do not match.";
+    }
+    return error;
+  };
+
+  const handleBlur = (e) => {
     const { id, value } = e.target;
-    setFormData({ ...formData, [id]: value });
+    setTouched((prev) => ({ ...prev, [id]: true }));
+    setErrors((prev) => ({ ...prev, [id]: validateField(id, value, formData) }));
+  };
+
+  const handleInputChange = (e) => {
+    let { id, value } = e.target;
+    if (id === "phoneNumber") {
+      value = value.replace(/\D/g, "").slice(0, 11);
+    }
+    const newData = { ...formData, [id]: value };
+    setFormData(newData);
+    if (touched[id]) {
+      setErrors((prev) => ({ ...prev, [id]: validateField(id, value, newData) }));
+    }
   };
 
   const showMessage = (title, message, isSuccess = true) => {
@@ -45,12 +82,16 @@ function Signup() {
 
   const resetForm = () => {
     setFormData({
-      fullName: "",
+      firstName: "",
+      middleName: "",
+      lastName: "",
       phoneNumber: "",
       email: "",
       password: "",
       confirmPassword: "",
     });
+    setTouched({});
+    setErrors({});
   };
 
   const handlePatientSubmit = async (e) => {
@@ -59,16 +100,16 @@ function Signup() {
 
     try {
       // 1. Basic Validation
-      if (!formData.fullName || !formData.phoneNumber || !formData.email || !formData.password || !formData.confirmPassword) {
+      if (!formData.firstName || !formData.lastName || !formData.phoneNumber || !formData.email || !formData.password || !formData.confirmPassword) {
         showMessage("Validation Error", "Please fill in all required fields.", false);
         setIsSubmitting(false);
         return;
       }
 
-      // 2. Phone number validation (Strictly 11 digits)
-      const phoneRegex = /^\d{11}$/;
+      // 2. Phone number validation (Strictly 11 digits starting with 09)
+      const phoneRegex = /^09\d{9}$/;
       if (!phoneRegex.test(formData.phoneNumber)) {
-        showMessage("Validation Error", "Phone number must be exactly 11 digits and contain only numbers.", false);
+        showMessage("Validation Error", "Phone number must start with 09 and be exactly 11 digits.", false);
         setIsSubmitting(false);
         return;
       }
@@ -89,10 +130,11 @@ function Signup() {
 
       // 5. Call registerUser with correct arguments (Matches your supabaseClient.js)
       // registerUser(email, password, fullName, phoneNumber, role)
+      const fullName = [formData.firstName, formData.middleName, formData.lastName].filter(Boolean).join(" ");
       const result = await registerUser(
         formData.email,
         formData.password,
-        formData.fullName,
+        fullName,
         formData.phoneNumber,
         "patient"
       );
@@ -146,67 +188,111 @@ function Signup() {
 
         <CardContent>
           <form onSubmit={handlePatientSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name <span className="text-red-600">*</span></Label>
+                <Input
+                  id="firstName"
+                  type="text"
+                  value={formData.firstName}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={touched.firstName && errors.firstName ? "border-red-500" : ""}
+                  placeholder="Juan"
+                  required
+                />
+                {touched.firstName && errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Surname / Last Name <span className="text-red-600">*</span></Label>
+                <Input
+                  id="lastName"
+                  type="text"
+                  value={formData.lastName}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={touched.lastName && errors.lastName ? "border-red-500" : ""}
+                  placeholder="Dela Cruz"
+                  required
+                />
+                {touched.lastName && errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
+              </div>
+            </div>
+
             <div className="space-y-2">
-              <Label htmlFor="fullName" className="text-red-600">Full Name *</Label>
+              <Label htmlFor="middleName">Middle Name <span className="text-gray-400 font-normal">(optional)</span></Label>
               <Input
-                id="fullName"
+                id="middleName"
                 type="text"
-                value={formData.fullName}
+                value={formData.middleName}
                 onChange={handleInputChange}
-                placeholder="Juan Dela Cruz"
-                required
+                placeholder="Santos"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phoneNumber" className="text-red-600">Phone Number *</Label>
+              <Label htmlFor="phoneNumber">Phone Number <span className="text-red-600">*</span></Label>
               <Input
                 id="phoneNumber"
                 type="tel"
                 value={formData.phoneNumber}
                 onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={touched.phoneNumber && errors.phoneNumber ? "border-red-500" : ""}
                 placeholder="09123456789 (11 digits)"
                 required
                 maxLength={11}
+                minLength={11}
+                pattern="\d{11}"
               />
+              {touched.phoneNumber && errors.phoneNumber && <p className="text-xs text-red-500 mt-1">{errors.phoneNumber}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-red-600">Email *</Label>
+              <Label htmlFor="email">Email <span className="text-red-600">*</span></Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={touched.email && errors.email ? "border-red-500" : ""}
                 placeholder="patient@email.com"
                 required
               />
+              {touched.email && errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-red-600">Password *</Label>
+              <Label htmlFor="password">Password <span className="text-red-600">*</span></Label>
               <Input
                 id="password"
                 type="password"
                 value={formData.password}
                 onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={touched.password && errors.password ? "border-red-500" : ""}
                 placeholder="Min. 6 characters"
                 required
                 minLength={6}
               />
+              {touched.password && errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-red-600">Confirm Password *</Label>
+              <Label htmlFor="confirmPassword">Confirm Password <span className="text-red-600">*</span></Label>
               <Input
                 id="confirmPassword"
                 type="password"
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={touched.confirmPassword && errors.confirmPassword ? "border-red-500" : ""}
                 placeholder="Re-enter your password"
                 required
                 minLength={6}
               />
+              {touched.confirmPassword && errors.confirmPassword && <p className="text-xs text-red-500 mt-1">{errors.confirmPassword}</p>}
             </div>
 
             <Button

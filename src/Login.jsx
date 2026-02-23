@@ -19,11 +19,35 @@ function Login() {
     email: "",
     password: "",
   });
+  const [touched, setTouched] = useState({});
+  const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const validateField = (id, value) => {
+    let error = "";
+    if (!value) {
+      error = "This field is required.";
+    } else if (id === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      error = "Invalid email format.";
+    } else if (id === "password" && value.length < 6) {
+      error = "Password must be at least 6 characters.";
+    }
+    return error;
+  };
+
+  const handleBlur = (e) => {
+    const { id, value } = e.target;
+    setTouched((prev) => ({ ...prev, [id]: true }));
+    setErrors((prev) => ({ ...prev, [id]: validateField(id, value) }));
+  };
 
   const handleInputChange = (e) => {
     const { id, value } = e.target;
-    setFormData({ ...formData, [id]: value });
+    const newData = { ...formData, [id]: value };
+    setFormData(newData);
+    if (touched[id]) {
+      setErrors((prev) => ({ ...prev, [id]: validateField(id, value) }));
+    }
   };
 
   const showMessage = (title, message, isSuccess = true) => {
@@ -46,6 +70,8 @@ function Login() {
 
   const resetForm = () => {
     setFormData({ email: "", password: "" });
+    setTouched({});
+    setErrors({});
   };
 
   const handleLoginSubmit = async (e) => {
@@ -55,6 +81,12 @@ function Login() {
     try {
       if (!formData.email || !formData.password) {
         showMessage("Validation Error", "Please fill in all required fields.", false);
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (formData.password.length < 6) {
+        showMessage("Validation Error", "Password must be at least 6 characters long.", false);
         setIsSubmitting(false);
         return;
       }
@@ -151,13 +183,34 @@ function Login() {
         <CardContent>
           <form onSubmit={handleLoginSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-red-600">Email *</Label>
-              <Input id="email" type="email" value={formData.email} onChange={handleInputChange} placeholder={emailPlaceholder} required />
+              <Label htmlFor="email">Email <span className="text-red-600">*</span></Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={touched.email && errors.email ? "border-red-500" : ""}
+                placeholder={emailPlaceholder}
+                required
+              />
+              {touched.email && errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-red-600">Password *</Label>
-              <Input id="password" type="password" value={formData.password} onChange={handleInputChange} placeholder="Enter your password" required />
+              <Label htmlFor="password">Password <span className="text-red-600">*</span></Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={touched.password && errors.password ? "border-red-500" : ""}
+                placeholder="Enter your password"
+                required
+                minLength={6}
+              />
+              {touched.password && errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
             </div>
 
             <Button type="submit" className="w-full bg-[#047a52] hover:bg-[#03503a] text-white" disabled={isSubmitting}>

@@ -487,3 +487,26 @@ export const loginUser = async (email, password) => {
     role: patientProfile ? 'patient' : 'unknown'
   };
 };
+
+export const updateUserPassword = async (email, currentPassword, newPassword) => {
+  // 1. Verify current password
+  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password: currentPassword,
+  });
+
+  if (signInError) {
+    return { success: false, error: 'Current password is incorrect' };
+  }
+
+  // 2. Update password
+  const { data: updateData, error: updateError } = await supabase.auth.updateUser({
+    password: newPassword
+  });
+
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  return { success: true, data: updateData };
+};

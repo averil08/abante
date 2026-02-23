@@ -99,3 +99,9 @@ body {
     background: #94a3b8;
   }
 }
+
+/* Disable browser default password reveal and clear buttons (mainly Edge) */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}

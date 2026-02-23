@@ -90,6 +90,8 @@ export const PatientProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    // Cleanup: Remove stale activeDoctors persistence from previous versions
+    localStorage.removeItem('activeDoctors');
     loadPatientsFromDatabase();
   }, []);
 
@@ -211,20 +213,11 @@ export const PatientProvider = ({ children }) => {
     return Math.max(0, calculatedAvg + manualWaitTimeAdjustment);
   }, [patients, manualWaitTimeAdjustment]);
 
-  // ✅ NEW: Persist activeDoctors active state
-  const [activeDoctors, setActiveDoctors] = useState(() => {
-    try {
-      const saved = localStorage.getItem('activeDoctors');
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error("Failed to load active doctors", e);
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    localStorage.setItem('activeDoctors', JSON.stringify(activeDoctors));
-  }, [activeDoctors]);
+  // activeDoctors is intentionally NOT persisted to localStorage.
+  // The secretary must explicitly start each doctor's queue at the beginning of each session.
+  // Persisting across page loads caused stale assignments (e.g. a doctor active yesterday
+  // would still be treated as active today, assigning new patients prematurely).
+  const [activeDoctors, setActiveDoctors] = useState([]);
 
   const [doctorCurrentServing, setDoctorCurrentServing] = useState(() => {
     const initialServing = {};
@@ -313,13 +306,21 @@ export const PatientProvider = ({ children }) => {
 
       let doctor = null;
 
-      // Preferred doctor check
+      // Preferred doctor check — ONLY assign if that doctor's queue is currently active
       if (patient.preferredDoctor) {
-        const preferred = doctors.find(d => d.id === patient.preferredDoctor.id);
-        if (preferred) doctor = preferred;
+        const preferredId = Number(patient.preferredDoctor.id);
+        if (activeDoctors.includes(preferredId)) {
+          const preferred = doctors.find(d => d.id === preferredId);
+          if (preferred) doctor = preferred;
+        } else {
+          // Preferred doctor's queue not started yet — skip assignment for now.
+          // The useEffect will re-run when activeDoctors changes and assign then.
+          console.log(`⏳ Preferred doctor #${preferredId} queue not active yet — deferring assignment for patient ${patient.name}`);
+          return; // Do NOT fall through to auto-assign a different doctor
+        }
       }
 
-      // Auto-assignment
+      // Auto-assignment (only if no preferred doctor was chosen)
       if (!doctor) {
         doctor = assignDoctor(patient.services || [], patients, activeDoctors);
       }
@@ -532,16 +533,37 @@ export const PatientProvider = ({ children }) => {
         console.log(`✅ Accepting appointment ${patientId}. Preserving EXISTING queue no: ${newQueueNo}`);
       }
 
-      // 2. Determine Doctor Assignment - If they preferred a doctor during booking, keep it
-      let assignedDoctor = patient.assignedDoctor;
-      if (!assignedDoctor) {
-        if (patient.bookingMode === 'doctor' && patient.preferredDoctor) {
-          assignedDoctor = doctors.find(d => d.id === patient.preferredDoctor.id);
+      // 2. Determine Doctor Assignment — ONLY assign if that doctor's queue is currently active.
+      // If no active match is found now, leave null; the auto-assign useEffect will handle it
+      // once the appropriate doctor starts their queue.
+      let assignedDoctor = null;
+
+      // Carry through existing assignment only if that doctor's queue is still active
+      if (patient.assignedDoctor) {
+        const dId = Number(patient.assignedDoctor.id);
+        if (activeDoctors.includes(dId)) {
+          assignedDoctor = patient.assignedDoctor;
         } else {
-          // ✅ NEW: Auto-assign upon acceptance if no doctor assigned
-          console.log(`🔄 Auto-assigning doctor for accepted appointment ${patientId}...`);
-          assignedDoctor = assignDoctor(patient.services || [], patients, activeDoctors);
+          console.log(`⏳ Previously assigned doctor #${dId} queue not active — clearing for re-assignment.`);
         }
+      }
+
+      // If still unassigned, check preferred doctor (doctor-mode booking)
+      if (!assignedDoctor && patient.bookingMode === 'doctor' && patient.preferredDoctor) {
+        const preferredId = Number(patient.preferredDoctor.id);
+        if (activeDoctors.includes(preferredId)) {
+          assignedDoctor = doctors.find(d => d.id === preferredId) || null;
+          console.log(`✅ Preferred doctor #${preferredId} is active — assigning on acceptance.`);
+        } else {
+          console.log(`⏳ Preferred doctor #${preferredId} queue not active yet — deferring assignment.`);
+          // Leave assignedDoctor = null; the auto-assign useEffect will handle it later
+        }
+      }
+
+      // If still unassigned and booked by service, try active-doctor auto-assignment
+      if (!assignedDoctor && patient.bookingMode !== 'doctor') {
+        console.log(`🔄 Auto-assigning doctor for accepted appointment ${patientId}...`);
+        assignedDoctor = assignDoctor(patient.services || [], patients, activeDoctors);
       }
 
       // 3. Prepare updates

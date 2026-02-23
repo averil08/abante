@@ -144,17 +144,24 @@ const AppointmentPicker = ({
     return minTime;
   };
   // Disable past dates and Sundays
- const tileDisabled = ({ date, view }) => {
-  if (view === 'month') {
-    const minTime = getMinBookingTime();
-    const compareDate = new Date(date);
-    compareDate.setHours(23, 59, 59, 999); // Set to end of day for comparison
-    
-    // Disable if the entire day is before the 24-hour threshold
-    return compareDate < minTime;
-  }
-  return false;
-};
+  const tileDisabled = ({ date, view }) => {
+    if (view === 'month') {
+      const minTime = getMinBookingTime();
+      const compareDate = new Date(date);
+      compareDate.setHours(23, 59, 59, 999); // Set to end of day for comparison
+
+      // Disable if the entire day is before the 24-hour threshold
+      if (compareDate < minTime) {
+        return true;
+      }
+
+      // Disable Sundays (0 = Sunday)
+      if (date.getDay() === 0) {
+        return true;
+      }
+    }
+    return false;
+  };
 
   // Custom tile content to show availability
   const tileClassName = ({ date, view }) => {
@@ -170,7 +177,7 @@ const AppointmentPicker = ({
       const hasAvailableSlots = timeSlots.some(slot => {
         const testDate = new Date(date);
         const [hours, minutes] = slot.value.split(':');
-         testDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+        testDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
         // ADD THIS CHECK: Ensure the function exists before calling it
         return typeof getAvailableSlots === 'function' ? getAvailableSlots(testDate.toISOString()) > 0 : false;
@@ -329,17 +336,17 @@ const AppointmentPicker = ({
             required
           >
             <option value="">-- Choose a time slot --</option>
-          {timeSlots.map((slot) => {
-              const availableSlotsCount = typeof getAvailableSlots === 'function' 
-                ? getSlotAvailability(slot.value) 
+            {timeSlots.map((slot) => {
+              const availableSlotsCount = typeof getAvailableSlots === 'function'
+                ? getSlotAvailability(slot.value)
                 : 1;
-              
+
               const isFullyBooked = availableSlotsCount <= 0;
 
               // 3. Logic for the 24-hour advance rule
               const now = new Date();
               const minAllowedTime = getMinBookingTime();
-              
+
               const selectedSlotDateTime = new Date(selectedDate);
               const [h, m] = slot.value.split(':');
               selectedSlotDateTime.setHours(parseInt(h), parseInt(m), 0, 0);
@@ -348,12 +355,12 @@ const AppointmentPicker = ({
               const isTooSoon = selectedSlotDateTime < minAllowedTime;
 
               return (
-                <option 
-                  key={slot.value} 
+                <option
+                  key={slot.value}
                   value={slot.value}
                   disabled={isTooSoon || isFullyBooked}
                 >
-                  {slot.label} 
+                  {slot.label}
                   {isTooSoon ? ' (Requires 24h notice)' : isFullyBooked ? ' (Fully Booked)' : ` (${availableSlotsCount} available)`}
                 </option>
               );

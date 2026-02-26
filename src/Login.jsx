@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 // Import the real login function
-import { loginUser } from "./lib/supabaseClient";
+import { loginUser, forgotPassword } from "./lib/supabaseClient";
 import Logo from "./assets/logo-valley.png";
 import { useNavigate } from "react-router-dom";
 
@@ -22,6 +22,8 @@ function Login() {
   const [touched, setTouched] = useState({});
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
 
   const validateField = (id, value) => {
     let error = "";
@@ -158,6 +160,35 @@ function Login() {
     }
   };
 
+  const handleForgotPasswordSubmit = async (e) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      showMessage("Validation Error", "Please enter your email address.", false);
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const result = await forgotPassword(resetEmail);
+      if (result.success) {
+        showMessage(
+          "Reset Link Sent",
+          "Check your email for the password reset link.",
+          true
+        );
+        setIsForgotPassword(false);
+        setResetEmail("");
+      } else {
+        showMessage("Error", result.error, false);
+      }
+    } catch (error) {
+      console.error("Forgot Password Error:", error);
+      showMessage("Error", "An unexpected error occurred.", false);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Re-using your existing UI structure
   const loginTitle = isPatientLogin ? "Patient Login" : "Clinic Staff Login";
   const loginDesc = isPatientLogin ? "Sign in to access your patient dashboard." : "Sign in to access the clinic dashboard.";
@@ -181,60 +212,96 @@ function Login() {
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email <span className="text-red-600">*</span></Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                onBlur={handleBlur}
-                className={touched.email && errors.email ? "border-red-500" : ""}
-                placeholder={emailPlaceholder}
-                required
-              />
-              {touched.email && errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
-            </div>
+          {isForgotPassword ? (
+            <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reset-email">Registered Email <span className="text-red-600">*</span></Label>
+                <Input
+                  id="reset-email"
+                  type="email"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+              <Button type="submit" className="w-full bg-[#047a52] hover:bg-[#03503a] text-white" disabled={isSubmitting}>
+                {isSubmitting ? "Sending..." : "Send Reset Link"}
+              </Button>
+              <button
+                type="button"
+                onClick={() => setIsForgotPassword(false)}
+                className="w-full text-sm text-gray-600 hover:underline"
+              >
+                Back to Login
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
+              {/* Existing login form content ... */}
+              <div className="space-y-2">
+                <Label htmlFor="email">Email <span className="text-red-600">*</span></Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={touched.email && errors.email ? "border-red-500" : ""}
+                  placeholder={emailPlaceholder}
+                  required
+                />
+                {touched.email && errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password <span className="text-red-600">*</span></Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={handleInputChange}
-                onBlur={handleBlur}
-                className={touched.password && errors.password ? "border-red-500" : ""}
-                placeholder="Enter your password"
-                required
-                minLength={6}
-              />
-              {touched.password && errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
-            </div>
-
-            <Button type="submit" className="w-full bg-[#047a52] hover:bg-[#03503a] text-white" disabled={isSubmitting}>
-              {isSubmitting ? "Signing In..." : "Sign In"}
-            </Button>
-
-            {isPatientLogin && (
-              <>
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div>
-                  <div className="relative flex justify-center text-sm"><span className="px-2 bg-gray-50 text-gray-500">OR</span></div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password <span className="text-red-600">*</span></Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={touched.password && errors.password ? "border-red-500" : ""}
+                  placeholder="Enter your password"
+                  required
+                  minLength={6}
+                />
+                {touched.password && errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotPassword(true)}
+                    className="text-xs text-green-600 hover:underline font-medium"
+                  >
+                    Forgot Password?
+                  </button>
                 </div>
+              </div>
 
-                <div className="space-y-3">
-                  <Button type="button" onClick={() => navigate("/signup")} variant="outline" className="w-full border-green-600 text-green-600">
-                    Don't have an account? Sign Up
-                  </Button>
-                  <Button type="button" onClick={() => navigate("/checkin?view=patient")} variant="outline" className="w-full border-blue-600 text-blue-600">
-                    Join as Guest (View Slots)
-                  </Button>
-                </div>
-              </>
-            )}
-          </form>
+              <Button type="submit" className="w-full bg-[#047a52] hover:bg-[#03503a] text-white" disabled={isSubmitting}>
+                {isSubmitting ? "Signing In..." : "Sign In"}
+              </Button>
+
+              {isPatientLogin && (
+                <>
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300"></div></div>
+                    <div className="relative flex justify-center text-sm"><span className="px-2 bg-gray-50 text-gray-500">OR</span></div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Button type="button" onClick={() => navigate("/signup")} variant="outline" className="w-full border-green-600 text-green-600">
+                      Don't have an account? Sign Up
+                    </Button>
+                    <Button type="button" onClick={() => navigate("/checkin?view=patient")} variant="outline" className="w-full border-blue-600 text-blue-600">
+                      Join as Guest (View Slots)
+                    </Button>
+                  </div>
+                </>
+              )}
+            </form>
+          )}
         </CardContent>
       </Card>
       <div id="message-box"></div>

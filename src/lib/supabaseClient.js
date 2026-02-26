@@ -510,3 +510,31 @@ export const updateUserPassword = async (email, currentPassword, newPassword) =>
 
   return { success: true, data: updateData };
 };
+
+export const forgotPassword = async (email, redirectTo) => {
+  const cleanEmail = email.trim().toLowerCase();
+  const { data, error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+    redirectTo: redirectTo || `${window.location.origin}/reset-password`,
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+  return { success: true, data };
+};
+
+export const resetPassword = async (newPassword) => {
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) {
+    return { success: false, error: "Auth session missing! Please ensure you used a valid reset link." };
+  }
+
+  const { data, error } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (error) {
+    return { success: false, error: error.message };
+  }
+  return { success: true, data };
+};

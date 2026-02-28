@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import Sidebar from "@/components/Sidebar";
 import PatientSidebar from "@/components/PatientSidebar";
-import { Bell, X, QrCode, User, RefreshCw, XCircle, MessageSquare, AlertCircle } from "lucide-react";
+import { Bell, X, QrCode, User, RefreshCw, XCircle, MessageSquare, AlertCircle, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -427,14 +427,14 @@ const QueueStatus = () => {
     setIsCancelling(true);
     try {
       setShowCancelModal(false);
-      clearActivePatient();
       await cancelAppointment(currentPatient.id);
+      clearActivePatient();
 
       // Fix: Redirect to appointment form if it's a patient, otherwise to appointment page
       if (isFromPatientSidebar || isPatientLoggedIn) {
-        navigate('/checkin?view=patient&from=patient-sidebar&type=appointment');
+        navigate('/checkin?view=patient&from=patient-sidebar&type=appointment&skipCheck=true');
       } else if (isPatientAccess) {
-        navigate('/checkin?view=patient');
+        navigate('/checkin?view=patient&type=appointment&skipCheck=true');
       } else {
         navigate('/appointment');
       }
@@ -587,6 +587,20 @@ const QueueStatus = () => {
       </div>
     );
   };
+
+  // Loading state
+  if (isCancelling) {
+    return (
+      <div className="flex w-full min-h-screen">
+        <div className="flex-1 min-h-screen bg-gray-50 ml-0 flex flex-col items-center justify-center p-4">
+          <Loader2 className="w-12 h-12 text-green-600 animate-spin mb-4" />
+          <p className="text-xl text-gray-600">
+            Cancelling appointment...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoadingFromDB) {
     return (
@@ -1193,8 +1207,12 @@ const QueueStatus = () => {
                 </div>
               )}
 
-              <h2 className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 mb-2">Your Queue Number</h2>
-              <div className="text-4xl sm:text-5xl md:text-6xl font-bold text-green-600 mb-4 sm:mb-6">{queueNumber}</div>
+              {currentPatient.status !== 'cancelled' && (
+                <>
+                  <h2 className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 mb-2">Your Queue Number</h2>
+                  <div className="text-4xl sm:text-5xl md:text-6xl font-bold text-green-600 mb-4 sm:mb-6">{queueNumber}</div>
+                </>
+              )}
 
               <div className="space-y-2 sm:space-y-3 text-left bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 text-xs sm:text-sm md:text-base lg:text-lg">
                 <div className="flex justify-between items-start gap-2">
@@ -1316,8 +1334,12 @@ const QueueStatus = () => {
               </div>
             )}
 
-            <h2 className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 mb-2">Your Queue Number</h2>
-            <div className="text-4xl sm:text-5xl md:text-6xl font-bold text-green-600 mb-4 sm:mb-6">{queueNumber}</div>
+            {currentPatient.status !== 'cancelled' && (
+              <>
+                <h2 className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 mb-2">Your Queue Number</h2>
+                <div className="text-4xl sm:text-5xl md:text-6xl font-bold text-green-600 mb-4 sm:mb-6">{queueNumber}</div>
+              </>
+            )}
 
             <div className="space-y-2 sm:space-y-3 text-left bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 text-xs sm:text-sm md:text-base lg:text-lg">
               <div className="flex justify-between items-start gap-2">

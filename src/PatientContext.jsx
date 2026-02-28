@@ -304,12 +304,33 @@ export const PatientProvider = ({ children }) => {
 
       // OPTION 2: Auto-discover session if none active
       if (!activePatient) {
-        const myActiveAppointment = patients.find(p =>
-          p.patientEmail &&
-          p.patientEmail.toLowerCase().trim() === normalizedCurrentEmail &&
-          (p.appointmentStatus === 'pending' || p.appointmentStatus === 'accepted' || p.inQueue) &&
-          !p.isInactive
-        );
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const myActiveAppointment = patients.find(p => {
+          if (!p.patientEmail || p.patientEmail.toLowerCase().trim() !== normalizedCurrentEmail) return false;
+          if (p.isInactive) return false;
+
+          const isActiveState = (p.appointmentStatus === 'pending' || p.appointmentStatus === 'accepted' || p.inQueue);
+          if (!isActiveState) return false;
+
+          let pDate;
+          if (p.type === 'Appointment' && p.appointmentDateTime) {
+            pDate = new Date(p.appointmentDateTime);
+          } else if (p.registeredAt) {
+            pDate = new Date(p.registeredAt);
+          } else {
+            return false;
+          }
+
+          pDate.setHours(0, 0, 0, 0);
+
+          if (p.type === 'Appointment') {
+            return pDate >= today; // Appointments can be today or future
+          } else {
+            return pDate.getTime() === today.getTime(); // Walk-ins strictly today
+          }
+        });
 
         if (myActiveAppointment) {
           console.log('✅ Found account-linked active appointment, auto-activating:', myActiveAppointment.name);

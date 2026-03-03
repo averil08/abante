@@ -31,33 +31,7 @@ const PatientProfile = () => {
   const [isPastVisitsModalOpen, setIsPastVisitsModalOpen] = useState(false);
 
   // Date Filtering State
-  const getInitialDateFilter = () => {
-    if (!patients || patients.length === 0) {
-      const dayIndex = new Date().getDay();
-      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const todayName = days[dayIndex];
-      return todayName === 'sunday' ? 'monday' : todayName;
-    }
-
-    // Find the most recent registeredAt date among active/non-ignored patients
-    const latestVisit = patients.reduce((latest, visit) => {
-      // Skip logic similar to uniquePatients filtering to find "real" latest visit
-      if (visit.isInactive) return latest;
-      if (visit.type === 'Appointment' && (visit.status === 'pending' || visit.status === 'rejected')) return latest;
-
-      if (!visit.registeredAt) return latest;
-      return new Date(visit.registeredAt) > new Date(latest) ? visit.registeredAt : latest;
-    }, patients[0]?.registeredAt || new Date().toISOString());
-
-    const latestDate = new Date(latestVisit);
-    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const dayName = days[latestDate.getDay()];
-
-    // Default to 'monday' if it's 'sunday' as per convention in Appointments page
-    return dayName === 'sunday' ? 'monday' : dayName;
-  };
-
-  const [dateFilter, setDateFilter] = useState(getInitialDateFilter());
+  const [dateFilter, setDateFilter] = useState('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [showDateDropdown, setShowDateDropdown] = useState(false);

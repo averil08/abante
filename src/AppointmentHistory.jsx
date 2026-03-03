@@ -656,19 +656,31 @@ const AppointmentHistory = () => {
         <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
           {/* Current Active Visit Summary Card */}
           {(() => {
-            // Show the most recent appointment (first in the sorted array)
-            const activeVisit = myAppointments[0];
+            const now = new Date();
+            // 1. Look for upcoming accepted appointments
+            const upcoming = myAppointments.filter(v =>
+              v.type === 'Appointment' &&
+              v.appointmentStatus === 'accepted' &&
+              new Date(v.appointmentDateTime || v.appointment_datetime) > now
+            ).sort((a, b) => new Date(a.appointmentDateTime || a.appointment_datetime) - new Date(b.appointmentDateTime || b.appointment_datetime))[0];
+
+            // 2. Look for the most recent "done" visit
+            const mostRecentDone = myAppointments.find(v => v.status === 'done');
+
+            // 3. Representative visit (Upcoming > Done > Most Recent Overall)
+            const activeVisit = upcoming || mostRecentDone || myAppointments[0];
+            const isUpcoming = upcoming && activeVisit === upcoming;
 
             if (!activeVisit) return null;
 
             return (
-              <Card className="border-t-4 border-t-blue-600">
-                <CardHeader>
+              <Card className={`border-t-4 shadow-lg ${isUpcoming ? 'border-t-emerald-600' : 'border-t-blue-600'}`}>
+                <CardHeader className={isUpcoming ? 'bg-emerald-50/50' : 'bg-blue-50/50'}>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Activity className="w-5 h-5 text-blue-600" />
-                        Most Recent Visit Summary
+                      <CardTitle className={`flex items-center gap-2 ${isUpcoming ? 'text-emerald-900' : 'text-blue-900'}`}>
+                        <Activity className="w-5 h-5" />
+                        {isUpcoming ? 'Upcoming Appointment Summary' : 'Most Recent Visit Summary'}
                       </CardTitle>
                     </div>
 

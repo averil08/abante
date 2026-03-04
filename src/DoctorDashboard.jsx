@@ -297,7 +297,9 @@ const DoctorDashboard = () => {
         if (scheduledStatusFilter === 'rejected') return p.appointmentStatus === 'rejected';
         if (scheduledStatusFilter === 'cancelled') return p.appointmentStatus === 'cancelled';
         return true;
-    });
+    }).filter((p, index, self) =>
+        index === self.findIndex((t) => (t.name || '').toLowerCase().trim() === (p.name || '').toLowerCase().trim())
+    );
 
     // Appointment badge counts
     const apptAllCount = allAppointmentPatients.length;
@@ -364,6 +366,9 @@ const DoctorDashboard = () => {
                     <div className="flex items-center gap-1.5 mt-1">
                         <Badge variant="outline" className={`text-[9px] h-4 font-black uppercase tracking-tighter border-none px-1.5 ${selectedPatient?.queueNo === patient.queueNo ? 'bg-white/10 text-emerald-50' : (patient.isPriority ? 'bg-amber-50 text-amber-600' : 'bg-slate-100 text-slate-500')}`}>
                             {formatArray(patient.services?.slice(0, 1) || [patient.type || 'Regular'])}
+                        </Badge>
+                        <Badge variant="outline" className={`text-[9px] h-4 font-black uppercase tracking-tighter border-none px-1.5 ${selectedPatient?.queueNo === patient.queueNo ? 'bg-white/10 text-emerald-50' : (patient.status?.toLowerCase() === 'in progress' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500')}`}>
+                            {patient.status || 'Waiting'}
                         </Badge>
                         <span className={`text-[9px] flex items-center gap-1 ${selectedPatient?.queueNo === patient.queueNo ? 'text-emerald-100' : 'text-slate-400'}`}>
                             <Clock className="w-2.5 h-2.5" />

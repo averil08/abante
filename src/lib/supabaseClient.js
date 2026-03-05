@@ -18,6 +18,20 @@ export const registerWalkInPatient = async (patientData) => {
 
   while (attempts < maxAttempts) {
     try {
+      // ✅ FIX: Explicitly fetch the current MAX queue_no before inserting,
+      // identical to registerAppointmentPatient. This prevents duplicate key
+      // violations for returning patients whose old records share the same DB
+      // sequence used by the trigger-based auto-increment.
+      const { data: maxQData } = await supabase
+        .from('patients')
+        .select('queue_no')
+        .lt('queue_no', 900000) // Ignore placeholder numbers (e.g. from pending appointments)
+        .order('queue_no', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const nextQueueNo = (maxQData?.queue_no || 0) + 1;
+
       const { data, error } = await supabase
         .from('patients')
         .insert([
@@ -31,6 +45,7 @@ export const registerWalkInPatient = async (patientData) => {
             services: patientData.services || [],
             days_since_onset: patientData.daysSinceOnSet ? parseInt(patientData.daysSinceOnSet) : null,
             patient_type: 'walk-in',
+            queue_no: nextQueueNo, // ✅ Explicitly assigned — no reliance on DB trigger
             is_priority: patientData.isPriority || false,
             priority_type: patientData.priorityType || null,
             patient_email: patientData.patientEmail || null
@@ -49,7 +64,7 @@ export const registerWalkInPatient = async (patientData) => {
       ) {
         console.warn(`Queue number conflict detected. Retrying... (Attempt ${attempts + 1}/${maxAttempts})`);
         attempts++;
-        // Use a small delay before retrying
+        // Use a small delay before retrying to let any concurrent inserts settle
         await new Promise(resolve => setTimeout(resolve, 300));
         continue;
       }

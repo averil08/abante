@@ -624,7 +624,7 @@ const AppointmentHistory = () => {
   };
 
   return (
-    <div className="flex w-full min-h-screen">
+    <div className="min-h-screen w-full overflow-x-hidden">
       <PatientSidebar nav={nav} handleNav={handleNav} />
 
       {/* Past Visits Modal */}
@@ -633,7 +633,7 @@ const AppointmentHistory = () => {
       {/* Detail Dialog */}
       <DetailDialog />
 
-      <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300">
+      <div className="min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300 overflow-x-hidden">
         {/* Header */}
         <div className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
@@ -641,8 +641,8 @@ const AppointmentHistory = () => {
               <div className="flex items-center gap-3">
                 <User className="w-6 h-6 text-green-600" />
                 <div>
-                  <h1 className="text-lg sm:text-xl font-bold text-gray-900">My Appointments</h1>
-                  <p className="text-xs sm:text-sm text-gray-600">View your appointment history and profile</p>
+                  <h1 className="text-lg sm:text-xl font-bold text-gray-900">Clinic Visit History</h1>
+                  <p className="text-xs sm:text-sm text-gray-600">View your clinic visit history and profile</p>
                 </div>
               </div>
             </div>

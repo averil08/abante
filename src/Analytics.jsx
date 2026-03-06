@@ -1060,11 +1060,11 @@ const Analytics = () => {
   };
 
   return (
-    <div className="flex w-full min-h-screen bg-gray-50">
+    <div className="min-h-screen w-full overflow-x-hidden bg-gray-50">
       <Sidebar nav={nav} handleNav={handleNav} />
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 ml-0 md:ml-52 lg:pt-8">
+      <div className="ml-0 md:ml-52 lg:pt-8 overflow-x-hidden">
         {/* Header */}
         <div className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
@@ -1188,7 +1188,7 @@ const Analytics = () => {
                           <span className="text-sm">
                             {option === 'today' ? 'Today' :
                               option === 'thisWeek' ? 'This Week' :
-                                'Last Week'}
+                                option === 'lastWeek' ? 'Last Week' : 'Custom Range'}
                           </span>
                         </button>
                       ))}

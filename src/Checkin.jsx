@@ -853,9 +853,9 @@ function Checkin() {
   // === CLINIC VIEW ===
   if (viewMode === 'clinic' && !isPatientAccess) {
     return (
-      <div className="flex w-full min-h-screen">
+      <div className="min-h-screen w-full overflow-x-hidden">
         <Sidebar nav={nav} handleNav={handleNav} />
-        <div className="flex-1 min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 ml-0 md:ml-52 flex items-center justify-center p-4">
+        <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 ml-0 md:ml-52 flex items-center justify-center p-4 overflow-x-hidden">
           <Card className="w-full max-w-2xl shadow-2xl border-t-4 border-green-600">
             <CardHeader className="text-center pb-2">
               <div className="flex justify-center mb-4">
@@ -896,9 +896,9 @@ function Checkin() {
   if (!selectedPatientType) {
     const isFromSidebar = isFromPatientSidebar;
     return (
-      <div className={isFromSidebar ? "flex w-full min-h-screen" : "min-h-screen bg-gray-50 flex items-center justify-center p-4"}>
+      <div className={isFromSidebar ? "min-h-screen w-full overflow-x-hidden" : "min-h-screen bg-gray-50 flex items-center justify-center p-4"}>
         {isFromSidebar && <PatientSidebar nav={nav} handleNav={handleNav} />}
-        <div className={isFromSidebar ? "flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 flex items-center justify-center p-4" : "w-full flex justify-center"}>
+        <div className={isFromSidebar ? "min-h-screen bg-gray-50 ml-0 md:ml-52 flex items-center justify-center p-4 overflow-x-hidden" : "w-full flex justify-center"}>
           <Card className="w-full max-w-md shadow-xl border-t-4 border-green-600">
             {!isFromSidebar && (
               <div className="p-4 border-b border-gray-200">
@@ -927,9 +927,9 @@ function Checkin() {
 
   // Step 2: Patient Registration Forms
   return (
-    <div className={isFromPatientSidebar ? "flex w-full min-h-screen" : "min-h-screen bg-gray-50 flex items-center justify-center p-4"}>
+    <div className={isFromPatientSidebar ? "min-h-screen w-full overflow-x-hidden" : "min-h-screen bg-gray-50 flex items-center justify-center p-4"}>
       {isFromPatientSidebar && <PatientSidebar nav={nav} handleNav={handleNav} />}
-      <div className={isFromPatientSidebar ? "flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 flex items-center justify-center p-4" : "w-full flex justify-center"}>
+      <div className={isFromPatientSidebar ? "min-h-screen bg-gray-50 ml-0 md:ml-52 flex items-center justify-center p-4 overflow-x-hidden" : "w-full flex justify-center"}>
         <Card className="w-full max-w-lg shadow-xl border-t-4 border-green-600 my-8">
           {!isFromPatientSidebar && (
             <div className="p-4 border-b border-gray-200">

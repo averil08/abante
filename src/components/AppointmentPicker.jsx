@@ -140,18 +140,29 @@ const AppointmentPicker = ({
   };
   const getMinBookingTime = () => {
     const minTime = new Date();
-    minTime.setHours(minTime.getHours() + 24); // Add exactly 24 hours
+    // Two full days lead time: Earliest bookable is the day after tomorrow
+    minTime.setDate(minTime.getDate() + 2);
+    minTime.setHours(0, 0, 0, 0);
     return minTime;
+  };
+
+  const getEarliestBookableDate = () => {
+    let date = getMinBookingTime();
+    // If the calculated earliest date is a Sunday, skip to Monday
+    if (date.getDay() === 0) {
+      date.setDate(date.getDate() + 1);
+    }
+    return date;
   };
   // Disable past dates and Sundays
   const tileDisabled = ({ date, view }) => {
     if (view === 'month') {
-      const minTime = getMinBookingTime();
+      const minAllowedDate = getMinBookingTime();
       const compareDate = new Date(date);
-      compareDate.setHours(23, 59, 59, 999); // Set to end of day for comparison
+      compareDate.setHours(0, 0, 0, 0);
 
-      // Disable if the entire day is before the 24-hour threshold
-      if (compareDate < minTime) {
+      // Disable today and past dates (any date before tomorrow)
+      if (compareDate < minAllowedDate) {
         return true;
       }
 
@@ -295,17 +306,17 @@ const AppointmentPicker = ({
         </Label>
         <p className="text-sm text-gray-600 mb-3">
           Earliest available appointment: <span className="font-semibold text-green-700">
-            {new Date().toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })}
+            {getEarliestBookableDate().toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })}
           </span>
         </p>
-        <p className="text-sm text-red-600 mb-4 font-medium">
-          To the extent possible, additional slots are made regularly.
+        <p className="text-xs text-amber-600 mb-4 font-medium italic">
+          * Appointments must be booked at least two days in advance. Sundays are closed.
         </p>
 
         <Calendar
           onChange={handleDateChange}
           value={selectedDate}
-          minDate={new Date()}
+          minDate={getEarliestBookableDate()}
           tileDisabled={tileDisabled}
           tileClassName={tileClassName}
         />
@@ -361,7 +372,7 @@ const AppointmentPicker = ({
                   disabled={isTooSoon || isFullyBooked}
                 >
                   {slot.label}
-                  {isTooSoon ? ' (Requires 24h notice)' : isFullyBooked ? ' (Fully Booked)' : ` (${availableSlotsCount} available)`}
+                  {isTooSoon ? ' (Requires 2-day notice)' : isFullyBooked ? ' (Fully Booked)' : ` (${availableSlotsCount} available)`}
                 </option>
               );
             })}

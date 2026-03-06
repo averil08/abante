@@ -593,11 +593,11 @@ const Appointment = () => {
   );
 
   return (
-    <div className="flex w-full min-h-screen">
+    <div className="min-h-screen w-full overflow-x-hidden">
       <Sidebar nav={nav} handleNav={handleNav} />
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300 w-full overflow-x-hidden">
+      <div className="min-h-screen bg-gray-50 ml-0 md:ml-52 transition-all duration-300 overflow-x-hidden">
         {/* Header */}
         <div className="bg-white shadow-sm pt-12 lg:pt-3">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">

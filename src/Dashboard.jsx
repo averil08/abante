@@ -896,11 +896,11 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="flex w-full min-h-screen overflow-x-hidden">
+    <div className="min-h-screen w-full overflow-x-hidden">
       <Sidebar nav={nav} handleNav={handleNav} />
 
-      <div className={`flex-1 min-h-screen bg-gray-50 transition-all duration-300 overflow-x-hidden ml-0 md:ml-52`}>
-        <div className="max-w-[100vw]">
+      <div className={`min-h-screen bg-gray-50 transition-all duration-300 overflow-x-hidden ml-0 md:ml-52`}>
+        <div>
           <div className="bg-white shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
               {/* Desktop: Side by side layout */}

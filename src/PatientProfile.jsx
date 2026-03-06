@@ -543,10 +543,10 @@ const PatientProfile = () => {
   // Patient List View
   if (!selectedPatient) {
     return (
-      <div className="flex w-full min-h-screen">
+      <div className="min-h-screen w-full overflow-x-hidden">
         <Sidebar className='pt-10' nav={nav} handleNav={handleNav} />
 
-        <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52">
+        <div className="min-h-screen bg-gray-50 ml-0 md:ml-52 overflow-x-hidden">
           <div className="bg-white shadow-sm">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
               <div className="flex items-center gap-3 mb-4 pt-12 lg:pt-3">
@@ -761,10 +761,10 @@ const PatientProfile = () => {
 
   // Patient Detail View
   return (
-    <div className="flex w-full min-h-screen">
+    <div className="min-h-screen w-full overflow-x-hidden">
       <Sidebar nav={nav} handleNav={handleNav} />
 
-      <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52">
+      <div className="min-h-screen bg-gray-50 ml-0 md:ml-52 overflow-x-hidden">
         <div className="bg-white shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 pt-10">
             <Button
@@ -805,10 +805,10 @@ const PatientProfile = () => {
               <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
                 <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                   <div className="flex-1">
-                    <CardTitle className="flex items-center gap-2 text-blue-900">
-                      <Activity className="w-6 h-6" />
-                      Most Recent Visit Summary
-                      <Badge className={`ml-2 ${getStatusBadge(selectedPatient.mostRecentActiveVisit)}`}>
+                    <CardTitle className="flex flex-wrap items-center gap-2 text-blue-900">
+                      <Activity className="w-6 h-6 flex-shrink-0" />
+                      <span className="truncate">Most Recent Visit Summary</span>
+                      <Badge className={`ml-0 sm:ml-2 ${getStatusBadge(selectedPatient.mostRecentActiveVisit)}`}>
                         {getStatusLabel(selectedPatient.mostRecentActiveVisit)}
                       </Badge>
                     </CardTitle>
@@ -828,7 +828,7 @@ const PatientProfile = () => {
                 </div>
               </CardHeader>
               <CardContent className="pt-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Assigned Doctor */}
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                     <Stethoscope className="w-5 h-5 text-green-600 flex-shrink-0" />

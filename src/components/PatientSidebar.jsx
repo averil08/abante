@@ -54,7 +54,7 @@ const PatientSidebar = ({ nav, handleNav, hideToggle = false }) => {
 
           <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointmenthistory")}>
             <NotebookText className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Patient Profile
+            Clinic Visit History
           </li>
           <li
             className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer"
@@ -100,7 +100,7 @@ const PatientSidebar = ({ nav, handleNav, hideToggle = false }) => {
           </li>
           <li className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer" onClick={() => navigate("/appointmenthistory")}>
             <NotebookText className="w-5 h-5 text-green-600 group-hover:text-white" />
-            Patient Profile
+            Clinic Visit History
           </li>
           <li
             className="group p-4 flex items-center gap-2 hover:bg-green-600 hover:text-white hover:cursor-pointer"

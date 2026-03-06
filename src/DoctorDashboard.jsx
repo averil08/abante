@@ -623,7 +623,7 @@ const DoctorDashboard = () => {
                                             <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-wider py-3 pl-4 sm:pl-6 whitespace-nowrap">Visit #</TableHead>
                                             <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-wider py-3 whitespace-nowrap">Doctor Assigned</TableHead>
                                             <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-wider py-3 whitespace-nowrap">Symptoms</TableHead>
-                                            <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-wider py-3 text-right pr-4 sm:pr-6 whitespace-nowrap">Action</TableHead>
+                                            <TableHead className="text-[10px] font-black text-slate-400 uppercase tracking-wider py-3 text-right pr-4 sm:pr-6 whitespace-nowrap"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -661,10 +661,11 @@ const DoctorDashboard = () => {
                                                         <TableCell className="py-3.5 text-right pr-4 sm:pr-6">
                                                             <Button
                                                                 variant="ghost"
+                                                                size="icon"
                                                                 onClick={() => setExpandedVisitId(isExpanded ? null : vId)}
-                                                                className="text-emerald-700 font-black text-[10px] uppercase tracking-wider hover:bg-emerald-50 rounded-lg px-3 h-8"
+                                                                className="text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl h-8 w-8 transition-colors"
                                                             >
-                                                                {isExpanded ? 'Hide' : 'View More'}
+                                                                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : '-rotate-90'}`} />
                                                             </Button>
                                                         </TableCell>
                                                     </TableRow>
@@ -926,7 +927,7 @@ const DoctorDashboard = () => {
     );
 
     return (
-        <div className="flex flex-col h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
+        <div className="flex flex-col h-[100dvh] bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
 
             {/* ─── MOBILE LAYOUT ─── */}
             <div className="flex flex-col h-full md:hidden">
@@ -1074,7 +1075,7 @@ const DoctorDashboard = () => {
                 )}
 
                 {/* Mobile Content */}
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 flex flex-col overflow-hidden">
                     {mobileView === 'list' ? (
                         <PatientList />
                     ) : selectedPatient ? (

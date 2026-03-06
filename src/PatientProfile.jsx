@@ -232,6 +232,9 @@ const PatientProfile = () => {
       const category = getVisitStatusCategory(visit);
       if (category === 'unknown') return;
 
+      // EXCLUDE: Pending or Rejected appointment requests
+      if (visit.type === 'Appointment' && visit.appointmentStatus !== 'accepted') return;
+
       // Primary identification: Use email if available to group all records from the same account.
       // Fall back to normalized name for walk-ins or records without email.
       const normalizedName = normalizeName(visit.name);
@@ -298,8 +301,8 @@ const PatientProfile = () => {
         )
         .sort((a, b) => new Date(a.appointmentDateTime) - new Date(b.appointmentDateTime))[0] || null;
 
-      // Find the most recent visit that is either "in progress" or "done"
-      const mostRecentActiveVisit = sortedVisits.find(v => ['in-progress', 'completed'].includes(getVisitStatusCategory(v)));
+      // Find the most recent visit that is either "upcoming", "in progress", or "done"
+      const mostRecentActiveVisit = sortedVisits.find(v => ['upcoming', 'in-progress', 'completed'].includes(getVisitStatusCategory(v)));
 
       // Definitions for display purposes:
       // If there's a future upcoming appointment, show it (takes priority so "Upcoming" badge appears in the patient list).
@@ -310,8 +313,8 @@ const PatientProfile = () => {
       const completedVisits = sortedVisits.filter(v => getVisitStatusCategory(v) === 'completed');
       const firstVisit = completedVisits.length > 0 ? completedVisits[completedVisits.length - 1] : null;
 
-      // Group active visits for the "Most Recent Visit Summary" card (excluding upcoming)
-      const validSummaryVisits = sortedVisits.filter(v => ['in-progress', 'completed'].includes(getVisitStatusCategory(v)));
+      // Group active visits for the "Most Recent Visit Summary" card
+      const validSummaryVisits = sortedVisits.filter(v => ['upcoming', 'in-progress', 'completed'].includes(getVisitStatusCategory(v)));
 
       return {
         ...patient,
@@ -395,8 +398,6 @@ const PatientProfile = () => {
       'in-progress': selectedPatient.visits.filter(v => getVisitStatusCategory(v) === 'in-progress').length,
       completed: selectedPatient.visits.filter(v => getVisitStatusCategory(v) === 'completed').length,
       cancelled: selectedPatient.visits.filter(v => getVisitStatusCategory(v) === 'cancelled').length,
-      pending: selectedPatient.visits.filter(v => getVisitStatusCategory(v) === 'pending').length,
-      'not-approved': selectedPatient.visits.filter(v => getVisitStatusCategory(v) === 'not-approved').length,
       upcoming: selectedPatient.visits.filter(v => getVisitStatusCategory(v) === 'upcoming').length,
     };
   }, [selectedPatient]);
@@ -1021,14 +1022,6 @@ const PatientProfile = () => {
                     </Button>
                     <Button
                       size="sm"
-                      variant={visitStatusFilter === 'pending' ? 'default' : 'outline'}
-                      onClick={() => setVisitStatusFilter('pending')}
-                      className={visitStatusFilter === 'pending' ? 'bg-amber-600 hover:bg-amber-700' : 'border-amber-300 text-amber-700 hover:bg-amber-50'}
-                    >
-                      Pending ({visitStatusCounts.pending || 0})
-                    </Button>
-                    <Button
-                      size="sm"
                       variant={visitStatusFilter === 'in-progress' ? 'default' : 'outline'}
                       onClick={() => setVisitStatusFilter('in-progress')}
                       className={visitStatusFilter === 'in-progress' ? 'bg-blue-600 hover:bg-blue-700' : 'border-blue-300 text-blue-700 hover:bg-blue-50'}
@@ -1050,14 +1043,6 @@ const PatientProfile = () => {
                       className={visitStatusFilter === 'upcoming' ? 'bg-blue-600 hover:bg-blue-700' : 'border-blue-300 text-blue-700 hover:bg-blue-50'}
                     >
                       Upcoming ({visitStatusCounts.upcoming || 0})
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant={visitStatusFilter === 'not-approved' ? 'default' : 'outline'}
-                      onClick={() => setVisitStatusFilter('not-approved')}
-                      className={visitStatusFilter === 'not-approved' ? 'bg-gray-600 hover:bg-gray-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}
-                    >
-                      Not Accepted ({visitStatusCounts['not-approved'] || 0})
                     </Button>
                     <Button
                       size="sm"
@@ -1358,7 +1343,7 @@ const PatientProfile = () => {
               Past Visit Summaries
             </DialogTitle>
             <DialogDescription>
-              Historical visit summaries for {selectedPatient?.name} (In Progress or Completed visits)
+              Historical visit summaries for {selectedPatient?.name} (Upcoming, In Progress or Completed visits)
             </DialogDescription>
           </DialogHeader>
 

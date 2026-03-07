@@ -711,11 +711,9 @@ const Dashboard = () => {
   // ADD THIS NEW FUNCTION:
   const getDoctorStatus = (doctorId) => {
     const dId = Number(doctorId);
-    const doctorPatients = patients.filter(p =>
-      !p.isInactive &&
-      p.assignedDoctor?.id === dId &&
-      p.status !== "done" &&
-      p.status !== "cancelled"
+    // Only look at patients for today's active queues
+    const doctorPatients = [...(queuePatients || []), ...(priorityPatients || [])].filter(p =>
+      p.assignedDoctor?.id === dId
     );
 
     const hasWaiting = doctorPatients.some(p => p.status === "waiting");

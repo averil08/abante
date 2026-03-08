@@ -200,7 +200,7 @@ const ClinicTVDisplay = () => {
 
                 {/* Status or Now Serving Label */}
                 <div className={`text-sm font-semibold mb-3 ${doctorInfo.isActive ? 'text-gray-700' : 'text-red-600 italic'}`}>
-                  {doctorInfo.isActive ? 'NOW SERVING' : 'NOT ACTIVE'}
+                  {doctorInfo.isActive ? 'NOW SERVING' : 'UNAVAILABLE'}
                 </div>
 
                 {/* Current Serving Number */}

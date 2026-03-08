@@ -1,4 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import nodemailer from 'npm:nodemailer@6.9.15'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,14 +19,15 @@ serve(async (req) => {
       throw new Error('Missing required fields: to or subject')
     }
 
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+    const SMTP_EMAIL = Deno.env.get('SMTP_EMAIL')
+    const SMTP_PASSWORD = Deno.env.get('SMTP_PASSWORD')
     
-    if (!RESEND_API_KEY) {
-      // In development, if no API key is set, log instead of failing.
+    if (!SMTP_EMAIL || !SMTP_PASSWORD) {
+      // In development, if no credentials are set, log instead of failing.
       console.log('Would send email to:', to)
       console.log('Subject:', subject)
       return new Response(
-        JSON.stringify({ message: "Development mode: Email logged securely but not sent (Missing API Key)." }),
+        JSON.stringify({ message: "Development mode: Email logged securely but not sent (Missing SMTP credentials)." }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 200,
@@ -33,37 +35,31 @@ serve(async (req) => {
       )
     }
 
-    // Call Resend API (You can change this to SendGrid or SMTP)
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${RESEND_API_KEY}`,
+    // Configure Nodemailer for Gmail
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: SMTP_EMAIL,
+        pass: SMTP_PASSWORD, // this should be the App Password
       },
-      body: JSON.stringify({
-        from: 'Valley Care Clinic <notifications@resend.dev>', // Update with your own verified domain
-        to: [to],
-        subject: subject,
-        html: html,
-        text: text,
-      }),
     })
 
-    const data = await res.json()
+    // Send the email
+    const info = await transporter.sendMail({
+      from: `"Valley Care Clinic" <${SMTP_EMAIL}>`, 
+      to: to, // can be a comma-separated list or an array
+      subject: subject,
+      text: text,
+      html: html,
+    })
 
-    if (res.ok) {
-        return new Response(JSON.stringify(data), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-        })
-    } else {
-        return new Response(JSON.stringify({ error: data }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: res.status,
-        })
-    }
+    return new Response(JSON.stringify({ success: true, messageId: info.messageId }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+    })
 
   } catch (error) {
+    console.error('Email sending error:', error)
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

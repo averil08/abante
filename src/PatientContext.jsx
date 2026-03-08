@@ -909,6 +909,16 @@ export const PatientProvider = ({ children }) => {
         };
       }));
 
+      // 3. Send Email Notification
+      const patientData = patients.find(p => p.id === patientId);
+      if (patientData) {
+        sendAppointmentEmail(patientData, 'cancelled', {
+          reason: 'Cancelled by patient',
+          doctor: patientData.assignedDoctor?.name || 'Assigned Physician',
+          dateTime: patientData.appointmentDateTime || patientData.appointment_datetime
+        });
+      }
+
     } catch (error) {
       console.error("Failed to cancel appointment:", error);
     }

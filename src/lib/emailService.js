@@ -13,7 +13,11 @@ export const sendAppointmentEmail = async (patient, status, details) => {
     return false;
   }
 
-  const statusLabel = status === 'accepted' ? 'CONFIRMED' : 'DECLINED';
+  let statusLabel = 'UPDATED';
+  if (status === 'accepted') statusLabel = 'CONFIRMED';
+  if (status === 'rejected') statusLabel = 'DECLINED';
+  if (status === 'cancelled') statusLabel = 'CANCELLED';
+
   const appointmentDate = new Date(details.dateTime || patient.appointmentDateTime).toLocaleDateString([], {
     weekday: 'long',
     year: 'numeric',
@@ -39,8 +43,9 @@ export const sendAppointmentEmail = async (patient, status, details) => {
         <p><strong>👨‍⚕️ Doctor:</strong> ${details.doctor || 'Assigned Physician'}</p>
         ${status === 'accepted' ? `<p><strong>🎫 Queue No:</strong> ${details.queueNo}</p>` : ''}
         ${status === 'rejected' ? `<p style="color: #e11d48;"><strong>❌ Reason:</strong> ${details.reason || 'Not specified'}</p>` : ''}
+        ${status === 'cancelled' ? `<p style="color: #64748b;"><strong>ℹ️ Note:</strong> This appointment was cancelled by the patient.</p>` : ''}
       </div>
-      <p style="margin-top: 20px; font-size: 12px; color: #64748b;">Please arrive 15 minutes early. If you need to reschedule, please contact the clinic.</p>
+      <p style="margin-top: 20px; font-size: 12px; color: #64748b;">${status === 'cancelled' ? 'You can always book a new appointment when you are ready.' : 'Please arrive 15 minutes early. If you need to reschedule, please contact the clinic.'}</p>
     </div>
   `;
 
@@ -52,6 +57,7 @@ export const sendAppointmentEmail = async (patient, status, details) => {
     Doctor: ${details.doctor || 'Assigned Physician'}
     ${status === 'accepted' ? `Queue No: ${details.queueNo}` : ''}
     ${status === 'rejected' ? `Reason: ${details.reason || 'Not specified'}` : ''}
+    ${status === 'cancelled' ? `Note: This appointment was cancelled by the patient.` : ''}
   `;
 
   try {

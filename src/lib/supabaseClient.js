@@ -540,6 +540,17 @@ export const forgotPassword = async (email, redirectTo) => {
   return { success: true, data };
 };
 
+export const getProfileMetadata = async () => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) return null;
+
+  return {
+    fullName: user.user_metadata?.full_name || "",
+    phoneNumber: user.user_metadata?.phone_number || "",
+    email: user.email || ""
+  };
+};
+
 export const resetPassword = async (newPassword) => {
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) {

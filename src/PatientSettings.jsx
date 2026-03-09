@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import PatientSidebar from '@/components/PatientSidebar';
 import { User, Save, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { updateUserPassword } from './lib/supabaseClient';
+import { updateUserPassword, getProfileMetadata } from './lib/supabaseClient';
 
 function PatientSettings() {
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ function PatientSettings() {
   //================================
   //🔴 REPLACE FROM HERE
   //==============================
-  const loadProfile = () => {
+  const loadProfile = async () => {
     try {
       const currentEmail = localStorage.getItem('currentPatientEmail');
 
@@ -48,7 +48,6 @@ function PatientSettings() {
         if (userProfileStr) {
           const profile = JSON.parse(userProfileStr);
           console.log('📋 Loading profile for:', currentEmail);
-          console.log('📋 Profile data:', profile);
 
           setFormData(prev => ({
             ...prev,
@@ -65,9 +64,33 @@ function PatientSettings() {
             })() || ''
           }));
         } else {
-          console.log('⚠️ No profile found for:', currentEmail);
-          // Set email even if no profile exists yet
-          setFormData(prev => ({ ...prev, email: currentEmail }));
+          console.log('⚠️ No profile found in localStorage, attempting to fetch from Auth metadata...');
+          // FALLBACK: Load from Supabase Auth metadata
+          const metadata = await getProfileMetadata();
+          if (metadata && metadata.email.toLowerCase() === currentEmail.toLowerCase()) {
+            console.log('📋 Found Auth metadata:', metadata);
+            const nameParts = (metadata.fullName || '').trim().split(/\s+/);
+            const firstName = nameParts[0] || '';
+            const surname = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+            const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
+
+            setFormData(prev => ({
+              ...prev,
+              email: metadata.email,
+              firstName: firstName,
+              middleName: middleName,
+              surname: surname,
+              phoneNumber: (() => {
+                let p = (metadata.phoneNumber || '');
+                if (p.startsWith('+63')) return p.slice(3);
+                if (p.startsWith('09')) return p.slice(1);
+                return p;
+              })()
+            }));
+          } else {
+            // Last resort: just set email
+            setFormData(prev => ({ ...prev, email: currentEmail }));
+          }
         }
       } else {
         console.error('❌ No email found in session');

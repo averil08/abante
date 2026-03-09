@@ -1264,7 +1264,7 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                     <div>
                                         <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Age & Contact</p>
                                         <p className="text-base font-bold text-slate-800">
-                                            {patient.age} yrs • {(patient.phoneNum || '').replace(/^\+63/, '0') || 'N/A'}
+                                            {patient.age} yrs • {patient.phoneNum || 'N/A'}
                                         </p>
                                     </div>
                                     <div>

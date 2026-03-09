@@ -263,7 +263,7 @@ function PatientSettings() {
         middleName: formData.middleName.trim(),
         surname: formData.surname.trim(),
         age: formData.age,
-        phoneNumber: `0${formData.phoneNumber.trim()}`
+        phoneNumber: `+63${formData.phoneNumber.trim()}`
       };
 
       // Save to localStorage with email key

@@ -55,7 +55,7 @@ export const PatientProvider = ({ children }) => {
     queueNo: dbPatient.queue_no,
     name: dbPatient.name,
     age: dbPatient.age,
-    phoneNum: dbPatient.phone_num,
+    phoneNum: dbPatient.phone_num ? (dbPatient.phone_num.startsWith('09') ? `+63${dbPatient.phone_num.slice(1)}` : dbPatient.phone_num.startsWith('9') ? `+63${dbPatient.phone_num}` : dbPatient.phone_num) : "",
     type: dbPatient.patient_type === 'appointment' ? 'Appointment' : 'Walk-in',
     appointmentDateTime: dbPatient.appointment_datetime,
     symptoms: dbPatient.symptoms || [],

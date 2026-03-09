@@ -138,7 +138,7 @@ function Signup() {
         formData.email,
         formData.password,
         fullName,
-        `0${formData.phoneNumber}`,
+        `+63${formData.phoneNumber}`,
         formData.age,
         "patient"
       );

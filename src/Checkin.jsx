@@ -511,7 +511,7 @@ function Checkin() {
       ...formData,
       name: composedName,
       fullName: composedName,
-      phoneNum: formData.phoneNum ? `0${formData.phoneNum}` : "",
+      phoneNum: formData.phoneNum ? `+63${formData.phoneNum}` : "",
       symptoms: formData.symptoms.map(s =>
         s === 'Other' ? `Other: ${formData.otherSymptomText}` : s
       ),
@@ -617,7 +617,7 @@ function Checkin() {
           dbId: dbId,
           name: composedName,
           age: formData.age,
-          phoneNum: formData.phoneNum ? `0${formData.phoneNum}` : "",
+          phoneNum: formData.phoneNum ? `+63${formData.phoneNum}` : "",
           type: selectedPatientType,
           symptoms: formData.symptoms.map(s =>
             s === 'Other' ? `Other: ${formData.otherSymptomText}` : s
@@ -987,7 +987,7 @@ function Checkin() {
                       </div>
                       <div className="flex justify-between items-center py-2">
                         <span className="text-sm text-gray-600 font-medium">Phone:</span>
-                        <span className="font-semibold text-gray-900">{formData.phoneNum}</span>
+                        <span className="font-semibold text-gray-900">+63{formData.phoneNum}</span>
                       </div>
                       <div className="mt-3 pt-3 border-t border-gray-200">
                         <Button

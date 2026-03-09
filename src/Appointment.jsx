@@ -1075,7 +1075,7 @@ const Appointment = () => {
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Phone Number</p>
                     <p className="font-semibold text-gray-900">
-                      {(selectedAppointment.phoneNum || '').replace(/^\+63/, '0') || 'N/A'}
+                      {selectedAppointment.phoneNum || 'N/A'}
                     </p>
                   </div>
                 </div>

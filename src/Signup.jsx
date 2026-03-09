@@ -7,7 +7,7 @@ import { registerUser } from "./lib/supabaseClient";
 import Logo from "./assets/logo-valley.png";
 import { useNavigate } from "react-router-dom";
 
-// THIS IS ONLY FOR PATIENTS
+
 function Signup() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -98,14 +98,13 @@ function Signup() {
     setIsSubmitting(true);
 
     try {
-      // 1. Basic Validation
+
       if (!formData.firstName || !formData.lastName || !formData.phoneNumber || !formData.email || !formData.password || !formData.confirmPassword) {
         showMessage("Validation Error", "Please fill in all required fields.", false);
         setIsSubmitting(false);
         return;
       }
 
-      // 2. Phone number validation (Strictly 10 digits starting with 9)
       const phoneRegex = /^9\d{9}$/;
       if (!phoneRegex.test(formData.phoneNumber)) {
         showMessage("Validation Error", "Phone number must start with 9 and be exactly 10 digits.", false);
@@ -113,22 +112,18 @@ function Signup() {
         return;
       }
 
-      // 3. Password length check
       if (formData.password.length < 6) {
         showMessage("Validation Error", "Password must be at least 6 characters long.", false);
         setIsSubmitting(false);
         return;
       }
 
-      // 4. Password match validation
       if (formData.password !== formData.confirmPassword) {
         showMessage("Validation Error", "Passwords do not match. Please try again.", false);
         setIsSubmitting(false);
         return;
       }
 
-      // 5. Call registerUser with correct arguments (Matches your supabaseClient.js)
-      // registerUser(email, password, fullName, phoneNumber, role)
       const fullName = [formData.firstName, formData.middleName, formData.lastName].filter(Boolean).join(" ");
       const result = await registerUser(
         formData.email,

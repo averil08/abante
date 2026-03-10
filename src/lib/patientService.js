@@ -1,12 +1,6 @@
-// patientService.js - Simplified version that works with your EXISTING database
-// This ONLY uses the columns you already have + the new ones we just added
-
 import { supabase } from './supabaseClient';
 
-/**
- * Save patient to database
- * Works with your existing database structure
- */
+// Profile creation
 export const savePatientProfile = async (patientData) => {
   try {
     const profileData = {
@@ -25,7 +19,6 @@ export const savePatientProfile = async (patientData) => {
       is_returning_patient: patientData.isReturningPatient || false
     };
 
-    // Always INSERT new visit (each visit is a new record)
     const { data, error } = await supabase
       .from('patients')
       .insert([profileData])
@@ -41,9 +34,7 @@ export const savePatientProfile = async (patientData) => {
   }
 };
 
-/**
- * Get all patients from database
- */
+// Patient profile retrieval and search
 export const getAllPatientProfiles = async () => {
   try {
     const { data, error } = await supabase
@@ -59,9 +50,6 @@ export const getAllPatientProfiles = async () => {
   }
 };
 
-/**
- * Search patients by name or phone
- */
 export const searchPatient = async (searchTerm) => {
   try {
     const { data, error } = await supabase
@@ -78,9 +66,6 @@ export const searchPatient = async (searchTerm) => {
   }
 };
 
-/**
- * Get max queue number from database
- */
 export const getMaxQueueNumber = async () => {
   try {
     const { data, error } = await supabase
@@ -90,7 +75,7 @@ export const getMaxQueueNumber = async () => {
       .limit(1)
       .single();
 
-    if (error && error.code !== 'PGRST116') throw error; // PGRST116 is "Row not found" (empty table)
+    if (error && error.code !== 'PGRST116') throw error;
     return { success: true, maxQueueNo: data?.queue_no || 0 };
   } catch (error) {
     console.error('Error fetching max queue number:', error);
@@ -98,17 +83,12 @@ export const getMaxQueueNumber = async () => {
   }
 };
 
-/**
- * Sync patient to database
- */
+// Updating patient records
 export const syncPatientToDatabase = async (patientData) => {
   try {
     const profileData = {
-      // Identity
       phone_num: patientData.phoneNum,
-      patient_email: patientData.patientEmail, // ✅ FIX: Sync email to DB
-
-      // Fields
+      patient_email: patientData.patientEmail,
       name: patientData.name,
       age: patientData.age ? parseInt(patientData.age) : 0,
       patient_type: (patientData.type || '').toLowerCase() === 'appointment' ? 'appointment' : 'walk-in',
@@ -127,16 +107,14 @@ export const syncPatientToDatabase = async (patientData) => {
       rejection_reason: patientData.rejectionReason || null,
       rejected_at: patientData.rejectedAt || null,
 
-      // Timestamps
       called_at: patientData.calledAt || null,
       queue_exit_time: patientData.queueExitTime || null,
       completed_at: patientData.completedAt || null,
       registered_at: patientData.registeredAt || new Date().toISOString()
     };
 
-    // ✅ FIX: Check if we are updating an existing row or creating a new one
+    // Database update or insert operation
     if (patientData.id) {
-      // UPDATE existing patient
       const { data, error } = await supabase
         .from('patients')
         .upsert({ id: patientData.id, ...profileData }, { onConflict: 'id' })
@@ -146,7 +124,6 @@ export const syncPatientToDatabase = async (patientData) => {
       if (error) throw error;
       return { success: true, data };
     } else {
-      // INSERT new patient (initial registration)
       const { data, error } = await supabase
         .from('patients')
         .insert([profileData])

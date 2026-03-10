@@ -12,6 +12,7 @@ env.split('\n').forEach(line => {
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function checkUnfinished() {
+    // Fetch all patients from database
     const { data, error } = await supabase
         .from('patients')
         .select('*');
@@ -21,15 +22,12 @@ async function checkUnfinished() {
         return;
     }
 
+    // Filter for unfinished patients from previous days
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const unfinished = data.filter(p => {
-        // Only care about in progress or waiting
         if (p.status === 'done' || p.status === 'cancelled') return false;
-
-        // Sometimes no status means waiting
-
         const regDateString = p.registered_at || p.appointment_datetime;
         if (!regDateString) return false;
 

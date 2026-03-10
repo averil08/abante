@@ -1,10 +1,3 @@
-/**
- * Email Service for Valley Care Clinic
- * Handles sending notifications to patients regarding their appointments.
- * Note: For a production environment, you would integrate this with a service like
- * Resend, EmailJS, or SendGrid via a secure backend or Supabase Edge Function.
- */
-
 import { supabase } from './supabaseClient';
 
 export const sendAppointmentEmail = async (patient, status, details) => {
@@ -12,7 +5,7 @@ export const sendAppointmentEmail = async (patient, status, details) => {
     console.warn('⚠️ Cannot send email: Patient email not found.', patient);
     return false;
   }
-
+  // Data formatting for status and timestamps of appointment
   let statusLabel = 'UPDATED';
   if (status === 'accepted') statusLabel = 'CONFIRMED';
   if (status === 'rejected') statusLabel = 'DECLINED';
@@ -29,9 +22,8 @@ export const sendAppointmentEmail = async (patient, status, details) => {
     minute: '2-digit'
   });
 
+  // Email content
   const subject = `Appointment ${statusLabel} - Valley Care Clinic`;
-
-  // Construct HTML and Plain Text versions
   const htmlContent = `
     <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
       <h2 style="color: #059669;">Valley Care Clinic</h2>
@@ -60,6 +52,7 @@ export const sendAppointmentEmail = async (patient, status, details) => {
     ${status === 'cancelled' ? `Note: This appointment was cancelled by the patient.` : ''}
   `;
 
+  // Send email request to Supabase Edge Function
   try {
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
@@ -76,7 +69,6 @@ export const sendAppointmentEmail = async (patient, status, details) => {
     return true;
   } catch (error) {
     console.error('❌ Failed to invoke Supabase Edge Function:', error.message);
-    // Fallback log for local development/debugging
     console.log(`%c📧 [FALLBACK LOG] To: ${patient.patientEmail} | Status: ${statusLabel}`, 'color: #059669; font-weight: bold;');
     return false;
   }

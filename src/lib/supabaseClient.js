@@ -1,31 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Read the variables defined in your .env file
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Initialize the Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// ============================================
-// PATIENT REGISTRATION FUNCTIONS
-// ============================================
-
-// Register a walk-in patient
+// Patient registration functions
 export const registerWalkInPatient = async (patientData) => {
   let attempts = 0;
   const maxAttempts = 3;
 
   while (attempts < maxAttempts) {
     try {
-      // ✅ FIX: Explicitly fetch the current MAX queue_no before inserting,
-      // identical to registerAppointmentPatient. This prevents duplicate key
-      // violations for returning patients whose old records share the same DB
-      // sequence used by the trigger-based auto-increment.
       const { data: maxQData } = await supabase
         .from('patients')
         .select('queue_no')
-        .lt('queue_no', 900000) // Ignore placeholder numbers (e.g. from pending appointments)
+        .lt('queue_no', 900000)
         .order('queue_no', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -45,7 +35,7 @@ export const registerWalkInPatient = async (patientData) => {
             services: patientData.services || [],
             days_since_onset: patientData.daysSinceOnSet ? parseInt(patientData.daysSinceOnSet) : null,
             patient_type: 'walk-in',
-            queue_no: nextQueueNo, // ✅ Explicitly assigned — no reliance on DB trigger
+            queue_no: nextQueueNo,
             is_priority: patientData.isPriority || false,
             priority_type: patientData.priorityType || null,
             patient_email: patientData.patientEmail || null
@@ -56,15 +46,12 @@ export const registerWalkInPatient = async (patientData) => {
       if (error) throw error;
       return { success: true, data: data[0] };
     } catch (error) {
-      // Check for unique constraint violation on queue_no (Postgres code 23505)
-      // or if message contains specific constraint name
       if (
         (error.code === '23505' || error.message?.includes('unique_queue_no')) &&
         attempts < maxAttempts - 1
       ) {
         console.warn(`Queue number conflict detected. Retrying... (Attempt ${attempts + 1}/${maxAttempts})`);
         attempts++;
-        // Use a small delay before retrying to let any concurrent inserts settle
         await new Promise(resolve => setTimeout(resolve, 300));
         continue;
       }
@@ -75,20 +62,16 @@ export const registerWalkInPatient = async (patientData) => {
   }
 };
 
-// Register an appointment patient
 export const registerAppointmentPatient = async (formData, appointmentDateTime) => {
   let attempts = 0;
   const maxAttempts = 3;
 
   while (attempts < maxAttempts) {
     try {
-      // 4.1 GET NEXT QUEUE NUMBER
-      // We must manually calculate the next queue number to ensure it's a real sequence (1, 2, 3...)
-      // and not a high placeholder (900000+).
       const { data: maxQData } = await supabase
         .from('patients')
         .select('queue_no')
-        .lt('queue_no', 900000) // Ignore existing placeholders
+        .lt('queue_no', 900000)
         .order('queue_no', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -109,7 +92,7 @@ export const registerAppointmentPatient = async (formData, appointmentDateTime) 
             services: formData.services || [],
             status: 'waiting',
             appointment_status: 'pending',
-            queue_no: nextQueueNo, // Manually assigned real number
+            queue_no: nextQueueNo,
             is_priority: formData.isPriority || false,
             priority_type: formData.priorityType || null,
             patient_email: formData.patientEmail || localStorage.getItem('currentPatientEmail') || null,
@@ -121,7 +104,6 @@ export const registerAppointmentPatient = async (formData, appointmentDateTime) 
         .single();
 
       if (patientError) {
-        // Check for unique_queue_no violation and retry
         if (
           (patientError.code === '23505' || patientError.message?.includes('unique_queue_no')) &&
           attempts < maxAttempts - 1
@@ -136,7 +118,6 @@ export const registerAppointmentPatient = async (formData, appointmentDateTime) 
         throw patientError;
       }
 
-      // STEP 2: Create the Appointment record linked via patient_id
       const { data: apptData, error: apptError } = await supabase
         .from('appointments')
         .insert([
@@ -149,17 +130,13 @@ export const registerAppointmentPatient = async (formData, appointmentDateTime) 
         ]);
 
       if (apptError) {
-        // If appointment creation fails but patient was created, usually strictly speaking we should cleanup,
-        // but for now we just throw error. Conflict on appt shouldn't be queue_no related.
         console.error("Step 2 (Appointment) failed:", apptError);
         throw apptError;
       }
 
       return { success: true, data: apptData, patient: patientData };
     } catch (error) {
-      // If unique violation happened and we haven't exhausted retries, we continue loop
       if ((error.code === '23505' || error.message?.includes('unique_queue_no')) && attempts < maxAttempts - 1) {
-        // Verify we didn't just catch the error we re-threw above, though correct flow lands here anyway
         attempts++;
         await new Promise(resolve => setTimeout(resolve, 300));
         continue;
@@ -171,12 +148,7 @@ export const registerAppointmentPatient = async (formData, appointmentDateTime) 
   }
 };
 
-
-// ============================================
-// VALIDATION FUNCTIONS
-// ============================================
-
-// Check if phone number already exists
+// Validation functions
 export const checkPhoneExists = async (phoneNum) => {
   try {
     const { data, error } = await supabase
@@ -193,7 +165,6 @@ export const checkPhoneExists = async (phoneNum) => {
   }
 };
 
-// Check if appointment slot is available
 export const checkAppointmentAvailable = async (appointmentDateTime) => {
   try {
     const { data, error } = await supabase
@@ -204,7 +175,6 @@ export const checkAppointmentAvailable = async (appointmentDateTime) => {
       .single();
 
     if (error && error.code !== 'PGRST116') throw error;
-    // Return true if slot is available (no data found)
     return !data;
   } catch (error) {
     console.error('Error checking appointment availability:', error);
@@ -212,11 +182,7 @@ export const checkAppointmentAvailable = async (appointmentDateTime) => {
   }
 };
 
-// ============================================
-// QUERY FUNCTIONS (for dashboards)
-// ============================================
-
-// Get all patients
+// Query functions (for dashboards)
 export const getAllPatients = async () => {
   try {
     const { data, error } = await supabase
@@ -232,7 +198,6 @@ export const getAllPatients = async () => {
   }
 };
 
-// Get walk-in patients
 export const getWalkInPatients = async () => {
   try {
     const { data, error } = await supabase
@@ -249,7 +214,6 @@ export const getWalkInPatients = async () => {
   }
 };
 
-// Get today's walk-in patients (using the view we created)
 export const getTodaysWalkIns = async () => {
   try {
     const { data, error } = await supabase
@@ -264,7 +228,6 @@ export const getTodaysWalkIns = async () => {
   }
 };
 
-// Get all appointments
 export const getAllAppointments = async () => {
   try {
     const { data, error } = await supabase
@@ -291,7 +254,6 @@ export const getAllAppointments = async () => {
   }
 };
 
-// Get upcoming appointments (using the view we created)
 export const getUpcomingAppointments = async () => {
   try {
     const { data, error } = await supabase
@@ -306,7 +268,6 @@ export const getUpcomingAppointments = async () => {
   }
 };
 
-// Get appointments for a specific date
 export const getAppointmentsByDate = async (date) => {
   try {
     const startOfDay = new Date(date);
@@ -339,7 +300,6 @@ export const getAppointmentsByDate = async (date) => {
   }
 };
 
-// Search patients by name or phone
 export const searchPatients = async (searchTerm) => {
   try {
     const { data, error } = await supabase
@@ -356,7 +316,6 @@ export const searchPatients = async (searchTerm) => {
   }
 };
 
-// Update appointment status
 export const updateAppointmentStatus = async (appointmentId, status) => {
   try {
     const { data, error } = await supabase
@@ -373,17 +332,14 @@ export const updateAppointmentStatus = async (appointmentId, status) => {
   }
 };
 
-// Get patient statistics (for analytics)
 export const getPatientStats = async () => {
   try {
-    // Total patients
     const { count: totalPatients, error: totalError } = await supabase
       .from('patients')
       .select('*', { count: 'exact', head: true });
 
     if (totalError) throw totalError;
 
-    // Walk-in patients
     const { count: walkInCount, error: walkInError } = await supabase
       .from('patients')
       .select('*', { count: 'exact', head: true })
@@ -391,7 +347,6 @@ export const getPatientStats = async () => {
 
     if (walkInError) throw walkInError;
 
-    // Appointment patients
     const { count: appointmentCount, error: appointmentError } = await supabase
       .from('patients')
       .select('*', { count: 'exact', head: true })
@@ -399,7 +354,6 @@ export const getPatientStats = async () => {
 
     if (appointmentError) throw appointmentError;
 
-    // Today's patients
     const today = new Date().toISOString().split('T')[0];
     const { count: todayCount, error: todayError } = await supabase
       .from('patients')
@@ -424,10 +378,7 @@ export const getPatientStats = async () => {
   }
 };
 
-// ============================================
-// PATIENT LOGIN OR SIGNUP FUNCTIONS
-// ============================================
-
+// Patient login or signup functions
 export const registerUser = async (email, password, fullName, phoneNumber, role = "patient") => {
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -436,7 +387,7 @@ export const registerUser = async (email, password, fullName, phoneNumber, role 
       data: {
         full_name: fullName,
         phone_number: phoneNumber,
-        role: role, // 'patient' or 'staff'
+        role: role,
       },
     },
   });
@@ -445,20 +396,14 @@ export const registerUser = async (email, password, fullName, phoneNumber, role 
   return { success: true, data };
 };
 
-
-
-// lib/supabaseClient.js
 export const loginUser = async (email, password) => {
-  // 1. Clean the email input
   const cleanEmail = email.trim().toLowerCase();
 
-  // 2. Authenticate with Supabase Auth FIRST
   const { data, error } = await supabase.auth.signInWithPassword({
     email: cleanEmail,
     password,
   });
 
-  // If Auth fails (wrong password/email), stop here
   if (error) {
     console.error("Auth Error:", error.message);
     return { success: false, error: error.message };
@@ -466,36 +411,27 @@ export const loginUser = async (email, password) => {
 
   const user = data.user;
 
-  // 3. CHECK STAFF TABLE (with error handling)
   const { data: staffProfile, error: staffError } = await supabase
     .from('clinic_staff')
     .select('*')
     .eq('email', cleanEmail)
-    .maybeSingle(); // ✅ ADDED Changed from .single()
+    .maybeSingle();
 
-  // ✅ ADDED Only log error if it's not a "no rows" error
   if (staffError && staffError.code !== 'PGRST116') {
     console.log("Staff check error (this is normal for patients):", staffError.message);
   }
 
   if (staffProfile) {
-    console.log("Full Staff Profile from DB:", staffProfile);
-    // ✅ FIX: Use 'staff_role' column from clinic_staff table
     const finalRole = (staffProfile.staff_role || user.user_metadata?.role || 'staff').toLowerCase();
-    console.log("Final Computed Role:", finalRole);
     return { success: true, user, role: finalRole };
   }
 
-  // 4. CHECK PATIENT TABLE
   const { data: patientProfile, error: pError } = await supabase
     .from('patient_profiles')
     .select('*')
     .eq('email', cleanEmail)
-    .maybeSingle(); // ✅ ADDED changed from .single()
+    .maybeSingle();
 
-  // Debugging logs to help see what's happening
-  console.log("Searching for Patient:", cleanEmail);
-  console.log("Patient Data found:", patientProfile);
   if (pError) console.log("Patient Table Error:", pError.message);
 
   return {
@@ -506,7 +442,6 @@ export const loginUser = async (email, password) => {
 };
 
 export const updateUserPassword = async (email, currentPassword, newPassword) => {
-  // 1. Verify current password
   const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
     email: email.trim().toLowerCase(),
     password: currentPassword,
@@ -516,7 +451,6 @@ export const updateUserPassword = async (email, currentPassword, newPassword) =>
     return { success: false, error: 'Current password is incorrect' };
   }
 
-  // 2. Update password
   const { data: updateData, error: updateError } = await supabase.auth.updateUser({
     password: newPassword
   });

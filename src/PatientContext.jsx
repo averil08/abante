@@ -43,6 +43,67 @@ export const PatientProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : {};
   });
 
+  // NEW: Auth State
+  const [isPatientLoggedIn, setIsPatientLoggedIn] = useState(() => localStorage.getItem('isPatientLoggedIn') === 'true');
+  const [currentPatientEmail, setCurrentPatientEmail] = useState(() => localStorage.getItem('currentPatientEmail'));
+
+  // NEW: Robust Supabase Auth sync
+  useEffect(() => {
+    const syncAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const role = session.user.user_metadata?.role;
+        if (role === 'patient') {
+          const email = session.user.email.toLowerCase().trim();
+          if (localStorage.getItem('currentPatientEmail') !== email) {
+            console.log("🔐 Syncing Patient Context with Supabase session:", email);
+            localStorage.setItem('currentPatientEmail', email);
+            localStorage.setItem('isPatientLoggedIn', 'true');
+          }
+        }
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        const role = session.user.user_metadata?.role;
+        if (role === 'patient') {
+          const email = session.user.email.toLowerCase().trim();
+          localStorage.setItem('currentPatientEmail', email);
+          localStorage.setItem('isPatientLoggedIn', 'true');
+          setCurrentPatientEmail(email);
+          setIsPatientLoggedIn(true);
+        } else {
+          // Staff/Doctor login - clear patient keys locally
+          localStorage.removeItem('currentPatientEmail');
+          localStorage.removeItem('isPatientLoggedIn');
+          setCurrentPatientEmail(null);
+          setIsPatientLoggedIn(false);
+          clearActivePatient();
+        }
+      } else if (event === 'SIGNED_OUT') {
+        localStorage.removeItem('currentPatientEmail');
+        localStorage.removeItem('isPatientLoggedIn');
+        setCurrentPatientEmail(null);
+        setIsPatientLoggedIn(false);
+        clearActivePatient();
+      }
+    });
+
+    syncAuth();
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Sync state when localStorage changes (for cross-tab)
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'currentPatientEmail') setCurrentPatientEmail(e.newValue);
+      if (e.key === 'isPatientLoggedIn') setIsPatientLoggedIn(e.newValue === 'true');
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   // Persist notifications to localStorage
   useEffect(() => {
     localStorage.setItem('patientNotifications', JSON.stringify(notifications));
@@ -328,8 +389,23 @@ export const PatientProvider = ({ children }) => {
 
   // NEW: Automatic session discovery for logged-in patients
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem('isPatientLoggedIn') === 'true';
-    const currentEmail = localStorage.getItem('currentPatientEmail');
+    let currentEmail = localStorage.getItem('currentPatientEmail');
+    let isLoggedIn = localStorage.getItem('isPatientLoggedIn') === 'true';
+
+    // Fallback: If localStorage keys are missing but Supabase session exists, restore them
+    if (!currentEmail && !isLoadingFromDB) {
+      const restoreSession = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && session.user.user_metadata?.role === 'patient') {
+          const email = session.user.email.toLowerCase().trim();
+          console.log("🔐 Restoring missing localStorage from Supabase session:", email);
+          localStorage.setItem('currentPatientEmail', email);
+          localStorage.setItem('isPatientLoggedIn', 'true');
+          // Re-trigger the logic with restored email
+        }
+      };
+      restoreSession();
+    }
 
     if (!isLoadingFromDB && isLoggedIn && currentEmail && patients.length > 0) {
       const normalizedCurrentEmail = currentEmail.toLowerCase().trim();
@@ -1300,7 +1376,9 @@ export const PatientProvider = ({ children }) => {
       unreadSecretaryNotificationsCount,
       markSecretaryNotificationsAsRead,
       lastDoctorNotificationCheck,
-      markDoctorNotificationsAsRead
+      markDoctorNotificationsAsRead,
+      isPatientLoggedIn,
+      currentPatientEmail
     }}>
       {children}
     </PatientContext.Provider>

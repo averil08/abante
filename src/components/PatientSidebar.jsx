@@ -4,6 +4,7 @@ import { Users, ChartNoAxesCombined, TicketCheck, Calendar, DoorOpen, NotebookTe
 import { AiOutlineMenu, AiOutlineClose } from "react-icons/ai";
 import img1 from '../assets/logo-valley.png';
 import { PatientContext } from '../PatientContext';
+import { supabase } from '../lib/supabaseClient';
 
 const PatientSidebar = ({ nav, handleNav, hideToggle = false }) => {
   const navigate = useNavigate();
@@ -16,14 +17,11 @@ const PatientSidebar = ({ nav, handleNav, hideToggle = false }) => {
     setShowLogoutModal(true);
   };
 
-  const handleConfirmLogout = () => {
+  const handleConfirmLogout = async () => {
     setShowLogoutModal(false);
 
-    // ✅ NEW: Clear patient identity data on logout
-    localStorage.removeItem('currentPatientEmail');
-    localStorage.removeItem('isPatientLoggedIn');
-    // ✅ ADD THIS: Clear active patient session
-    setActivePatient(null);
+    // ✅ Robust logout using Supabase (triggers PatientContext listener)
+    await supabase.auth.signOut();
 
     // Navigate to home
     navigate("/");

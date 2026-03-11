@@ -19,10 +19,7 @@ const AppointmentHistory = () => {
   const [nav, setNav] = React.useState(false);
   const handleNav = () => setNav(!nav);
 
-  const { patients } = useContext(PatientContext);
-
-  // Get current logged-in patient's email
-  const currentPatientEmail = localStorage.getItem('currentPatientEmail');
+  const { patients, currentPatientEmail } = useContext(PatientContext);
 
   // State for toggling history visibility
   const [showHistory, setShowHistory] = React.useState(false);

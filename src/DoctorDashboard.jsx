@@ -1292,9 +1292,9 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                             </div>
                             <div className="flex-1 min-w-0 space-y-5">
                                 <div>
-                                    <div className="flex items-center gap-3 mb-1.5">
-                                        <h2 className="text-3xl sm:text-4xl font-bold text-slate-800 tracking-tight truncate">{patient.name}</h2>
-                                        <Badge variant="outline" className={`text-xs font-semibold px-3 py-1 rounded-md hidden sm:inline-flex pointer-events-none ${getPatientBadge(patient).style}`}>
+                                    <div className="flex items-center gap-2 sm:gap-3 mb-1.5">
+                                        <h2 className="text-2xl sm:text-4xl font-bold text-slate-800 tracking-tight truncate">{patient.name}</h2>
+                                        <Badge variant="outline" className={`text-[10px] sm:text-xs font-semibold px-2 py-0.5 sm:px-3 sm:py-1 rounded-md inline-flex shrink-0 pointer-events-none ${getPatientBadge(patient).style}`}>
                                             {getPatientBadge(patient).text}
                                         </Badge>
                                     </div>

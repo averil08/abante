@@ -19,7 +19,12 @@ const AppointmentHistory = () => {
   const [nav, setNav] = React.useState(false);
   const handleNav = () => setNav(!nav);
 
-  const { patients, currentPatientEmail } = useContext(PatientContext);
+  const { patients, currentPatientEmail: contextEmail, isLoadingFromDB } = useContext(PatientContext);
+  
+  // Use context email with a fallback to localStorage to be extremely resilient
+  const currentPatientEmail = contextEmail || localStorage.getItem('currentPatientEmail');
+
+  console.log(`[AppointmentHistory] Render - ContextEmail: ${contextEmail}, StorageEmail: ${localStorage.getItem('currentPatientEmail')}, Loading: ${isLoadingFromDB}`);
 
   // State for toggling history visibility
   const [showHistory, setShowHistory] = React.useState(false);
@@ -205,7 +210,22 @@ const AppointmentHistory = () => {
     };
   }, [myAppointments]);
 
-  // Show error only if no currentPatientEmail
+  // Show loading state while recovering session or data
+  if (isLoadingFromDB) {
+    return (
+      <div className="flex w-full min-h-screen">
+        <PatientSidebar nav={nav} handleNav={handleNav} />
+        <div className="flex-1 min-h-screen bg-gray-50 ml-0 md:ml-52 flex items-center justify-center p-4">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-500 font-medium">Loading visit history...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error only if no currentPatientEmail after loading is done
   if (!currentPatientEmail) {
     return (
       <div className="flex w-full min-h-screen">
@@ -216,6 +236,12 @@ const AppointmentHistory = () => {
               <AlertCircle className="w-16 h-16 mx-auto text-amber-500 mb-4" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">No Active Session</h3>
               <p className="text-gray-600">Please log in to view your profile and appointment history.</p>
+              <Button 
+                onClick={() => window.location.href = '/login?type=patient'}
+                className="mt-6 bg-green-600 hover:bg-green-700"
+              >
+                Go to Login
+              </Button>
             </CardContent>
           </Card>
         </div>

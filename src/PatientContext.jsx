@@ -55,35 +55,56 @@ export const PatientProvider = ({ children }) => {
         const role = session.user.user_metadata?.role;
         if (role === 'patient') {
           const email = session.user.email.toLowerCase().trim();
-          if (localStorage.getItem('currentPatientEmail') !== email) {
-            console.log("🔐 Syncing Patient Context with Supabase session:", email);
-            localStorage.setItem('currentPatientEmail', email);
-            localStorage.setItem('isPatientLoggedIn', 'true');
-          }
+          // Always sync both localStorage AND React state to guarantee UI reflects the session
+          localStorage.setItem('currentPatientEmail', email);
+          localStorage.setItem('isPatientLoggedIn', 'true');
+          setCurrentPatientEmail(email);
+          setIsPatientLoggedIn(true);
+          console.log("🔐 Syncing Patient Context with Supabase session:", email);
         }
       }
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log(`🔐 Supabase Auth Event: ${event}`);
+      
       if (session?.user) {
-        const role = session.user.user_metadata?.role;
+        const metadata = session.user.user_metadata || {};
+        const role = (metadata.role || "").toLowerCase().trim();
+        const email = session.user.email?.toLowerCase().trim();
+
+        console.log(`👤 User Email: ${email}, Detected Role: ${role}`);
+
         if (role === 'patient') {
-          const email = session.user.email.toLowerCase().trim();
+          console.log("✅ Authenticated as Patient. Syncing state...");
           localStorage.setItem('currentPatientEmail', email);
           localStorage.setItem('isPatientLoggedIn', 'true');
           setCurrentPatientEmail(email);
           setIsPatientLoggedIn(true);
-        } else {
-          // Staff/Doctor login - clear patient keys locally
+        } else if (role === 'doctor' || role === 'secretary' || role === 'staff' || role === 'admin') {
+          // Explicitly clear ONLY if identified as a different role to prevent mixed sessions
+          console.log("👨‍⚕️ Authenticated as Staff/Doctor. Clearing patient session...");
           localStorage.removeItem('currentPatientEmail');
           localStorage.removeItem('isPatientLoggedIn');
           setCurrentPatientEmail(null);
           setIsPatientLoggedIn(false);
           clearActivePatient();
+        } else {
+            // Unknown role but has session - maybe metadata is still loading
+            // We'll trust localStorage if it's already there to prevent "session flickering"
+            console.log("❓ Unknown role in metadata. Maintaining existing state if any.");
+            const savedEmail = localStorage.getItem('currentPatientEmail');
+            if (savedEmail && !currentPatientEmail) {
+                setCurrentPatientEmail(savedEmail);
+                setIsPatientLoggedIn(true);
+            }
         }
       } else if (event === 'SIGNED_OUT') {
+        console.log("👋 Signed out. Clearing all session data.");
         localStorage.removeItem('currentPatientEmail');
+        localStorage.removeItem('currentPatientName');
         localStorage.removeItem('isPatientLoggedIn');
+        localStorage.removeItem('userRole');
         setCurrentPatientEmail(null);
         setIsPatientLoggedIn(false);
         clearActivePatient();
@@ -228,7 +249,7 @@ export const PatientProvider = ({ children }) => {
     // Cleanup: Remove stale activeDoctors persistence from previous versions
     localStorage.removeItem('activeDoctors');
     loadPatientsFromDatabase();
-  }, []);
+  }, [isPatientLoggedIn]); // Re-fetch data if login status changes (critical for RLS sync)
 
   // ✅ NEW: Sync activePatient with patients list updates
   // This ensures that if the patients list is updated via Real-time (e.g. status change to 'accepted'),

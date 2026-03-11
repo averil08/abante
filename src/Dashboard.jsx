@@ -264,7 +264,8 @@ const Dashboard = () => {
     doc.setFont(undefined, 'bold');
     doc.text('Summary Statistics', 14, 86);
     doc.setFont(undefined, 'normal');
-    doc.text(`Current Serving: ${currentServing ? `#${String(currentServing).padStart(3, '0')}` : 'No Patient'}`, 14, 92);
+    const servingText = currentServing ? `#${String(currentServing).padStart(3, '0')}` : 'No Patient';
+    doc.text(`Current Serving: ${servingText}${viewMode === 'general' && totalServing > 0 ? ` (${totalServing} total)` : ''}`, 14, 92);
     doc.text(`Average Wait Time: ${avgWaitTime} mins`, 14, 98);
     const totalWaitingForReport = viewMode === 'general'
       ? totalWaiting
@@ -698,7 +699,11 @@ const Dashboard = () => {
   const filteredCancelPatients = getFilteredPatients(cancelPatients);
 
   // Line 453 Fix: Added safety check
-  const totalWaiting = queuePatients?.filter(p => p.status === "waiting").length || 0;
+  const totalWaiting = (queuePatients?.filter(p => p.status === "waiting").length || 0) +
+    (priorityPatients?.filter(p => p.status === "waiting").length || 0);
+  const totalServing = (queuePatients?.filter(p => p.status === "in progress").length || 0) +
+    (priorityPatients?.filter(p => p.status === "in progress").length || 0);
+  const totalInQueue = totalWaiting + totalServing;
 
   // Helper function to check if a doctor has active or priority patients
   const getDoctorPatientCount = (doctorId) => {
@@ -1489,8 +1494,13 @@ const Dashboard = () => {
                 <CardContent>
                   {viewMode === 'general' ? (
                     <>
-                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">
+                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                         {currentServing ? `#${String(currentServing).padStart(3, '0')}` : 'No Patient'}
+                      </p>
+                      <p className="text-xs text-gray-500 mb-3 sm:mb-4">
+                        {totalServing > 0
+                          ? `${totalServing} total patient${totalServing > 1 ? 's' : ''} being served`
+                          : 'No one currently being seen'}
                       </p>
                       <div className="space-y-2">
                         {!isDoctor && (
@@ -1520,8 +1530,11 @@ const Dashboard = () => {
                         const doctorCurrentPatient = getDoctorCurrentServing(selectedDoctor);
                         return (
                           <>
-                            <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">
+                            <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
                               {doctorCurrentPatient ? `#${String(doctorCurrentPatient).padStart(3, '0')}` : 'No Patient'}
+                            </p>
+                            <p className="text-xs text-gray-500 mb-3 sm:mb-4">
+                              {doctorCurrentPatient ? '1 patient currently being served' : 'No one currently being seen'}
                             </p>
                             <div className="space-y-2">
                               {!isDoctor && (
@@ -1597,10 +1610,15 @@ const Dashboard = () => {
                   <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-4">
                     {viewMode === 'general'
                       ? totalWaiting
-                      : filteredQueuePatients.filter(p => p.status === "waiting").length
+                      : (filteredQueuePatients.filter(p => p.status === "waiting").length +
+                        filteredPriorityPatients.filter(p => p.status === "waiting").length)
                     }
                   </p>
-                  <p className="text-xs sm:text-sm text-gray-500">Currently in queue</p>
+                  <p className="text-xs sm:text-sm text-gray-500">
+                    {viewMode === 'general'
+                      ? `Total in Queue: ${totalInQueue}`
+                      : 'Currently in queue'}
+                  </p>
                 </CardContent>
               </Card>
             </div>

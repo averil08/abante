@@ -232,8 +232,9 @@ const PatientProfile = () => {
       const category = getVisitStatusCategory(visit);
       if (category === 'unknown') return;
 
-      // EXCLUDE: Pending or Rejected appointment requests
-      if (visit.type === 'Appointment' && visit.appointmentStatus !== 'accepted') return;
+      // EXCLUDE: ONLY Pending appointment requests (not yet managed)
+      // Rejected and Cancelled should be reflected in history
+      if (visit.type === 'Appointment' && visit.appointmentStatus === 'pending') return;
 
       // Primary identification: Use email if available to group all records from the same account.
       // Fall back to normalized name for walk-ins or records without email.

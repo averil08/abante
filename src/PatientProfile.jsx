@@ -150,8 +150,8 @@ const PatientProfile = () => {
           return 'waiting';
         } else {
           // Both 'waiting' and default accepted
-          const apptDate = appointment.appointmentDateTime ? new Date(new Date(appointment.appointmentDateTime).setHours(0,0,0,0)) : null;
-          const today = new Date(new Date().setHours(0,0,0,0));
+          const apptDate = appointment.appointmentDateTime ? new Date(new Date(appointment.appointmentDateTime).setHours(0, 0, 0, 0)) : null;
+          const today = new Date(new Date().setHours(0, 0, 0, 0));
           if (apptDate && apptDate > today) return 'upcoming';
           return 'accepted';
         }
@@ -301,11 +301,11 @@ const PatientProfile = () => {
       const mostRecentDone = sortedVisits.find(v => v.status === 'done');
 
       // Find the soonest upcoming (future, accepted) appointment
-      const today = new Date(new Date().setHours(0,0,0,0));
+      const today = new Date(new Date().setHours(0, 0, 0, 0));
       const upcomingAppointment = sortedVisits
         .filter(v => {
           if (v.type !== 'Appointment' || v.appointmentStatus !== 'accepted') return false;
-          const apptDate = v.appointmentDateTime ? new Date(new Date(v.appointmentDateTime).setHours(0,0,0,0)) : null;
+          const apptDate = v.appointmentDateTime ? new Date(new Date(v.appointmentDateTime).setHours(0, 0, 0, 0)) : null;
           return apptDate && apptDate > today;
         })
         .sort((a, b) => new Date(a.appointmentDateTime) - new Date(b.appointmentDateTime))[0] || null;
@@ -318,9 +318,9 @@ const PatientProfile = () => {
       // Otherwise, fall back to the most recent completed visit, then the most recent visit overall.
       const lastVisit = upcomingAppointment || mostRecentDone || sortedVisits[0];
 
-      // Find the first (oldest) completed visit
-      const completedVisits = sortedVisits.filter(v => getVisitStatusCategory(v) === 'completed');
-      const firstVisit = completedVisits.length > 0 ? completedVisits[completedVisits.length - 1] : null;
+      // Find the first (oldest) completed or cancelled visit
+      const completedOrCancelledVisits = sortedVisits.filter(v => getVisitStatusCategory(v) === 'completed' || getVisitStatusCategory(v) === 'cancelled');
+      const firstVisit = completedOrCancelledVisits.length > 0 ? completedOrCancelledVisits[completedOrCancelledVisits.length - 1] : null;
 
       // Group active visits for the "Most Recent Visit Summary" card
       const validSummaryVisits = sortedVisits.filter(v => ['upcoming', 'accepted', 'waiting', 'in-progress', 'completed'].includes(getVisitStatusCategory(v)));
@@ -1325,19 +1325,17 @@ const PatientProfile = () => {
               )}
 
               {/* Completion/Cancellation */}
-              {selectedVisit.completedAt && (
+              {selectedVisit.status === 'done' || selectedVisit.completedAt ? (
                 <div className="p-3 bg-emerald-50 rounded-lg border border-emerald-100">
-                  <p className="text-xs text-gray-600 mb-1">Completed</p>
-                  <p className="font-medium text-emerald-700">{formatDate(selectedVisit.completedAt)}</p>
+                  <p className="text-xs text-gray-500 mb-1">Completed At</p>
+                  <p className="font-semibold text-gray-900 text-sm">{formatDate(selectedVisit.completedAt)}</p>
                 </div>
-              )}
-
-              {selectedVisit.cancelledAt && (
+              ) : selectedVisit.status === 'cancelled' || getVisitStatusCategory(selectedVisit) === 'cancelled' ? (
                 <div className="p-3 bg-red-50 rounded-lg border border-red-100">
-                  <p className="text-xs text-gray-600 mb-1">Cancelled</p>
-                  <p className="font-medium text-red-700">{formatDate(selectedVisit.cancelledAt)}</p>
+                  <p className="text-xs text-gray-500 mb-1">Cancelled At</p>
+                  <p className="font-semibold text-gray-900 text-sm">{formatDate(selectedVisit.cancelledAt || selectedVisit.queueExitTime || selectedVisit.registeredAt)}</p>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
         </DialogContent>

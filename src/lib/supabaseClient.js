@@ -488,6 +488,19 @@ export const getProfileMetadata = async () => {
   };
 };
 
+export const updateProfileMetadata = async (metadata) => {
+  const { data, error } = await supabase.auth.updateUser({
+    data: {
+      full_name: metadata.fullName,
+      phone_number: metadata.phoneNumber,
+      age: metadata.age
+    }
+  });
+
+  if (error) return { success: false, error: error.message };
+  return { success: true, data };
+};
+
 export const resetPassword = async (newPassword) => {
   const { data: sessionData } = await supabase.auth.getSession();
   if (!sessionData.session) {

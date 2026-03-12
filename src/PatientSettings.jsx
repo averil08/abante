@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import PatientSidebar from '@/components/PatientSidebar';
 import { User, Save, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { updateUserPassword, getProfileMetadata } from './lib/supabaseClient';
+import { updateUserPassword, getProfileMetadata, updateProfileMetadata } from './lib/supabaseClient';
+import { syncPatientToDatabase } from './lib/patientService';
 
 function PatientSettings() {
   const navigate = useNavigate();
@@ -42,59 +43,67 @@ function PatientSettings() {
       const currentEmail = localStorage.getItem('currentPatientEmail');
 
       if (currentEmail) {
-        // Load profile specific to this email
-        const userProfileStr = localStorage.getItem(`userProfile_${currentEmail}`);
-
-        if (userProfileStr) {
-          const profile = JSON.parse(userProfileStr);
-          console.log('📋 Loading profile for:', currentEmail);
+        // First try to get fresh metadata from Supabase Auth
+        const metadata = await getProfileMetadata();
+        
+        if (metadata && metadata.email.toLowerCase() === currentEmail.toLowerCase()) {
+          console.log('📋 Loading profile from Auth metadata:', metadata);
+          const nameParts = (metadata.fullName || '').trim().split(/\s+/);
+          const firstName = nameParts[0] || '';
+          const surname = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+          const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
 
           setFormData(prev => ({
             ...prev,
+            email: metadata.email,
+            firstName: firstName,
+            middleName: middleName,
+            surname: surname,
+            age: metadata.age || '',
+            phoneNumber: (() => {
+              let p = (metadata.phoneNumber || '').trim();
+              if (p.startsWith('+63')) return p.slice(3);
+              if (p.startsWith('09')) return p.slice(1);
+              if (p.startsWith('9') && p.length === 10) return p;
+              return p;
+            })()
+          }));
+          
+          // Sync localStorage
+          const fullNameCombined = (metadata.fullName || '').trim();
+          localStorage.setItem(`userProfile_${currentEmail}`, JSON.stringify({
+            email: metadata.email,
+            fullName: fullNameCombined,
+            firstName,
+            middleName,
+            surname,
+            age: metadata.age,
+            phoneNumber: metadata.phoneNumber
+          }));
+          return;
+        }
+
+        // Fallback to localStorage
+        const userProfileStr = localStorage.getItem(`userProfile_${currentEmail}`);
+        if (userProfileStr) {
+          const profile = JSON.parse(userProfileStr);
+          setFormData(prev => ({
+            ...prev,
             email: profile.email || currentEmail,
-            firstName: profile.firstName || (profile.fullName ? profile.fullName.split(' ')[0] : ''),
+            firstName: profile.firstName || '',
             middleName: profile.middleName || '',
-            surname: profile.surname || (profile.fullName && profile.fullName.split(' ').length > 1 ? profile.fullName.substring(profile.fullName.indexOf(' ') + 1) : ''),
+            surname: profile.surname || '',
             age: profile.age || '',
             phoneNumber: (() => {
               let p = (profile.phoneNumber || '');
               if (p.startsWith('+63')) return p.slice(3);
-              if (p.startsWith('09')) return p.slice(1);
+              if (p.startsWith('09')) return p.slice(2);
               return p;
             })() || ''
           }));
         } else {
-          console.log('⚠️ No profile found in localStorage, attempting to fetch from Auth metadata...');
-          // FALLBACK: Load from Supabase Auth metadata
-          const metadata = await getProfileMetadata();
-          if (metadata && metadata.email.toLowerCase() === currentEmail.toLowerCase()) {
-            console.log('📋 Found Auth metadata:', metadata);
-            const nameParts = (metadata.fullName || '').trim().split(/\s+/);
-            const firstName = nameParts[0] || '';
-            const surname = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
-            const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
-
-            setFormData(prev => ({
-              ...prev,
-              email: metadata.email,
-              firstName: firstName,
-              middleName: middleName,
-              surname: surname,
-              age: metadata.age || '',
-              phoneNumber: (() => {
-                let p = (metadata.phoneNumber || '');
-                if (p.startsWith('+63')) return p.slice(3);
-                if (p.startsWith('09')) return p.slice(1);
-                return p;
-              })()
-            }));
-          } else {
-            // Last resort: just set email
-            setFormData(prev => ({ ...prev, email: currentEmail }));
-          }
+          setFormData(prev => ({ ...prev, email: currentEmail }));
         }
-      } else {
-        console.error('❌ No email found in session');
       }
     } catch (error) {
       console.error('Error loading profile:', error);
@@ -256,24 +265,49 @@ function PatientSettings() {
       }
 
       const fullNameCombined = `${formData.firstName.trim()} ${formData.middleName.trim() ? formData.middleName.trim() + ' ' : ''}${formData.surname.trim()}`.trim();
+      const formattedPhone = `+63${formData.phoneNumber.trim()}`;
 
+      // 1. Update Supabase Auth Metadata
+      const metadataResult = await updateProfileMetadata({
+        fullName: fullNameCombined,
+        phoneNumber: formattedPhone,
+        age: formData.age
+      });
+
+      if (!metadataResult.success) {
+        setMessage({ text: `Failed to update Auth metadata: ${metadataResult.error}`, type: 'error' });
+        setIsSaving(false);
+        return;
+      }
+
+      // 2. Update localStorage
       const updatedProfile = {
-        email: currentEmail, // Use the logged-in email, not the form email
+        email: currentEmail,
         fullName: fullNameCombined,
         firstName: formData.firstName.trim(),
         middleName: formData.middleName.trim(),
         surname: formData.surname.trim(),
         age: formData.age,
-        phoneNumber: `+63${formData.phoneNumber.trim()}`
+        phoneNumber: formattedPhone
       };
 
-      // Save to localStorage with email key
       const profileKey = `userProfile_${currentEmail}`;
       localStorage.setItem(profileKey, JSON.stringify(updatedProfile));
 
-      console.log('✅ Profile saved for:', currentEmail);
-      console.log('✅ Profile data:', updatedProfile);
+      // 3. Attempt to sync to 'patients' table if ID exists
+      const activePatientId = localStorage.getItem('activePatientId');
+      if (activePatientId) {
+        await syncPatientToDatabase({
+          id: activePatientId,
+          name: fullNameCombined,
+          age: formData.age,
+          phoneNum: formattedPhone,
+          patientEmail: currentEmail,
+          status: 'waiting' // Keep existing status if possible, but here we just ensure basic sync
+        });
+      }
 
+      console.log('✅ Profile saved and synced for:', currentEmail);
       setMessage({ text: 'Profile updated successfully!', type: 'success' });
       setHasChanges(false);
       //===================================

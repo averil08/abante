@@ -140,22 +140,29 @@ const PatientProfile = () => {
       } else if (appointment.appointmentStatus === 'rejected') {
         return 'not-approved';
       } else if (appointment.appointmentStatus === 'accepted') {
+        const apptDate = appointment.appointmentDateTime ? new Date(new Date(appointment.appointmentDateTime).setHours(0, 0, 0, 0)) : null;
+        const today = new Date(new Date().setHours(0, 0, 0, 0));
+
+        // PRIORITY: Future accepted appointments are "upcoming" even if status is 'done' or 'waiting'
+        if (apptDate && apptDate > today) {
+          if (appointment.status === 'cancelled') return 'cancelled';
+          return 'upcoming';
+        }
+
         if (appointment.status === 'done' || appointment.status === 'completed') {
           return 'completed';
         } else if (appointment.status === 'in progress') {
           return 'in-progress';
         } else if (appointment.status === 'cancelled') {
           return 'cancelled';
-        } else if (appointment.status === 'waiting' || appointment.status === 'pending') {
-          return 'waiting';
         } else {
-          // Both 'waiting' and default accepted
-          const apptDate = appointment.appointmentDateTime ? new Date(new Date(appointment.appointmentDateTime).setHours(0, 0, 0, 0)) : null;
-          const today = new Date(new Date().setHours(0, 0, 0, 0));
-          if (apptDate && apptDate > today) return 'upcoming';
+          if (appointment.status === 'waiting' || appointment.status === 'pending') {
+            return 'waiting';
+          }
           return 'accepted';
         }
-      } else if (appointment.appointmentStatus === 'cancelled' || appointment.appointmentStatus === 'withdrawn') {
+      }
+ else if (appointment.appointmentStatus === 'cancelled' || appointment.appointmentStatus === 'withdrawn') {
         return 'withdrawn';
       }
     }

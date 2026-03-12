@@ -1162,16 +1162,21 @@ const getPatientBadge = (p) => {
         if (!p.appointmentStatus || p.appointmentStatus === 'pending') return { text: 'Pending', style: 'bg-amber-100 text-amber-700 border-none' };
         
         if (p.appointmentStatus === 'accepted') {
+            const apptDate = p.appointmentDateTime ? new Date(new Date(p.appointmentDateTime).setHours(0, 0, 0, 0)) : null;
+            const today = new Date(new Date().setHours(0, 0, 0, 0));
+
+            // PRIORITY: Future accepted appointments are "Upcoming" even if status is 'done' or 'waiting'
+            if (apptDate && apptDate > today) {
+                return { text: 'Upcoming', style: 'bg-blue-600 text-white border-none' };
+            }
+
             if (p.status === 'done' || p.status === 'completed') return { text: 'Completed', style: 'bg-emerald-100 text-emerald-700 border-emerald-300 border' };
             if (p.status === 'in progress' || p.status === 'in-progress') return { text: 'In Progress', style: 'bg-blue-100 text-blue-700 border-blue-300 border' };
             if (p.status === 'waiting' || p.status === 'pending') return { text: 'Waiting', style: 'bg-yellow-100 text-yellow-700 border-yellow-300 border' };
-            
-            const apptDate = p.appointmentDateTime ? new Date(new Date(p.appointmentDateTime).setHours(0,0,0,0)) : null;
-            const today = new Date(new Date().setHours(0,0,0,0));
-            if (apptDate && apptDate > today) return { text: 'Upcoming', style: 'bg-blue-600 text-white border-none' };
-            
+
             return { text: 'Accepted', style: 'bg-green-600 text-white border-none' };
         }
+
     }
     
     // Walk-ins or fallback

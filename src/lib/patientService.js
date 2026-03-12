@@ -68,15 +68,23 @@ export const searchPatient = async (searchTerm) => {
 
 export const getMaxQueueNumber = async () => {
   try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const { data, error } = await supabase
       .from('patients')
       .select('queue_no')
+      .lt('queue_no', 900000) // Exclude system records
+      .gte('registered_at', today.toISOString()) // Only today's patients
       .order('queue_no', { ascending: false })
-      .limit(1)
-      .single();
+      .limit(1);
 
-    if (error && error.code !== 'PGRST116') throw error;
-    return { success: true, maxQueueNo: data?.queue_no || 0 };
+    if (error) {
+      console.error('Error fetching max queue number:', error);
+      return { success: false, error: error.message, maxQueueNo: 0 };
+    }
+
+    return { success: true, maxQueueNo: data?.[0]?.queue_no || 0 };
   } catch (error) {
     console.error('Error fetching max queue number:', error);
     return { success: false, error: error.message, maxQueueNo: 0 };

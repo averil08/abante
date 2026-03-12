@@ -14,17 +14,19 @@ function ResetPassword() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState(false);
-    const [verifying, setVerifying] = useState(true);
+    const [userRole, setUserRole] = useState(null);
 
     useEffect(() => {
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
+                setUserRole(session.user.user_metadata?.role?.toLowerCase());
                 setVerifying(false);
             } else {
                 // Wait a bit and check again, or rely on onAuthStateChange
                 const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
                     if (session) {
+                        setUserRole(session.user.user_metadata?.role?.toLowerCase());
                         setVerifying(false);
                     }
                 });
@@ -46,7 +48,7 @@ function ResetPassword() {
         checkSession();
     }, []);
 
-    const showMessage = (title, message, isSuccess = true) => {
+    const showMessage = (title, message, isSuccess = true, redirectPath = "/login") => {
         const msgBox = document.getElementById("message-box");
         if (msgBox) {
             msgBox.innerHTML = `
@@ -61,7 +63,7 @@ function ResetPassword() {
             document.getElementById("close-modal").onclick = () => {
                 msgBox.innerHTML = "";
                 if (isSuccess) {
-                    navigate("/login");
+                    navigate(redirectPath);
                 }
             };
         }
@@ -86,7 +88,12 @@ function ResetPassword() {
             const result = await resetPassword(password);
             if (result.success) {
                 setSuccess(true);
-                showMessage("Success", "Your password has been reset successfully.", true);
+                // Determine redirect path based on user role from result or state
+                const user = result.data?.user;
+                const role = (user?.user_metadata?.role || userRole || 'staff').toLowerCase();
+                const redirectPath = role === 'patient' ? "/login?type=patient" : "/login";
+                
+                showMessage("Success", "Your password has been reset successfully.", true, redirectPath);
             } else {
                 setError(result.error);
                 showMessage("Error", result.error, false);
@@ -154,7 +161,7 @@ function ResetPassword() {
 
                             <button
                                 type="button"
-                                onClick={() => navigate("/login")}
+                                onClick={() => navigate(userRole === 'patient' ? "/login?type=patient" : "/login")}
                                 className="w-full text-sm text-gray-600 hover:underline"
                             >
                                 Back to Login

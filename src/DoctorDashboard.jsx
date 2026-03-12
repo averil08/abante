@@ -1241,7 +1241,7 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
 
     let patientVisits = (patients || [])
         .filter(p => {
-            if (p.type === 'Appointment' && p.appointmentStatus === 'rejected') return false;
+            if (p.type === 'Appointment' && (p.appointmentStatus === 'rejected' || p.appointmentStatus === 'cancelled' || p.appointmentStatus === 'withdrawn' || p.appointmentStatus === 'pending')) return false;
             if (targetEmail && p.patientEmail && p.patientEmail.toLowerCase().trim() === targetEmail) return true;
             if (targetPhone && p.phoneNum && p.phoneNum.trim() === targetPhone) return true;
             if (!targetEmail && !targetPhone && p.name && p.name.toLowerCase().trim() === targetName) return true;
@@ -1250,7 +1250,13 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
         .sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
 
     if (patientVisits.length === 0) {
-        if (!(patient.type === 'Appointment' && patient.appointmentStatus === 'rejected')) {
+        const isForbiddenLogStatus = patient.type === 'Appointment' && (
+            patient.appointmentStatus === 'rejected' ||
+            patient.appointmentStatus === 'cancelled' ||
+            patient.appointmentStatus === 'withdrawn' ||
+            patient.appointmentStatus === 'pending'
+        );
+        if (!isForbiddenLogStatus) {
             patientVisits = [patient];
         }
     }

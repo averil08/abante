@@ -487,6 +487,13 @@ function Checkin() {
     setErrors({});
   };
 
+  const isToday = (dateString) => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    const now = new Date();
+    return date.toDateString() === now.toDateString();
+  };
+
   const handlePatientSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -496,10 +503,19 @@ function Checkin() {
     // once that doctor's queue is started (preventing premature assignment).
     let autoAssignedDoctor = null;
     if (bookingMode !== 'doctor') {
-      // Service mode — try to match an active doctor right now
-      autoAssignedDoctor = assignDoctor(formData.services || [], patients, activeDoctors || []);
-      if (!autoAssignedDoctor) {
-        console.log('⏳ No active doctor match at registration time — will be assigned when a queue starts.');
+      const isWalkIn = selectedPatientType === "Walk-in";
+      const isApptToday = selectedPatientType === "Appointment" && isToday(formData.appointmentDateTime);
+      const hasServices = formData.services && formData.services.length > 0;
+
+      // ONLY assign immediately if it's a walk-in, a same-day appointment, or has services.
+      // Generic future appointments should stay unassigned (None) until the day of.
+      if (isWalkIn || isApptToday || hasServices) {
+        autoAssignedDoctor = assignDoctor(formData, patients, activeDoctors || []);
+        if (!autoAssignedDoctor) {
+          console.log('⏳ No active doctor match at registration time — will be assigned when a queue starts.');
+        }
+      } else {
+        console.log('⏳ Future appointment with blank services — deferring assignment until the day.');
       }
     }
     // For doctor-mode: finalDoctor is intentionally null here — the preferredDoctor field

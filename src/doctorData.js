@@ -226,81 +226,93 @@ export const doctors = [
 
 
 //ADDED change 1/30/26
-export const assignDoctor = (serviceIds, patients, activeDoctors = []) => {
-  console.log('🔍 assignDoctor called with:', { serviceIds, activeDoctorsCount: activeDoctors.length });
+// UPDATED 3/12/26: Enhanced assignment logic (Symptoms + Demographics)
+export const assignDoctor = (patientData, patients, activeDoctors = []) => {
+  // Backward compatibility: handle if serviceIds array is passed instead of patient object
+  const isArrayInput = Array.isArray(patientData);
+  const serviceIds = isArrayInput ? patientData : (patientData?.services || []);
+  const symptoms = isArrayInput ? [] : (patientData?.symptoms || []);
+  const age = isArrayInput ? null : (patientData?.age ? parseInt(patientData.age) : null);
+
+  console.log('🔍 assignDoctor called with:', { serviceIds, symptoms, age, activeDoctorsCount: activeDoctors.length });
 
   // Get list of active doctors based on IDs provided
   const activeDoctorsList = doctors.filter(d => activeDoctors.includes(d.id));
 
-  // If there are no active doctors, we can't automatically assign to an "active" doctor
   if (activeDoctorsList.length === 0) {
     console.log('⚠️ No active doctors available for automatic assignment');
-    // If we have services, we could potentially assign to any doctor matching the service
-    // but the requirement specifies "active doctor".
-    // Fallback: If no active doctors, we return null so it stays "not assigned" until a doctor starts.
     return null;
   }
 
-  // Case 1: No services selected - assign to least busy active doctor
-  if (!serviceIds || serviceIds.length === 0) {
-    console.log('ℹ️ No services selected - assigning to least busy active doctor');
-
-    const doctorLoads = activeDoctorsList.map(doctor => {
+  // Define a helper to find the least busy doctor from a specific subset
+  const getLeastBusy = (subset) => {
+    if (!subset || subset.length === 0) return null;
+    const loads = subset.map(doctor => {
       const load = patients.filter(p =>
         p.assignedDoctor?.id === doctor.id &&
         p.status !== 'done' &&
         p.status !== 'cancelled' &&
         !p.isInactive
       ).length;
-
       return { doctor, load };
     });
+    loads.sort((a, b) => a.load - b.load);
+    return loads[0].doctor;
+  };
 
-    doctorLoads.sort((a, b) => a.load - b.load);
-    console.log(`✅ Assigned to shortest queue: ${doctorLoads[0].doctor.name} (load: ${doctorLoads[0].load})`);
-    return doctorLoads[0].doctor;
-  }
-
-  // Case 2: Services selected - find active doctors who can handle these services
-  const capableActiveDoctors = activeDoctorsList.filter(doctor => {
-    return serviceIds.some(serviceId => doctor.specializations.includes(serviceId));
-  });
-
-  if (capableActiveDoctors.length > 0) {
-    console.log(`ℹ️ Found ${capableActiveDoctors.length} capable active doctors`);
-    const doctorLoads = capableActiveDoctors.map(doctor => {
-      const load = patients.filter(p =>
-        p.assignedDoctor?.id === doctor.id &&
-        p.status !== 'done' &&
-        p.status !== 'cancelled' &&
-        !p.isInactive
-      ).length;
-
-      return { doctor, load };
+  // Case 1: Services selected - find active doctors who can handle these services
+  if (serviceIds && serviceIds.length > 0) {
+    const capableActiveDoctors = activeDoctorsList.filter(doctor => {
+      return serviceIds.some(serviceId => doctor.specializations.includes(serviceId));
     });
 
-    doctorLoads.sort((a, b) => a.load - b.load);
-    return doctorLoads[0].doctor;
+    if (capableActiveDoctors.length > 0) {
+      return getLeastBusy(capableActiveDoctors);
+    }
   }
 
-  // Fallback: If no capable ACTIVE doctor, assign to any capable doctor?
-  // User says "check for doctors whose queues have been started by the secretary"
-  // This implies active doctors.
-  // If no capable active doctor exists, maybe assign to the least busy active doctor anyway?
-  // Or stay unassigned. Let's assign to least busy active doctor as a catch-all if they specifically requested no doctor.
+  // Case 2: No specific services matched - Use Symptoms and Demographics
+  if (!isArrayInput) {
+    // A. Pediatrics (Age-based)
+    if (age !== null && age < 18) {
+      const pediaDoctors = activeDoctorsList.filter(d => d.specialization === 'Pediatrics');
+      if (pediaDoctors.length > 0) {
+        console.log('👶 Child detected - routing to active Pediatrician');
+        return getLeastBusy(pediaDoctors);
+      }
+    }
 
-  console.log('⚠️ No capable active doctor found for services. Assigning to least busy active doctor.');
-  const doctorLoads = activeDoctorsList.map(doctor => {
-    const load = patients.filter(p =>
-      p.assignedDoctor?.id === doctor.id &&
-      p.status !== 'done' &&
-      p.status !== 'cancelled' &&
-      !p.isInactive
-    ).length;
+    // B. ENT (Symptom-based)
+    const entSymptoms = ['Ear Pain', 'Sore Throat', 'Runny Nose'];
+    if (symptoms.some(s => entSymptoms.includes(s))) {
+      const entDoctors = activeDoctorsList.filter(d => d.specialization === 'ENT');
+      if (entDoctors.length > 0) {
+        console.log('👂 ENT symptoms detected - routing to active ENT specialist');
+        return getLeastBusy(entDoctors);
+      }
+    }
 
-    return { doctor, load };
-  });
+    // C. General Surgery / Gastro (Symptom-based)
+    const surgerySymptoms = ['Stomach Pain', 'Vomiting', 'Diarrhea'];
+    if (symptoms.some(s => surgerySymptoms.includes(s))) {
+      const surgeryDoctors = activeDoctorsList.filter(d => d.specialization === 'General Surgery');
+      if (surgeryDoctors.length > 0) {
+        console.log('🩺 Gastro symptoms detected - routing to active General Surgeon');
+        return getLeastBusy(surgeryDoctors);
+      }
+    }
 
-  doctorLoads.sort((a, b) => a.load - b.load);
-  return doctorLoads[0].doctor;
+    // D. Adult Internal Medicine (Age-based fallback)
+    if (age !== null && age >= 18) {
+      const imDoctors = activeDoctorsList.filter(d => d.specialization === 'Internal Medicine');
+      if (imDoctors.length > 0) {
+        console.log('👤 Adult detected - routing to active Internal Medicine');
+        return getLeastBusy(imDoctors);
+      }
+    }
+  }
+
+  // Case 3: Ultimate Fallback - Assign to least busy among ALL active doctors
+  console.log('ℹ️ No specific mapping found - assigning to least busy overall active doctor');
+  return getLeastBusy(activeDoctorsList);
 };

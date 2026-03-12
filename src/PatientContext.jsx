@@ -169,9 +169,13 @@ export const PatientProvider = ({ children }) => {
     appointmentStatus: dbPatient.appointment_status,
     inQueue: dbPatient.in_queue ?? (dbPatient.patient_type === 'walk-in' || dbPatient.appointment_status === 'accepted'),
     registeredAt: dbPatient.registered_at || dbPatient.created_at,
-    assignedDoctor: (dbPatient.assigned_doctor_name || dbPatient.physician)
-      ? doctors.find(d => d.name === (dbPatient.assigned_doctor_name || dbPatient.physician)) || { name: (dbPatient.assigned_doctor_name || dbPatient.physician) }
+    assignedDoctor: dbPatient.assigned_doctor_name
+      ? doctors.find(d => d.name === dbPatient.assigned_doctor_name) || { name: dbPatient.assigned_doctor_name }
       : null,
+    preferredDoctor: dbPatient.physician
+      ? doctors.find(d => d.name === dbPatient.physician) || { name: dbPatient.physician }
+      : null,
+    bookingMode: dbPatient.physician ? 'doctor' : 'service',
     isInactive: dbPatient.is_inactive || false,
     rejectionReason: dbPatient.rejection_reason,
     rejectedAt: dbPatient.rejected_at,
@@ -671,7 +675,8 @@ export const PatientProvider = ({ children }) => {
       !p.tempId && // ✅ FIX: Ignore optimistic updates (requeued patients being created)
       p.status !== 'done' &&
       p.status !== 'cancelled' &&
-      (p.type !== 'Appointment' || p.appointmentStatus === 'accepted')
+      (p.type !== 'Appointment' || p.appointmentStatus === 'accepted') &&
+      isForToday(p) // ✅ NEW: Only auto-assign today's unassigned patients (blank services/deferred)
     );
 
     if (unassignedPatients.length === 0) return;
@@ -701,7 +706,7 @@ export const PatientProvider = ({ children }) => {
 
       // Auto-assignment (only if no preferred doctor was chosen)
       if (!doctor) {
-        doctor = assignDoctor(patient.services || [], patients, activeDoctors);
+        doctor = assignDoctor(patient, patients, activeDoctors);
       }
 
       if (doctor) {
@@ -939,10 +944,18 @@ export const PatientProvider = ({ children }) => {
         }
       }
 
-      // If still unassigned and booked by service, try active-doctor auto-assignment
+      // If still unassigned and booked by service, check if we should assign now
       if (!assignedDoctor && patient.bookingMode !== 'doctor') {
-        console.log(`🔄 Auto-assigning doctor for accepted appointment ${patientId}...`);
-        assignedDoctor = assignDoctor(patient.services || [], patients, activeDoctors);
+        const hasServices = patient.services && patient.services.length > 0;
+        
+        // ONLY assign immediately if they have services or if it's for today.
+        // If services are blank and it's a future date, stay unassigned.
+        if (hasServices || isForToday(patient)) {
+            console.log(`🔄 Auto-assigning doctor for accepted appointment ${patientId}...`);
+            assignedDoctor = assignDoctor(patient, patients, activeDoctors);
+        } else {
+            console.log(`⏳ Blank services for future appointment ${patientId} — defering assignment until the day.`);
+        }
       }
 
       // 3. Prepare updates

@@ -69,6 +69,8 @@ const AppointmentHistory = () => {
         return 'pending';
       } else if (appointment.appointmentStatus === 'rejected') {
         return 'not-approved';
+      } else if (appointment.appointmentStatus === 'cancelled' || appointment.appointmentStatus === 'withdrawn') {
+        return 'withdrawn';
       } else if (appointment.appointmentStatus === 'accepted') {
         if (appointment.status === 'done') {
           return 'completed';
@@ -173,6 +175,8 @@ const AppointmentHistory = () => {
       return <Badge className="bg-gray-100 text-gray-700 hover:bg-gray-100">Not Accepted</Badge>;
     } else if (category === 'cancelled') {
       return <Badge className="bg-red-100 text-red-700 hover:bg-red-100">Cancelled</Badge>;
+    } else if (category === 'withdrawn') {
+      return <Badge className="bg-gray-100 text-gray-500 hover:bg-gray-100">Withdrawn</Badge>;
     } else {
       // Default to Upcoming for everything else shown in the list
       return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">Upcoming</Badge>;
@@ -207,6 +211,7 @@ const AppointmentHistory = () => {
       pending: myAppointments.filter(a => getAppointmentStatusCategory(a) === 'pending').length,
       'not-approved': myAppointments.filter(a => getAppointmentStatusCategory(a) === 'not-approved').length,
       cancelled: myAppointments.filter(a => getAppointmentStatusCategory(a) === 'cancelled').length,
+      withdrawn: myAppointments.filter(a => getAppointmentStatusCategory(a) === 'withdrawn').length,
     };
   }, [myAppointments]);
 

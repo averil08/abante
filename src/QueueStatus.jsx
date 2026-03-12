@@ -740,8 +740,8 @@ const QueueStatus = () => {
                   <div className="flex justify-between items-start gap-2">
                     <span className="text-gray-600 font-normal">Appointment Time</span>
                     <span className="font-medium text-gray-900 text-right">
-                      {currentPatient.appointmentDateTime
-                        ? new Date(currentPatient.appointmentDateTime).toLocaleString('en-US', {
+                      {(currentPatient.appointmentDateTime || currentPatient.appointment_datetime)
+                        ? new Date(currentPatient.appointmentDateTime || currentPatient.appointment_datetime).toLocaleString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric',
@@ -997,8 +997,8 @@ const QueueStatus = () => {
                   <div className="flex justify-between items-start gap-2">
                     <span className="text-gray-600 font-normal">Requested Time</span>
                     <span className="font-medium text-gray-900 text-right">
-                      {currentPatient.appointmentDateTime
-                        ? new Date(currentPatient.appointmentDateTime).toLocaleString('en-US', {
+                      {(currentPatient.appointmentDateTime || currentPatient.appointment_datetime)
+                        ? new Date(currentPatient.appointmentDateTime || currentPatient.appointment_datetime).toLocaleString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric',

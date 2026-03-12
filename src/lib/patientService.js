@@ -110,7 +110,8 @@ export const syncPatientToDatabase = async (patientData) => {
       called_at: patientData.calledAt || null,
       queue_exit_time: patientData.queueExitTime || null,
       completed_at: patientData.completedAt || null,
-      registered_at: patientData.registeredAt || new Date().toISOString()
+      registered_at: patientData.registeredAt || new Date().toISOString(),
+      appointment_datetime: patientData.appointmentDateTime || null
     };
 
     // Database update or insert operation

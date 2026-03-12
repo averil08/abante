@@ -68,15 +68,17 @@ export const registerAppointmentPatient = async (formData, appointmentDateTime) 
 
   while (attempts < maxAttempts) {
     try {
-      const { data: maxQData } = await supabase
+      // For pending appointments, we use a high temporary queue number (900,001+)
+      // to keep them distinct from active/approved patients (1-899,999).
+      const { data: maxPendingQData } = await supabase
         .from('patients')
         .select('queue_no')
-        .lt('queue_no', 900000)
+        .gte('queue_no', 900000)
         .order('queue_no', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      const nextQueueNo = (maxQData?.queue_no || 0) + 1;
+      const nextQueueNo = Math.max(900000, maxPendingQData?.queue_no || 900000) + 1;
 
       const { data: patientData, error: patientError } = await supabase
         .from('patients')

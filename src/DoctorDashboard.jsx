@@ -102,20 +102,23 @@ const DoctorDashboard = () => {
 
     const doctorNotifications = useMemo(() => {
         if (!doctorId) return [];
-        const lastCheck = lastDoctorNotificationCheck[doctorId];
 
-        return patients.filter(p =>
+        return (patients || []).filter(p =>
             p.type === 'Appointment' &&
-            p.status === 'cancelled' &&
-            p.appointmentStatus === 'cancelled' &&
-            p.assignedDoctor?.id === doctorId &&
-            (!lastCheck || new Date(p.queueExitTime || p.registeredAt) > new Date(lastCheck))
-        ).sort((a, b) => new Date(b.queueExitTime || b.registeredAt) - new Date(a.queueExitTime || a.registeredAt));
-    }, [patients, doctorId, lastDoctorNotificationCheck]);
+            (p.appointmentStatus === 'cancelled' || p.appointmentStatus === 'withdrawn') &&
+            p.assignedDoctor?.id === doctorId
+        ).sort((a, b) => new Date(b.queueExitTime || b.registeredAt) - new Date(a.queueExitTime || a.registeredAt))
+        .slice(0, 20); // Keep reasonably fresh history
+    }, [patients, doctorId]);
 
     const unreadDoctorNotificationsCount = useMemo(() => {
-        return doctorNotifications.length;
-    }, [doctorNotifications]);
+        if (!doctorId) return 0;
+        const lastCheck = lastDoctorNotificationCheck[doctorId];
+
+        return doctorNotifications.filter(p =>
+            !lastCheck || new Date(p.queueExitTime || p.registeredAt) > new Date(lastCheck)
+        ).length;
+    }, [doctorNotifications, lastDoctorNotificationCheck, doctorId]);
 
     useEffect(() => {
         if (selectedPatient && workspaceRef.current) workspaceRef.current.scrollTo(0, 0);
@@ -559,7 +562,7 @@ const DoctorDashboard = () => {
                                         {notif.name}
                                     </p>
                                     <p className="text-xs text-gray-600 mt-0.5">
-                                        Cancelled their appointment for {formatDateShort(notif.appointmentDateTime || notif.appointment_datetime)}
+                                        {notif.appointmentStatus === 'withdrawn' ? 'Withdrew' : 'Cancelled'} their appointment for {formatDateShort(notif.appointmentDateTime || notif.appointment_datetime)}
                                     </p>
                                     <div className="flex items-center gap-2 mt-2">
                                         <Clock className="w-3 h-3 text-gray-400" />

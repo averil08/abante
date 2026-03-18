@@ -288,6 +288,91 @@ const Homepage = () => {
 
   const filteredDoctors = getFilteredDoctors();
 
+  // ── Service category grouping ────────────────────────────────────────────
+  const SERVICE_CATEGORY_MAP = {
+    // General Consultation
+    pedia:       'General Consultation',
+    adult:       'General Consultation',
+    senior:      'General Consultation',
+    preventive:  'General Consultation',
+    'follow-up': 'General Consultation',
+    // Hematology
+    cbc:     'Hematology',
+    platelet:'Hematology',
+    esr:     'Hematology',
+    abo:     'Hematology',
+    // Immunology & Serology
+    hbsag:     'Immunology & Serology',
+    vdrl:      'Immunology & Serology',
+    antiHCV:   'Immunology & Serology',
+    hpylori:   'Immunology & Serology',
+    dengueIg:  'Immunology & Serology',
+    dengueNs1: 'Immunology & Serology',
+    dengueDuo: 'Immunology & Serology',
+    typhidot:  'Immunology & Serology',
+    // Clinical Chemistry
+    fbs:          'Clinical Chemistry',
+    rbs:          'Clinical Chemistry',
+    lipid:        'Clinical Chemistry',
+    totalCh:      'Clinical Chemistry',
+    triglycerides:'Clinical Chemistry',
+    hdl:          'Clinical Chemistry',
+    ldl:          'Clinical Chemistry',
+    alt:          'Clinical Chemistry',
+    ast:          'Clinical Chemistry',
+    uric:         'Clinical Chemistry',
+    creatinine:   'Clinical Chemistry',
+    bun:          'Clinical Chemistry',
+    hba1c:        'Clinical Chemistry',
+    albumin:      'Clinical Chemistry',
+    magnesium:    'Clinical Chemistry',
+    totalProtein: 'Clinical Chemistry',
+    alp:          'Clinical Chemistry',
+    phosphorus:   'Clinical Chemistry',
+    sodium:       'Clinical Chemistry',
+    potassium:    'Clinical Chemistry',
+    ionizedCal:   'Clinical Chemistry',
+    totalCal:     'Clinical Chemistry',
+    chloride:     'Clinical Chemistry',
+    tsh:          'Clinical Chemistry',
+    ft3:          'Clinical Chemistry',
+    '75g':        'Clinical Chemistry',
+    t4:           'Clinical Chemistry',
+    t3:           'Clinical Chemistry',
+    psa:          'Clinical Chemistry',
+    totalBilirubin: 'Clinical Chemistry',
+    // Clinical Microscopy & Parasitology
+    urinalysis: 'Clinical Microscopy & Parasitology',
+    fecalysis:  'Clinical Microscopy & Parasitology',
+    pregnancyT: 'Clinical Microscopy & Parasitology',
+    fecal:      'Clinical Microscopy & Parasitology',
+    semen:      'Clinical Microscopy & Parasitology',
+    // Surgery
+    'general surgery': 'Surgery',
+    generalSurgery:    'Surgery',
+    orthopedic:        'Surgery',
+    // ENT
+    ent: 'ENT',
+  };
+
+  /**
+   * Given a doctor's specializations array, returns a deduplicated list of
+   * human-readable category names (mapped via SERVICE_CATEGORY_MAP).
+   * Any key not found in the map is shown as-is (capitalised).
+   */
+  const getServiceCategories = (specializations) => {
+    const seen = new Set();
+    const categories = [];
+    (specializations || []).forEach(spec => {
+      const cat = SERVICE_CATEGORY_MAP[spec] || (spec.charAt(0).toUpperCase() + spec.slice(1));
+      if (!seen.has(cat)) {
+        seen.add(cat);
+        categories.push(cat);
+      }
+    });
+    return categories;
+  };
+
   return (
     <div className="flex w-full min-h-screen">
       <PatientSidebar nav={nav} handleNav={handleNav} hideToggle={true} />
@@ -556,9 +641,9 @@ const Homepage = () => {
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Services</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {doctor.specializations.map((spec, idx) => (
+                        {getServiceCategories(doctor.specializations).map((cat, idx) => (
                           <span key={idx} className="inline-block bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full font-medium">
-                            {spec}
+                            {cat}
                           </span>
                         ))}
                       </div>
@@ -630,9 +715,9 @@ const Homepage = () => {
                     <div>
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Specializations</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {doctor.specializations.map((spec, idx) => (
+                        {getServiceCategories(doctor.specializations).map((cat, idx) => (
                           <span key={idx} className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">
-                            {spec}
+                            {cat}
                           </span>
                         ))}
                       </div>

@@ -4,7 +4,7 @@ import {
     Users, Search, Calendar, Clock, User, ChevronRight, ChevronDown,
     MoreHorizontal, History, CheckCircle2, Filter,
     Bell, CalendarDays, Menu, X, Phone, Stethoscope,
-    ArrowLeft, DoorOpen, Activity, XCircle, Eye
+    ArrowLeft, DoorOpen, Activity, XCircle, Eye, ChevronLeft
 } from 'lucide-react';
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,33 @@ function getApptDateFilterLabel(filter) {
         default: return filter.charAt(0).toUpperCase() + filter.slice(1);
     }
 }
+
+const SERVICE_LABELS = {
+    pedia: "Pediatric Consultation", adult: "Adult Consultation", senior: "Senior Consultation (60+)",
+    preventive: "Preventive/Annual Physical Exam", "follow-up": "Follow-up Consultation",
+    cbc: "CBC (Complete Blood Count)", platelet: "Platelet Count", esr: "ESR (Inflammation Check)",
+    abo: "Blood Type Test: ABO/Rh Typing", hbsag: "HBsAg (Hepatitis B Screening)",
+    vdrl: "VDRL/RPR (Syphilis Screening)", antiHCV: "Anti-HCV (Hepatitis C Screening)",
+    hpylori: "H.PYLORI (H. pylori Stomach Bacteria Test)",
+    dengueIg: "Dengue IgG+IgM", dengueNs1: "Dengue NS1", dengueDuo: "Dengue Duo",
+    typhidot: "Typhidot (Typhoid Fever Test)", fbs: "FBS (Fasting Blood Sugar)",
+    rbs: "RBS (Random Blood Sugar)", lipid: "Lipid Profile", totalCh: "Total Cholesterol",
+    triglycerides: "Triglycerides", hdl: "HDL (Good Cholesterol)", ldl: "LDL (Bad Cholesterol)",
+    alt: "ALT/SGPT (Liver Function Test)", ast: "AST/SGOT (Liver Function Test)",
+    uric: "Uric Acid", creatinine: "Creatinine (Kidney Function Test)",
+    bun: "Bun (Kidney Function Test)", hba1c: "HBA1C (Long-Term Blood Sugar)",
+    albumin: "Albumin", magnesium: "Magnesium", totalProtein: "Total Protein",
+    alp: "ALP (Bone and Liver Enzyme)", phosphorus: "Phosphorus", sodium: "Sodium",
+    potassium: "Potassium", ionizedCal: "Ionized Calcium", totalCal: "Total Calcium",
+    chloride: "Chloride", urinalysis: "Urinalysis", fecalysis: "Fecalysis (Stool Test)",
+    pregnancyT: "Pregnancy Test", fecal: "Fecal Occult Blood", semen: "Semen Analysis",
+    "general surgery": "General Surgery Consultation", ent: "ENT Consultation",
+    orthopedic: "Orthopedic Surgery Consultation", tsh: "TSH (Thyroid Stimulating Hormone)",
+    ft3: "FT3 (Free T3)", "75g": "75g OGTT", t4: "T4 Thyroid Hormone",
+    t3: "T3 Thyroid Hormone", psa: "PSA (Prostate Health Screening)",
+    totalBilirubin: "Total/Direct Bilirubin"
+};
+function getServiceLabel(serviceId) { return SERVICE_LABELS[serviceId] || serviceId; }
 
 function formatDateTime(dateTimeString) {
     if (!dateTimeString) return 'N/A';
@@ -82,6 +109,13 @@ const DoctorDashboard = () => {
     const workspaceRef = useRef(null);
     const [showNotifications, setShowNotifications] = useState(false);
 
+    // Calendar Modal state
+    const todayDate = new Date();
+    const [showApptCalendarModal, setShowApptCalendarModal] = useState(false);
+    const [apptCalYear, setApptCalYear] = useState(todayDate.getFullYear());
+    const [apptCalMonth, setApptCalMonth] = useState(todayDate.getMonth()); // 0-indexed
+    const [apptCalSelectedDay, setApptCalSelectedDay] = useState(null);
+
     // Option lists
     const apptDateFilters = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'thisWeek', 'custom', 'all'];
 
@@ -108,7 +142,7 @@ const DoctorDashboard = () => {
             (p.appointmentStatus === 'cancelled' || p.appointmentStatus === 'withdrawn') &&
             p.assignedDoctor?.id === doctorId
         ).sort((a, b) => new Date(b.queueExitTime || b.registeredAt) - new Date(a.queueExitTime || a.registeredAt))
-        .slice(0, 20); // Keep reasonably fresh history
+            .slice(0, 20); // Keep reasonably fresh history
     }, [patients, doctorId]);
 
     const unreadDoctorNotificationsCount = useMemo(() => {
@@ -683,31 +717,44 @@ const DoctorDashboard = () => {
                 {/* ── Context-sensitive Date Filter strip (mobile) ── */}
                 {mobileView === 'list' && activeTab !== 'queue' && (
                     <div className="bg-white border-b border-slate-100 px-3 py-2">
-                        <div ref={dropdownRef} className="relative">
-                            <Button
-                                onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                variant="outline"
-                                className="h-9 px-3 rounded-md border-gray-200 font-medium text-sm flex items-center gap-2 bg-white hover:bg-gray-50 w-full justify-between"
+                        <div className="flex items-center gap-2">
+                            {/* Calendar icon — mobile */}
+                            <button
+                                onClick={() => {
+                                    setShowApptCalendarModal(true);
+                                    setApptCalSelectedDay(null);
+                                }}
+                                className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all duration-200 focus:outline-none flex-shrink-0"
+                                title="Accepted Appointments Calendar"
                             >
-                                <div className="flex items-center text-black">
-                                    <span>
-                                        {apptDateFilter === 'custom' && apptCustomRange.start
-                                            ? `${apptCustomRange.start} – ${apptCustomRange.end}`
-                                            : getApptDateFilterLabel(apptDateFilter)}
-                                    </span>
-                                </div>
-                                <span className="ml-2 text-black text-[10px]">▼</span>
-                            </Button>
-                            {isFilterOpen && (
-                                <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 shadow-lg rounded-md py-1 z-50">
-                                    {apptDateFilters.map(f => (
-                                        <button key={f} onClick={() => { setApptDateFilter(f); setIsFilterOpen(false); }}
-                                            className={`w-full text-left px-4 py-2 text-sm transition-all ${apptDateFilter === f ? 'text-green-600 bg-green-50 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>
-                                            {getApptDateFilterLabel(f)}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                                <CalendarDays className="w-5 h-5" />
+                            </button>
+                            <div ref={dropdownRef} className="relative flex-1">
+                                <Button
+                                    onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                    variant="outline"
+                                    className="h-9 px-3 rounded-md border-gray-200 font-medium text-sm flex items-center gap-2 bg-white hover:bg-gray-50 w-full justify-between"
+                                >
+                                    <div className="flex items-center text-black">
+                                        <span>
+                                            {apptDateFilter === 'custom' && apptCustomRange.start
+                                                ? `${apptCustomRange.start} – ${apptCustomRange.end}`
+                                                : getApptDateFilterLabel(apptDateFilter)}
+                                        </span>
+                                    </div>
+                                    <span className="ml-2 text-black text-[10px]">▼</span>
+                                </Button>
+                                {isFilterOpen && (
+                                    <div className="absolute left-0 right-0 mt-1 bg-white border border-gray-200 shadow-lg rounded-md py-1 z-50">
+                                        {apptDateFilters.map(f => (
+                                            <button key={f} onClick={() => { setApptDateFilter(f); setIsFilterOpen(false); }}
+                                                className={`w-full text-left px-4 py-2 text-sm transition-all ${apptDateFilter === f ? 'text-green-600 bg-green-50 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>
+                                                {getApptDateFilterLabel(f)}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         {/* Appointments custom range */}
                         {apptDateFilter === 'custom' && (
@@ -867,33 +914,46 @@ const DoctorDashboard = () => {
                                 })}
                             </div>
 
-                            {/* ── Context-sensitive date filter dropdown (desktop) ── */}
+                            {/* ── Context-sensitive date filter dropdown + Calendar icon (desktop) ── */}
                             {activeTab !== 'queue' && (
-                                <div className="relative shrink-0" ref={desktopDropdownRef}>
-                                    <Button
-                                        onClick={() => setIsFilterOpen(!isFilterOpen)}
-                                        variant="outline"
-                                        className="h-10 min-w-[160px] rounded-md border-gray-200 font-medium text-sm flex items-center justify-between gap-3 bg-white hover:bg-gray-50 transition-all"
+                                <div className="flex items-center gap-2 shrink-0">
+                                    {/* Calendar Icon — Accepted Appointments View */}
+                                    <button
+                                        onClick={() => {
+                                            setShowApptCalendarModal(true);
+                                            setApptCalSelectedDay(null);
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-full transition-all duration-200 focus:outline-none"
+                                        title="Accepted Appointments Calendar"
                                     >
-                                        <div className="flex items-center text-black">
-                                            <span className="text-left font-medium">
-                                                {apptDateFilter === 'custom' && apptCustomRange.start
-                                                    ? `${apptCustomRange.start} – ${apptCustomRange.end}`
-                                                    : getApptDateFilterLabel(apptDateFilter)}
-                                            </span>
-                                        </div>
-                                        <span className="ml-2 text-black text-[10px]">▼</span>
-                                    </Button>
-                                    {isFilterOpen && (
-                                        <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 shadow-lg rounded-md py-1 z-50">
-                                            {apptDateFilters.map(f => (
-                                                <button key={f} onClick={() => { setApptDateFilter(f); setIsFilterOpen(false); }}
-                                                    className={`w-full text-left px-4 py-2 text-sm transition-all ${apptDateFilter === f ? 'text-green-600 bg-green-50 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>
-                                                    {getApptDateFilterLabel(f)}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
+                                        <CalendarDays className="w-5 h-5" />
+                                    </button>
+                                    <div className="relative" ref={desktopDropdownRef}>
+                                        <Button
+                                            onClick={() => setIsFilterOpen(!isFilterOpen)}
+                                            variant="outline"
+                                            className="h-10 min-w-[160px] rounded-md border-gray-200 font-medium text-sm flex items-center justify-between gap-3 bg-white hover:bg-gray-50 transition-all"
+                                        >
+                                            <div className="flex items-center text-black">
+                                                <span className="text-left font-medium">
+                                                    {apptDateFilter === 'custom' && apptCustomRange.start
+                                                        ? `${apptCustomRange.start} – ${apptCustomRange.end}`
+                                                        : getApptDateFilterLabel(apptDateFilter)}
+                                                </span>
+                                            </div>
+                                            <span className="ml-2 text-black text-[10px]">▼</span>
+                                        </Button>
+                                        {isFilterOpen && (
+                                            <div className="absolute right-0 mt-1 w-48 bg-white border border-gray-200 shadow-lg rounded-md py-1 z-50">
+                                                {apptDateFilters.map(f => (
+                                                    <button key={f} onClick={() => { setApptDateFilter(f); setIsFilterOpen(false); }}
+                                                        className={`w-full text-left px-4 py-2 text-sm transition-all ${apptDateFilter === f ? 'text-green-600 bg-green-50 font-medium' : 'text-gray-700 hover:bg-gray-50'}`}>
+                                                        {getApptDateFilterLabel(f)}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -1106,6 +1166,228 @@ const DoctorDashboard = () => {
                 </DialogContent>
             </Dialog>
 
+            {/* ===== Accepted Appointments Calendar Modal ===== */}
+            <Dialog open={showApptCalendarModal} onOpenChange={setShowApptCalendarModal}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+                    {/* Modal Header */}
+                    <div className="bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-4 rounded-t-lg">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-white text-xl">
+                                <CalendarDays className="w-6 h-6" />
+                                Accepted Appointments Calendar
+                            </DialogTitle>
+                            <DialogDescription className="text-emerald-100">
+                                Showing your accepted appointments for{' '}
+                                {new Date(apptCalYear, apptCalMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                            </DialogDescription>
+                        </DialogHeader>
+                    </div>
+
+                    {/* Month Navigation */}
+                    <div className="flex items-center justify-between px-6 py-3 border-b bg-gray-50">
+                        <button
+                            onClick={() => {
+                                if (apptCalMonth === 0) { setApptCalMonth(11); setApptCalYear(y => y - 1); }
+                                else { setApptCalMonth(m => m - 1); }
+                                setApptCalSelectedDay(null);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                        >
+                            <ChevronLeft className="w-4 h-4" /> Prev
+                        </button>
+                        <span className="text-base font-bold text-gray-800">
+                            {new Date(apptCalYear, apptCalMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                        </span>
+                        <button
+                            onClick={() => {
+                                if (apptCalMonth === 11) { setApptCalMonth(0); setApptCalYear(y => y + 1); }
+                                else { setApptCalMonth(m => m + 1); }
+                                setApptCalSelectedDay(null);
+                            }}
+                            className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                        >
+                            Next <ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {/* Calendar Grid */}
+                    {(() => {
+                        // Only accepted appointments for this doctor
+                        const acceptedAppts = (patients || []).filter(
+                            p => p.type === 'Appointment' &&
+                                p.appointmentStatus === 'accepted' &&
+                                (() => {
+                                    const myName = currentDoctor.name?.toLowerCase().trim();
+                                    const assignedName = p.assignedDoctor?.name?.toLowerCase().trim();
+                                    return p.assignedDoctor?.id === doctorId ||
+                                        (assignedName && assignedName === myName);
+                                })()
+                        );
+
+                        // Map: YYYY-MM-DD -> [appointments]
+                        const apptsByDay = {};
+                        acceptedAppts.forEach(a => {
+                            const raw = a.appointmentDateTime || a.appointment_datetime;
+                            if (!raw) return;
+                            const d = new Date(raw);
+                            if (isNaN(d.getTime())) return;
+                            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                            if (!apptsByDay[key]) apptsByDay[key] = [];
+                            apptsByDay[key].push(a);
+                        });
+
+                        // Calendar math
+                        const firstDay = new Date(apptCalYear, apptCalMonth, 1).getDay();
+                        const daysInMonth = new Date(apptCalYear, apptCalMonth + 1, 0).getDate();
+                        const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+                        const todayStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
+
+                        const cells = [];
+                        for (let i = 0; i < totalCells; i++) {
+                            const dayNum = i - firstDay + 1;
+                            const isValid = dayNum >= 1 && dayNum <= daysInMonth;
+                            const dayKey = isValid
+                                ? `${apptCalYear}-${String(apptCalMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+                                : null;
+                            const dayAppts = (dayKey && apptsByDay[dayKey]) || [];
+                            const isToday = dayKey === todayStr;
+                            const isSelected = apptCalSelectedDay === dayKey;
+
+                            cells.push(
+                                <div
+                                    key={i}
+                                    onClick={() => isValid && dayAppts.length > 0 && setApptCalSelectedDay(isSelected ? null : dayKey)}
+                                    className={[
+                                        'min-h-[80px] p-1.5 rounded-lg border transition-all duration-150',
+                                        !isValid ? 'bg-gray-50/40 border-transparent' : 'border-gray-100 bg-white',
+                                        isValid && dayAppts.length > 0 ? 'cursor-pointer hover:border-emerald-300 hover:shadow-sm' : '',
+                                        isSelected ? 'border-emerald-500 ring-1 ring-emerald-400 shadow-sm' : '',
+                                        isToday && isValid ? 'bg-emerald-50' : '',
+                                    ].join(' ')}
+                                >
+                                    {isValid && (
+                                        <>
+                                            <div className={[
+                                                'text-xs font-semibold mb-1 w-6 h-6 flex items-center justify-center rounded-full',
+                                                isToday ? 'bg-emerald-600 text-white' : 'text-gray-700',
+                                            ].join(' ')}>
+                                                {dayNum}
+                                            </div>
+                                            <div className="space-y-0.5">
+                                                {dayAppts.slice(0, 2).map((appt, idx) => {
+                                                    const apptDate = new Date(appt.appointmentDateTime || appt.appointment_datetime);
+                                                    const timeStr = apptDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                                    const label = appt.assignedDoctor
+                                                        ? appt.assignedDoctor.name
+                                                        : (appt.services && appt.services.length > 0 ? getServiceLabel(appt.services[0]) : 'Service');
+                                                    const colors = [
+                                                        'bg-emerald-100 text-emerald-800 border-emerald-200',
+                                                        'bg-teal-100 text-teal-800 border-teal-200',
+                                                        'bg-cyan-100 text-cyan-800 border-cyan-200',
+                                                    ];
+                                                    return (
+                                                        <div
+                                                            key={appt.id}
+                                                            className={`text-[9px] leading-tight px-1 py-0.5 rounded border font-medium truncate ${colors[idx % colors.length]}`}
+                                                            title={`${appt.name} — ${timeStr} — ${label}`}
+                                                        >
+                                                            {appt.name}
+                                                        </div>
+                                                    );
+                                                })}
+                                                {dayAppts.length > 2 && (
+                                                    <div className="text-[9px] text-gray-500 font-medium pl-1">
+                                                        +{dayAppts.length - 2} more
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        }
+
+                        const selectedAppts = apptCalSelectedDay ? (apptsByDay[apptCalSelectedDay] || []) : [];
+
+                        return (
+                            <div className="px-6 pt-4 pb-2">
+                                {/* Day Headers */}
+                                <div className="grid grid-cols-7 mb-2">
+                                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+                                        <div key={d} className="text-center text-xs font-bold text-gray-500 py-1 uppercase tracking-wider">{d}</div>
+                                    ))}
+                                </div>
+                                {/* Day Cells */}
+                                <div className="grid grid-cols-7 gap-1">{cells}</div>
+
+                                {/* Selected Day Detail Panel */}
+                                {apptCalSelectedDay && selectedAppts.length > 0 && (
+                                    <div className="mt-5 border-t pt-4">
+                                        <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                            <CalendarDays className="w-4 h-4 text-emerald-600" />
+                                            Appointments on{' '}
+                                            {new Date(apptCalSelectedDay + 'T00:00:00').toLocaleDateString('en-US', {
+                                                weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+                                            })}
+                                            <Badge className="ml-1 bg-emerald-600 text-white text-[10px]">{selectedAppts.length}</Badge>
+                                        </h4>
+                                        <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                                            {selectedAppts
+                                                .slice()
+                                                .sort((a, b) => new Date(a.appointmentDateTime || a.appointment_datetime) - new Date(b.appointmentDateTime || b.appointment_datetime))
+                                                .map(appt => {
+                                                    const apptDate = new Date(appt.appointmentDateTime || appt.appointment_datetime);
+                                                    const timeStr = apptDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                                                    const label = appt.assignedDoctor
+                                                        ? appt.assignedDoctor.name
+                                                        : (appt.services && appt.services.length > 0
+                                                            ? appt.services.map(s => getServiceLabel(s)).join(', ')
+                                                            : 'None');
+                                                    const isDoc = !!appt.assignedDoctor;
+                                                    return (
+                                                        <div key={appt.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-emerald-200 hover:bg-emerald-50/30 transition-colors">
+                                                            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
+                                                                <User className="w-4 h-4 text-emerald-700" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <p className="text-sm font-semibold text-gray-900 truncate">{appt.name}</p>
+                                                                    <Badge className="bg-emerald-600 text-white text-[10px] flex-shrink-0">Accepted</Badge>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 mt-1">
+                                                                    <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                                                    <span className="text-xs text-gray-600">{timeStr}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                                    <Stethoscope className={`w-3 h-3 flex-shrink-0 ${isDoc ? 'text-purple-500' : 'text-emerald-500'}`} />
+                                                                    <span className={`text-xs truncate ${isDoc ? 'text-purple-700 font-medium' : 'text-emerald-700'}`}>
+                                                                        {isDoc ? `Dr. ${label}` : label}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Legend */}
+                                <div className="mt-4 pb-3 flex items-center gap-3 text-xs text-gray-500">
+                                    <span className="flex items-center gap-1">
+                                        <span className="w-3 h-3 rounded-full bg-emerald-600 inline-block"></span> Today
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-200 inline-block"></span> Accepted appointment
+                                    </span>
+                                    <span className="ml-auto text-[11px] italic text-gray-400">Click a day to see details</span>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </DialogContent>
+            </Dialog>
+
             <style>{`
                 .no-scrollbar::-webkit-scrollbar { display: none; }
                 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -1160,7 +1442,7 @@ const getPatientBadge = (p) => {
         if (p.appointmentStatus === 'rejected') return { text: 'Not Accepted', style: 'bg-red-600 text-white border-none' };
         if (p.appointmentStatus === 'cancelled' || p.status === 'cancelled') return { text: 'Cancelled', style: 'bg-red-100 text-red-700 border-red-300 border' };
         if (!p.appointmentStatus || p.appointmentStatus === 'pending') return { text: 'Pending', style: 'bg-amber-100 text-amber-700 border-none' };
-        
+
         if (p.appointmentStatus === 'accepted') {
             const apptDate = p.appointmentDateTime ? new Date(new Date(p.appointmentDateTime).setHours(0, 0, 0, 0)) : null;
             const today = new Date(new Date().setHours(0, 0, 0, 0));
@@ -1178,14 +1460,14 @@ const getPatientBadge = (p) => {
         }
 
     }
-    
+
     // Walk-ins or fallback
     const status = p.status ? p.status.toLowerCase() : 'waiting';
     if (status === 'done' || status === 'completed') return { text: 'Completed', style: 'bg-emerald-100 text-emerald-700 border-emerald-300 border' };
     if (status === 'in progress' || status === 'in-progress') return { text: 'In Progress', style: 'bg-blue-100 text-blue-700 border-blue-300 border' };
     if (status === 'cancelled') return { text: 'Cancelled', style: 'bg-red-100 text-red-700 border-red-300 border' };
     if (status === 'waiting' || status === 'pending') return { text: 'Waiting', style: 'bg-yellow-100 text-yellow-700 border-yellow-300 border' };
-    
+
     return { text: status.charAt(0).toUpperCase() + status.slice(1), style: 'bg-amber-100 text-amber-700 border-none' };
 };
 
@@ -1495,7 +1777,7 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                                     <TableCell className="py-4 text-center">
                                                         {visit.type === 'Appointment' ? (
                                                             visit.appointmentStatus === 'accepted' ? (
-                                                                (visit.appointmentDateTime && new Date(new Date(visit.appointmentDateTime).setHours(0,0,0,0)) > new Date(new Date().setHours(0,0,0,0))) ? (
+                                                                (visit.appointmentDateTime && new Date(new Date(visit.appointmentDateTime).setHours(0, 0, 0, 0)) > new Date(new Date().setHours(0, 0, 0, 0))) ? (
                                                                     <Badge className="bg-blue-600 text-white text-[10px] xl:text-xs">Upcoming</Badge>
                                                                 ) : (
                                                                     <Badge className="bg-green-600 text-[10px] xl:text-xs">Accepted</Badge>
@@ -1571,7 +1853,7 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                                                     <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Status</p>
                                                                     {visit.type === 'Appointment' ? (
                                                                         visit.appointmentStatus === 'accepted' ? (
-                                                                            (visit.appointmentDateTime && new Date(new Date(visit.appointmentDateTime).setHours(0,0,0,0)) > new Date(new Date().setHours(0,0,0,0))) ? (
+                                                                            (visit.appointmentDateTime && new Date(new Date(visit.appointmentDateTime).setHours(0, 0, 0, 0)) > new Date(new Date().setHours(0, 0, 0, 0))) ? (
                                                                                 <Badge className="bg-blue-600 text-white text-[10px] xl:text-xs pointer-events-none">Upcoming</Badge>
                                                                             ) : (
                                                                                 <Badge className="bg-green-600 text-[10px] xl:text-xs pointer-events-none">Accepted</Badge>
@@ -1668,7 +1950,7 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                                 </Badge>
                                                 {visit.type === 'Appointment' ? (
                                                     visit.appointmentStatus === 'accepted' ? (
-                                                        (visit.appointmentDateTime && new Date(new Date(visit.appointmentDateTime).setHours(0,0,0,0)) > new Date(new Date().setHours(0,0,0,0))) ? (
+                                                        (visit.appointmentDateTime && new Date(new Date(visit.appointmentDateTime).setHours(0, 0, 0, 0)) > new Date(new Date().setHours(0, 0, 0, 0))) ? (
                                                             <Badge className="bg-blue-600 text-white text-[10px] w-fit">Upcoming</Badge>
                                                         ) : (
                                                             <Badge className="bg-green-600 text-[10px] w-fit">Accepted</Badge>

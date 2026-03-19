@@ -41,6 +41,7 @@ const Appointment = () => {
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth()); // 0-indexed
   const [calendarSelectedDay, setCalendarSelectedDay] = useState(null);
+  const [calendarFilterDoctor, setCalendarFilterDoctor] = useState('all');
 
   const { patients, acceptAppointment, rejectAppointment, unreadSecretaryNotificationsCount, markSecretaryNotificationsAsRead } = useContext(PatientContext);
 
@@ -1220,16 +1221,35 @@ const Appointment = () => {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
           {/* Modal Header */}
           <div className="bg-gradient-to-r from-green-600 to-emerald-500 px-6 py-4 rounded-t-lg">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-white text-xl">
-                <CalendarDays className="w-6 h-6" />
-                Accepted Appointments Calendar
-              </DialogTitle>
-              <DialogDescription className="text-green-100">
-                Showing only accepted appointments for{' '}
-                {new Date(calendarYear, calendarMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
-              </DialogDescription>
-            </DialogHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <DialogHeader className="text-left">
+                <DialogTitle className="flex items-center gap-2 text-white text-xl">
+                  <CalendarDays className="w-6 h-6" />
+                  Accepted Appointments
+                </DialogTitle>
+                <DialogDescription className="text-green-100 mt-1">
+                  Showing {isDoctor ? 'your accepted appointments' : (calendarFilterDoctor === 'all' ? 'all accepted appointments' : `accepted appointments for Dr. ${doctors.find(d => d.id === Number(calendarFilterDoctor))?.name}`)} for{' '}
+                  {new Date(calendarYear, calendarMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Doctor filter for Secretary */}
+              {!isDoctor && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <Stethoscope className="w-4 h-4 text-green-100 hidden sm:block" />
+                  <select
+                    value={calendarFilterDoctor}
+                    onChange={(e) => setCalendarFilterDoctor(e.target.value)}
+                    className="text-sm rounded-md border-0 py-1.5 pl-3 pr-8 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-green-600 bg-white"
+                  >
+                    <option value="all">All Doctors</option>
+                    {doctors.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Month Navigation */}
@@ -1274,9 +1294,23 @@ const Appointment = () => {
           {/* Calendar Grid */}
           {(() => {
             // All accepted appointments
-            const acceptedAppts = (patients || []).filter(
-              p => p.type === 'Appointment' && p.appointmentStatus === 'accepted'
-            );
+            const acceptedAppts = (patients || []).filter(p => {
+              if (p.type !== 'Appointment' || p.appointmentStatus !== 'accepted') return false;
+
+              // Filter by doctor if applicable
+              const filterDoctorId = isDoctor ? storedDoctorId : calendarFilterDoctor;
+
+              if (filterDoctorId && filterDoctorId !== 'all') {
+                const myId = Number(filterDoctorId);
+                const selectedDoc = doctors.find(d => d.id === myId);
+                const myName = selectedDoc?.name?.toLowerCase().trim();
+                const patientAssignedName = p.assignedDoctor?.name?.toLowerCase().trim();
+
+                return p.assignedDoctor?.id === myId || (patientAssignedName && patientAssignedName === myName);
+              }
+
+              return true;
+            });
 
             // Build a map: dateKey (YYYY-MM-DD) -> [appointments]
             const apptsByDay = {};
@@ -1401,8 +1435,8 @@ const Appointment = () => {
                           const label = appt.assignedDoctor
                             ? appt.assignedDoctor.name
                             : (appt.services && appt.services.length > 0
-                                ? appt.services.map(s => getServiceLabel(s)).join(', ')
-                                : 'None');
+                              ? appt.services.map(s => getServiceLabel(s)).join(', ')
+                              : 'None');
                           const isDoc = !!appt.assignedDoctor;
                           return (
                             <div key={appt.id} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-green-200 hover:bg-green-50/30 transition-colors">

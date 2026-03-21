@@ -149,7 +149,7 @@ function Checkin() {
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableSlots, setAvailableSlots] = useState(1);
-  const [bookingMode, setBookingMode] = useState('service');
+  const [bookingMode, setBookingMode] = useState('doctor');
   const [selectedDoctor, setSelectedDoctor] = useState(null);
 
   const currentPatientEmail = localStorage.getItem('currentPatientEmail');
@@ -353,6 +353,26 @@ function Checkin() {
         return false;
       }
 
+      return true;
+    });
+  };
+
+  // Check if a given date is a working day for the selected doctor (day-level check, ignoring hours)
+  // Returns false if the doctor has no availability slot that matches this day+week-of-month.
+  const isDoctorWorkingDay = (doctor, date) => {
+    if (!doctor) return true; // no doctor selected — don't restrict
+
+    // "By Appointment Only" doctors are available every weekday
+    if (doctor.schedule && doctor.schedule.includes("By Appointment Only")) {
+      return date.getDay() !== 0; // all days except Sunday
+    }
+
+    const dayOfWeek = date.getDay();
+    const weekOfMonth = Math.ceil(date.getDate() / 7);
+
+    return doctor.availability.some(slot => {
+      if (!slot.days.includes(dayOfWeek)) return false;
+      if (slot.weeksOfMonth && !slot.weeksOfMonth.includes(weekOfMonth)) return false;
       return true;
     });
   };
@@ -748,6 +768,41 @@ function Checkin() {
     }
   };
 
+  // ==================== CUSTOM SLOT CHECKER ====================
+  const getCustomAvailableSlots = (dateTimeString) => {
+    if (!dateTimeString) return 1;
+
+    // Doctor mode availability check
+    if (bookingMode === 'doctor') {
+      if (!selectedDoctor) return 0;
+      if (!isDoctorAvailable(selectedDoctor, dateTimeString)) return 0;
+    }
+
+    const MAX_SLOTS_PER_TIME = 1;
+    const targetDate = new Date(dateTimeString);
+    const minutes = targetDate.getMinutes();
+    targetDate.setMinutes(minutes < 30 ? 0 : 30, 0, 0);
+
+    const bookedCount = patients.filter(p => {
+      if (!p.appointmentDateTime) return false;
+      if (p.appointmentStatus === 'rejected' || p.appointmentStatus === 'cancelled') return false;
+
+      const pDate = new Date(p.appointmentDateTime);
+      pDate.setMinutes(pDate.getMinutes() < 30 ? 0 : 30, 0, 0);
+
+      if (pDate.getTime() !== targetDate.getTime()) return false;
+
+      if (bookingMode === 'doctor') {
+        const pDoctorId = p.assignedDoctor?.id || p.preferredDoctor?.id || null;
+        return String(pDoctorId) === String(selectedDoctor.id);
+      } else {
+        return true;
+      }
+    }).length;
+
+    return Math.max(0, MAX_SLOTS_PER_TIME - bookedCount);
+  };
+
   //==================== USE EFFECTS ====================
   useEffect(() => {
     if (selectedDoctor && formData.appointmentDateTime && bookingMode === 'doctor') {
@@ -760,11 +815,11 @@ function Checkin() {
   }, [formData.appointmentDateTime, selectedDoctor, bookingMode]);
 
   useEffect(() => {
-    if (formData.appointmentDateTime && typeof getAvailableSlots === 'function') {
-      const slots = getAvailableSlots(formData.appointmentDateTime);
+    if (formData.appointmentDateTime && typeof getCustomAvailableSlots === 'function') {
+      const slots = getCustomAvailableSlots(formData.appointmentDateTime);
       setAvailableSlots(slots);
     }
-  }, [formData.appointmentDateTime, getAvailableSlots]);
+  }, [formData.appointmentDateTime, bookingMode, selectedDoctor, patients]);
 
   // ✅ NEW: Clear active patient session ONLY ONCE when entering a new booking flow
   useEffect(() => {
@@ -1023,348 +1078,570 @@ function Checkin() {
           <CardHeader><CardTitle className="text-center text-green-700">{selectedPatientType === "Appointment" ? "Book Appointment" : "Walk-in Registration"}</CardTitle></CardHeader>
           <CardContent>
             {selectedPatientType === "Appointment" && (
-              <div className="space-y-4 mb-6">
-                <AppointmentPicker
-                  key="stable-appointment-picker" // Fixed key stops the reset
-                  selectedDateTime={formData.appointmentDateTime}
-                  onDateTimeChange={(dateTime) => {
-                    setFormData(prev => {
-                      // Only update if the time actually changed
-                      if (prev.appointmentDateTime === dateTime) return prev;
-                      return { ...prev, appointmentDateTime: dateTime };
-                    });
+              <div className="flex mb-6 bg-gray-100 rounded-lg p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (bookingMode !== 'doctor') {
+                      setBookingMode('doctor');
+                      setFormData(prev => ({ ...prev, services: [], appointmentDateTime: "" }));
+                      setAvailableSlots(1);
+                      setSelectedDoctor(null);
+                    }
                   }}
-                  getAvailableSlots={getAvailableSlots}
-                />
+                  className={`flex-1 py-2 text-center text-sm font-semibold rounded-md transition-all ${
+                    bookingMode === 'doctor'
+                      ? 'bg-white text-indigo-700 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Book by Doctor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (bookingMode !== 'service') {
+                      setBookingMode('service');
+                      setFormData(prev => ({ ...prev, services: [], appointmentDateTime: "" }));
+                      setAvailableSlots(1);
+                      setSelectedDoctor(null);
+                    }
+                  }}
+                  className={`flex-1 py-2 text-center text-sm font-semibold rounded-md transition-all ${
+                    bookingMode === 'service'
+                      ? 'bg-white text-green-700 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Book by Service
+                </button>
               </div>
             )}
             <form onSubmit={handlePatientSubmit} className="space-y-6">
-              {/* PROFILE INFO - Only show for logged-in users */}
-              {isFromPatientSidebar && (
-                <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
-                  <div className="flex items-start gap-3 mb-3">
-                    <div className="bg-green-600 p-2 rounded-full">
-                      <User className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-green-800 mb-1">Booking For:</h3>
-                      <p className="text-sm text-green-700">Your profile information will be used for this appointment</p>
-                    </div>
-                  </div>
 
-                  {getFullName(formData) && formData.age && formData.phoneNum ? (
-                    <div className="space-y-2 bg-white p-4 rounded-md border border-green-200">
-                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                        <span className="text-sm text-gray-600 font-medium">Name:</span>
-                        <span className="font-semibold text-gray-900">{getFullName(formData)}</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                        <span className="text-sm text-gray-600 font-medium">Age:</span>
-                        <span className="font-semibold text-gray-900">{formData.age} years</span>
-                      </div>
-                      <div className="flex justify-between items-center py-2">
-                        <span className="text-sm text-gray-600 font-medium">Phone:</span>
-                        <span className="font-semibold text-gray-900">+63{formData.phoneNum}</span>
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="w-full text-green-600 border-green-600 hover:bg-green-50"
-                          onClick={() => {
-                            saveFormDataToTemp();
-                            navigate('/patient-settings?from=patient-sidebar');
-                          }}
-                        >
-                          <Edit2 className="w-4 h-4 mr-2" />
-                          Update Profile Information
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-yellow-50 border border-yellow-300 rounded-md p-4">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-sm font-medium text-yellow-800 mb-2">Profile Not Complete</p>
-                          <p className="text-xs text-yellow-700 mb-3">
-                            Please complete your profile to book appointments quickly and easily.
-                          </p>
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="bg-yellow-600 hover:bg-yellow-700 text-white"
-                            onClick={() => {
-                              console.log('🔘 Complete Profile button clicked');
-                              saveFormDataToTemp();
-                              console.log('✅ Form data saved, navigating to settings...');
-                              setTimeout(() => {
-                                navigate('/patient-settings?from=patient-sidebar');
-                              }, 100);
-                            }}
-                          >
-                            Complete Profile Now
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ADD BOOKING MODE SELECTION FOR APPOINTMENTS */}
-              {selectedPatientType === "Appointment" && (
-                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-300 rounded-lg">
-                  <Label className="text-blue-800 font-bold mb-3 block">Book your appointment by:</Label>
-
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBookingMode('service');
-                        setSelectedDoctor(null);
-                      }}
-                      className={`p-3 rounded-lg border-2 transition-all ${bookingMode === 'service'
-                        ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
-                        }`}
-                    >
-                      <div className="flex flex-col items-center">
-                        <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                        </svg>
-                        <span className="font-semibold text-sm">Service</span>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBookingMode('doctor');
-                        setFormData(prev => ({ ...prev, services: [] }));
-                      }}
-                      className={`p-3 rounded-lg border-2 transition-all ${bookingMode === 'doctor'
-                        ? 'border-blue-600 bg-blue-600 text-white shadow-lg'
-                        : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
-                        }`}
-                    >
-                      <div className="flex flex-col items-center">
-                        <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        <span className="font-semibold text-sm">Doctor</span>
-                      </div>
-                    </button>
-                  </div>
-
-                  <p className="text-xs text-blue-700">
-                    {bookingMode === 'service'
-                      ? 'Choose the medical services you need, and we\'ll assign the appropriate doctor.'
-                      : 'Select a specific doctor you\'d like to see for your appointment.'}
-                  </p>
-                </div>
-              )}
-
-              {/* Only show input fields if NOT from patient sidebar */}
-              {!isFromPatientSidebar && (
+              {/* ===== BOOK BY DOCTOR: Step-by-step layout ===== */}
+              {selectedPatientType === "Appointment" && bookingMode === 'doctor' ? (
                 <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName">First Name <span className="text-red-600">*</span></Label>
-                      <Input id="firstName" type="text" value={formData.firstName} onChange={handleInputChange} onBlur={handleBlur} className={touched.firstName && errors.firstName ? "border-red-500" : ""} required placeholder="e.g. Juan" />
-                      {touched.firstName && errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
+                  {/* STEP 1: Select Doctor */}
+                  <div className="space-y-3 p-4 rounded-lg border border-indigo-300 bg-indigo-50">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold">1</span>
+                      <Label className="text-indigo-800 font-bold">Select Doctor <span className="text-red-600">*</span></Label>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName">Surname / Last Name <span className="text-red-600">*</span></Label>
-                      <Input id="lastName" type="text" value={formData.lastName} onChange={handleInputChange} onBlur={handleBlur} className={touched.lastName && errors.lastName ? "border-red-500" : ""} required placeholder="e.g. Dela Cruz" />
-                      {touched.lastName && errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="middleName">Middle Name <span className="text-gray-400 font-normal">(optional)</span></Label>
-                    <Input id="middleName" type="text" value={formData.middleName} onChange={handleInputChange} placeholder="e.g. Santos" />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="age">Age <span className="text-red-600">*</span></Label>
-                      <Input id="age" type="number" min="0" value={formData.age} onChange={handleInputChange} onBlur={handleBlur} className={touched.age && errors.age ? "border-red-500" : ""} required />
-                      {touched.age && errors.age && <p className="text-xs text-red-500 mt-1">{errors.age}</p>}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phoneNum">Phone Number <span className="text-red-600">*</span></Label>
-                      <div className="flex">
-                        <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm font-medium">
-                          +63
-                        </span>
-                        <Input
-                          id="phoneNum"
-                          type="tel"
-                          value={formData.phoneNum}
-                          onChange={handlePhoneChange}
-                          onBlur={handleBlur}
-                          className={`rounded-l-none ${touched.phoneNum && errors.phoneNum ? "border-red-500" : ""}`}
-                          placeholder="9123456789"
-                          maxLength={10}
-                          minLength={10}
-                          pattern="9\d{9}"
-                          inputMode="numeric"
-                          required
-                        />
-                      </div>
-                      {touched.phoneNum && errors.phoneNum && <p className="text-xs text-red-500 mt-1">{errors.phoneNum}</p>}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="patientEmail">Email Address <span className="text-red-600">*</span></Label>
-                    <Input id="patientEmail" type="email" value={formData.patientEmail} onChange={handleInputChange} onBlur={handleBlur} className={touched.patientEmail && errors.patientEmail ? "border-red-500" : ""} required placeholder="e.g. juan@example.com" />
-                    {touched.patientEmail && errors.patientEmail && <p className="text-xs text-red-500 mt-1">{errors.patientEmail}</p>}
-                  </div>
-                </>
-              )}
 
-              <div className="space-y-3 p-4 rounded-lg border-2 border-blue-300 bg-blue-50">
-                <Label className="text-blue-800 font-bold">Are you a new or returning patient? <span className="text-red-600">*</span></Label>
-                <div className="space-y-3">
-                  <div className="flex items-center"><input type="radio" id="newPatient" name="patientType" checked={!formData.isReturningPatient} onChange={() => setFormData(p => ({ ...p, isReturningPatient: false }))} className="h-4 w-4" required /><Label htmlFor="newPatient" className="ml-2">New Patient</Label></div>
-                  <div className="flex items-center"><input type="radio" id="returningPatient" name="patientType" checked={formData.isReturningPatient} onChange={() => setFormData(p => ({ ...p, isReturningPatient: true }))} className="h-4 w-4" required /><Label htmlFor="returningPatient" className="ml-2">Returning Patient</Label></div>
-                </div>
-              </div>
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {availableDoctors.map(doctor => {
+                        const queueLength = getDoctorQueueLength(doctor.id);
 
-              {selectedPatientType === "Walk-in" && (
-                <div className="space-y-3 p-4 rounded-lg border-2 border-purple-300 bg-purple-50">
-                  <div className="flex items-center justify-between"><Label className="text-purple-700 font-bold">Priority Patient</Label><input type="checkbox" id="isPriority" checked={formData.isPriority} onChange={(e) => handlePriorityChange(e.target.checked)} className="h-5 w-5" /></div>
-                  {formData.isPriority && (
-                    <div className="space-y-3 pl-2">
-                      <div className="flex items-center"><input type="radio" id="pwd" name="priorityType" value="PWD" checked={formData.priorityType === "PWD"} onChange={(e) => handlePriorityTypeChange(e.target.value)} className="h-4 w-4" /><Label htmlFor="pwd" className="ml-2">PWD</Label></div>
-                      <div className="flex items-center"><input type="radio" id="pregnant" name="priorityType" value="Pregnant" checked={formData.priorityType === "Pregnant"} onChange={(e) => handlePriorityTypeChange(e.target.value)} className="h-4 w-4" /><Label htmlFor="pregnant" className="ml-2">Pregnant</Label></div>
-                      <div className="flex items-center"><input type="radio" id="senior" name="priorityType" value="Senior" checked={formData.priorityType === "Senior"} onChange={(e) => handlePriorityTypeChange(e.target.value)} className="h-4 w-4" /><Label htmlFor="senior" className="ml-2">Senior Citizen</Label></div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className={`space-y-3 p-4 rounded-lg border ${touched.symptoms && errors.symptoms ? "border-red-500 bg-red-50" : "border-green-300"}`}>
-                <Label className={`${touched.symptoms && errors.symptoms ? "text-red-700" : "text-green-700"} font-bold`}>
-                  Symptoms <span className="text-red-600">*</span>
-                </Label>
-                {touched.symptoms && errors.symptoms && <p className="text-xs text-red-500 mt-1">{errors.symptoms}</p>}
-                {symptomsList.map(symptom => (
-                  <div key={symptom} className="space-y-2">
-                    <div className="flex items-center">
-                      <input type="checkbox" id={symptom} checked={formData.symptoms.includes(symptom)} onChange={(e) => handleSymptomChange(symptom, e.target.checked)} className="h-4 w-4" />
-                      <Label htmlFor={symptom} className="ml-2">{symptom}</Label>
-                    </div>
-                    {symptom === 'Other' && formData.symptoms.includes('Other') && (
-                      <div className="ml-6 mt-1">
-                        <Input
-                          id="otherSymptomText"
-                          placeholder="Please specify your symptoms"
-                          value={formData.otherSymptomText}
-                          onChange={handleInputChange}
-                          className="border-green-300 focus:ring-green-500"
-                        />
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* DOCTOR SELECTION SECTION */}
-              {selectedPatientType === "Appointment" && bookingMode === 'doctor' && (
-                <div className="space-y-3 p-4 rounded-lg border border-indigo-300 bg-indigo-50">
-                  <Label className="text-indigo-800 font-bold">Select Doctor <span className="text-red-600">*</span></Label>
-
-                  {!formData.appointmentDateTime && (
-                    <div className="bg-yellow-50 border border-yellow-300 rounded-md p-3 mb-3">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                        <p className="text-sm text-yellow-800">
-                          Please select an appointment date and time first to see available doctors.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {availableDoctors.map(doctor => {
-                      const isAvailable = isDoctorAvailable(doctor, formData.appointmentDateTime);
-                      const queueLength = getDoctorQueueLength(doctor.id);
-
-                      return (
-                        <div
-                          key={doctor.id}
-                          onClick={() => isAvailable && handleDoctorSelect(doctor.id)}
-                          className={`p-4 rounded-lg border-2 transition-all ${!isAvailable
-                            ? 'opacity-50 cursor-not-allowed bg-gray-100 border-gray-300'
-                            : selectedDoctor?.id === doctor.id
-                              ? 'border-indigo-600 bg-indigo-100 shadow-md cursor-pointer'
-                              : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer'
-                            }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 min-w-0 pr-2">
-                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
-                                <h4 className="font-bold text-gray-900">{doctor.name}</h4>
-                                {!isAvailable && formData.appointmentDateTime && (
-                                  <span className="inline-flex shrink-0 items-center px-2.5 py-0.5 bg-red-100 text-red-700 text-[11px] sm:text-xs rounded-full font-medium whitespace-nowrap">
-                                    Not Available
-                                  </span>
-                                )}
-                                {isAvailable && (
+                        return (
+                          <div
+                            key={doctor.id}
+                            onClick={() => handleDoctorSelect(doctor.id)}
+                            className={`p-4 rounded-lg border-2 transition-all cursor-pointer ${selectedDoctor?.id === doctor.id
+                                ? 'border-indigo-600 bg-indigo-100 shadow-md'
+                                : 'border-gray-300 bg-white hover:border-indigo-400 hover:bg-indigo-50'
+                              }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0 pr-2">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
+                                  <h4 className="font-bold text-gray-900">{doctor.name}</h4>
                                   <span className="inline-flex shrink-0 items-center px-2.5 py-0.5 bg-blue-100 text-blue-700 text-[11px] sm:text-xs rounded-full font-medium whitespace-nowrap">
                                     Active Queue: {queueLength}
                                   </span>
-                                )}
+                                </div>
+                                <p className="text-sm text-gray-600 mb-2">{doctor.specialization}</p>
+                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span>{doctor.schedule}</span>
+                                </div>
                               </div>
-                              <p className="text-sm text-gray-600 mb-2">{doctor.specialization}</p>
-                              <div className="flex items-center gap-2 text-xs text-gray-500">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <span>{doctor.schedule}</span>
+
+                              {selectedDoctor?.id === doctor.id && (
+                                <div className="flex-shrink-0">
+                                  <svg className="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* STEP 2: Choose Date & Time (only shown after doctor is selected) */}
+                  {!selectedDoctor ? (
+                    <div className="bg-yellow-50 border border-yellow-300 rounded-md p-3">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                        <p className="text-sm text-yellow-800">
+                          Please select a doctor above to view their available schedule.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold">2</span>
+                        <Label className="text-gray-800 font-bold">Choose Date &amp; Time</Label>
+                      </div>
+                      <div className="border-t pt-4">
+                        <AppointmentPicker
+                          key={`picker-doctor-${selectedDoctor?.id}`}
+                          selectedDateTime={formData.appointmentDateTime}
+                          onDateTimeChange={(dateTime) => {
+                            setFormData(prev => {
+                              if (prev.appointmentDateTime === dateTime) return prev;
+                              return { ...prev, appointmentDateTime: dateTime };
+                            });
+                          }}
+                          getAvailableSlots={getCustomAvailableSlots}
+                          checkIsDoctorWorkingDay={selectedDoctor ? (date) => isDoctorWorkingDay(selectedDoctor, date) : null}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* STEP 3: Basic Information (only shown after doctor is selected) */}
+                  {selectedDoctor && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold">3</span>
+                        <Label className="text-gray-800 font-bold">Basic Information</Label>
+                      </div>
+
+                      {/* PROFILE INFO - Only show for logged-in users */}
+                      {isFromPatientSidebar && (
+                        <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="bg-green-600 p-2 rounded-full">
+                              <User className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-green-800 mb-1">Booking For:</h3>
+                              <p className="text-sm text-green-700">Your profile information will be used for this appointment</p>
+                            </div>
+                          </div>
+
+                          {getFullName(formData) && formData.age && formData.phoneNum ? (
+                            <div className="space-y-2 bg-white p-4 rounded-md border border-green-200">
+                              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                                <span className="text-sm text-gray-600 font-medium">Name:</span>
+                                <span className="font-semibold text-gray-900">{getFullName(formData)}</span>
+                              </div>
+                              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                                <span className="text-sm text-gray-600 font-medium">Age:</span>
+                                <span className="font-semibold text-gray-900">{formData.age} years</span>
+                              </div>
+                              <div className="flex justify-between items-center py-2">
+                                <span className="text-sm text-gray-600 font-medium">Phone:</span>
+                                <span className="font-semibold text-gray-900">+63{formData.phoneNum}</span>
+                              </div>
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full text-green-600 border-green-600 hover:bg-green-50"
+                                  onClick={() => {
+                                    saveFormDataToTemp();
+                                    navigate('/patient-settings?from=patient-sidebar');
+                                  }}
+                                >
+                                  <Edit2 className="w-4 h-4 mr-2" />
+                                  Update Profile Information
+                                </Button>
                               </div>
                             </div>
+                          ) : (
+                            <div className="bg-yellow-50 border border-yellow-300 rounded-md p-4">
+                              <div className="flex items-start gap-2">
+                                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-sm font-medium text-yellow-800 mb-2">Profile Not Complete</p>
+                                  <p className="text-xs text-yellow-700 mb-3">
+                                    Please complete your profile to book appointments quickly and easily.
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                                    onClick={() => {
+                                      console.log('🔘 Complete Profile button clicked');
+                                      saveFormDataToTemp();
+                                      console.log('✅ Form data saved, navigating to settings...');
+                                      setTimeout(() => {
+                                        navigate('/patient-settings?from=patient-sidebar');
+                                      }, 100);
+                                    }}
+                                  >
+                                    Complete Profile Now
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                            {selectedDoctor?.id === doctor.id && isAvailable && (
-                              <div className="flex-shrink-0">
-                                <svg className="w-6 h-6 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                </svg>
+                      {/* Input fields for non-sidebar users */}
+                      {!isFromPatientSidebar && (
+                        <>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="firstName">First Name <span className="text-red-600">*</span></Label>
+                              <Input id="firstName" type="text" value={formData.firstName} onChange={handleInputChange} onBlur={handleBlur} className={touched.firstName && errors.firstName ? "border-red-500" : ""} required placeholder="e.g. Juan" />
+                              {touched.firstName && errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="lastName">Surname / Last Name <span className="text-red-600">*</span></Label>
+                              <Input id="lastName" type="text" value={formData.lastName} onChange={handleInputChange} onBlur={handleBlur} className={touched.lastName && errors.lastName ? "border-red-500" : ""} required placeholder="e.g. Dela Cruz" />
+                              {touched.lastName && errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="middleName">Middle Name <span className="text-gray-400 font-normal">(optional)</span></Label>
+                            <Input id="middleName" type="text" value={formData.middleName} onChange={handleInputChange} placeholder="e.g. Santos" />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="age">Age <span className="text-red-600">*</span></Label>
+                              <Input id="age" type="number" min="0" value={formData.age} onChange={handleInputChange} onBlur={handleBlur} className={touched.age && errors.age ? "border-red-500" : ""} required />
+                              {touched.age && errors.age && <p className="text-xs text-red-500 mt-1">{errors.age}</p>}
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="phoneNum">Phone Number <span className="text-red-600">*</span></Label>
+                              <div className="flex">
+                                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm font-medium">
+                                  +63
+                                </span>
+                                <Input
+                                  id="phoneNum"
+                                  type="tel"
+                                  value={formData.phoneNum}
+                                  onChange={handlePhoneChange}
+                                  onBlur={handleBlur}
+                                  className={`rounded-l-none ${touched.phoneNum && errors.phoneNum ? "border-red-500" : ""}`}
+                                  placeholder="9123456789"
+                                  maxLength={10}
+                                  minLength={10}
+                                  pattern="9\d{9}"
+                                  inputMode="numeric"
+                                  required
+                                />
+                              </div>
+                              {touched.phoneNum && errors.phoneNum && <p className="text-xs text-red-500 mt-1">{errors.phoneNum}</p>}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="patientEmail">Email Address <span className="text-red-600">*</span></Label>
+                            <Input id="patientEmail" type="email" value={formData.patientEmail} onChange={handleInputChange} onBlur={handleBlur} className={touched.patientEmail && errors.patientEmail ? "border-red-500" : ""} required placeholder="e.g. juan@example.com" />
+                            {touched.patientEmail && errors.patientEmail && <p className="text-xs text-red-500 mt-1">{errors.patientEmail}</p>}
+                          </div>
+                        </>
+                      )}
+
+                      {/* New / Returning patient */}
+                      <div className="space-y-3 p-4 rounded-lg border-2 border-blue-300 bg-blue-50">
+                        <Label className="text-blue-800 font-bold">Are you a new or returning patient? <span className="text-red-600">*</span></Label>
+                        <div className="space-y-3">
+                          <div className="flex items-center"><input type="radio" id="newPatient" name="patientType" checked={!formData.isReturningPatient} onChange={() => setFormData(p => ({ ...p, isReturningPatient: false }))} className="h-4 w-4" required /><Label htmlFor="newPatient" className="ml-2">New Patient</Label></div>
+                          <div className="flex items-center"><input type="radio" id="returningPatient" name="patientType" checked={formData.isReturningPatient} onChange={() => setFormData(p => ({ ...p, isReturningPatient: true }))} className="h-4 w-4" required /><Label htmlFor="returningPatient" className="ml-2">Returning Patient</Label></div>
+                        </div>
+                      </div>
+
+                      {/* Symptoms */}
+                      <div className={`space-y-3 p-4 rounded-lg border ${touched.symptoms && errors.symptoms ? "border-red-500 bg-red-50" : "border-green-300"}`}>
+                        <Label className={`${touched.symptoms && errors.symptoms ? "text-red-700" : "text-green-700"} font-bold`}>
+                          Symptoms <span className="text-red-600">*</span>
+                        </Label>
+                        {touched.symptoms && errors.symptoms && <p className="text-xs text-red-500 mt-1">{errors.symptoms}</p>}
+                        {symptomsList.map(symptom => (
+                          <div key={symptom} className="space-y-2">
+                            <div className="flex items-center">
+                              <input type="checkbox" id={symptom} checked={formData.symptoms.includes(symptom)} onChange={(e) => handleSymptomChange(symptom, e.target.checked)} className="h-4 w-4" />
+                              <Label htmlFor={symptom} className="ml-2">{symptom}</Label>
+                            </div>
+                            {symptom === 'Other' && formData.symptoms.includes('Other') && (
+                              <div className="ml-6 mt-1">
+                                <Input
+                                  id="otherSymptomText"
+                                  placeholder="Please specify your symptoms"
+                                  value={formData.otherSymptomText}
+                                  onChange={handleInputChange}
+                                  className="border-green-300 focus:ring-green-500"
+                                />
                               </div>
                             )}
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {selectedDoctor && (
-                    <div className="mt-3 p-3 bg-indigo-100 rounded-md">
-                      <p className="text-sm text-indigo-900">
-                        <strong>Selected:</strong> {selectedDoctor.name}
-                      </p>
+                        ))}
+                      </div>
                     </div>
                   )}
-                </div>
-              )}
+                </>
+              ) : (
+                /* ===== BOOK BY SERVICE / WALK-IN: Step-by-step layout ===== */
+                <>
+                  {/* Select Services — ONLY for Book by Service appointments (Step 1) */}
+                  {selectedPatientType === "Appointment" && bookingMode === 'service' && (
+                    <div className="space-y-3 p-4 rounded-lg border border-green-300 bg-green-50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-600 text-white text-xs font-bold">1</span>
+                        <Label className="text-green-700 font-bold">Select Services <span className="text-gray-400 font-normal">(optional)</span></Label>
+                      </div>
+                      {serviceCategories.map(cat => (
+                        <div key={cat.id} className="pt-2 border-b last:border-b-0">
+                          <div className="cursor-pointer flex justify-between font-semibold text-green-700" onClick={() => toggleCategory(cat.id)}>{cat.label} <span>{expandedCategory === cat.id ? "▲" : "▼"}</span></div>
+                          {expandedCategory === cat.id && (
+                            <div className="ml-2 mt-2 space-y-2">
+                              {cat.services.map(svc => (
+                                <div key={svc.id} className="flex items-center"><input type="checkbox" id={svc.id} checked={formData.services.includes(svc.id)} onChange={(e) => handleServiceChange(svc.id, e.target.checked)} className="h-4 w-4" /><Label htmlFor={svc.id} className="ml-2">{svc.label}</Label></div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-              {(selectedPatientType === "Walk-in" || bookingMode === 'service') && (
-                <div className="space-y-3 p-4 rounded-lg border border-green-300 bg-green-50">
-                  <Label className="text-green-700 font-bold">Select Services</Label>
-                  {serviceCategories.map(cat => (
-                    <div key={cat.id} className="pt-2 border-b last:border-b-0">
-                      <div className="cursor-pointer flex justify-between font-semibold text-green-700" onClick={() => toggleCategory(cat.id)}>{cat.label} <span>{expandedCategory === cat.id ? "▲" : "▼"}</span></div>
-                      {expandedCategory === cat.id && (
-                        <div className="ml-2 mt-2 space-y-2">
-                          {cat.services.map(svc => (
-                            <div key={svc.id} className="flex items-center"><input type="checkbox" id={svc.id} checked={formData.services.includes(svc.id)} onChange={(e) => handleServiceChange(svc.id, e.target.checked)} className="h-4 w-4" /><Label htmlFor={svc.id} className="ml-2">{svc.label}</Label></div>
+                  {/* Choose Date & Time — always shown for Appointment */}
+                  {selectedPatientType === "Appointment" && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-600 text-white text-xs font-bold">2</span>
+                        <Label className="text-gray-800 font-bold">Choose Date &amp; Time</Label>
+                      </div>
+                      <div className="border-t pt-4">
+                        <AppointmentPicker
+                          key={`picker-service`}
+                          selectedDateTime={formData.appointmentDateTime}
+                          onDateTimeChange={(dateTime) => {
+                            setFormData(prev => {
+                              if (prev.appointmentDateTime === dateTime) return prev;
+                              return { ...prev, appointmentDateTime: dateTime };
+                            });
+                          }}
+                          getAvailableSlots={getCustomAvailableSlots}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Basic Information — always shown */}
+                  {(selectedPatientType === "Walk-in" || selectedPatientType === "Appointment") && (
+                    <div className="space-y-4">
+                      {selectedPatientType === "Appointment" && (
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-600 text-white text-xs font-bold">3</span>
+                          <Label className="text-gray-800 font-bold">Basic Information</Label>
+                        </div>
+                      )}
+                      {/* PROFILE INFO - Only show for logged-in users */}
+                      {isFromPatientSidebar && (
+                        <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-lg">
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="bg-green-600 p-2 rounded-full">
+                              <User className="w-5 h-5 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-green-800 mb-1">Booking For:</h3>
+                              <p className="text-sm text-green-700">Your profile information will be used for this appointment</p>
+                            </div>
+                          </div>
+
+                          {getFullName(formData) && formData.age && formData.phoneNum ? (
+                            <div className="space-y-2 bg-white p-4 rounded-md border border-green-200">
+                              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                                <span className="text-sm text-gray-600 font-medium">Name:</span>
+                                <span className="font-semibold text-gray-900">{getFullName(formData)}</span>
+                              </div>
+                              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                                <span className="text-sm text-gray-600 font-medium">Age:</span>
+                                <span className="font-semibold text-gray-900">{formData.age} years</span>
+                              </div>
+                              <div className="flex justify-between items-center py-2">
+                                <span className="text-sm text-gray-600 font-medium">Phone:</span>
+                                <span className="font-semibold text-gray-900">+63{formData.phoneNum}</span>
+                              </div>
+                              <div className="mt-3 pt-3 border-t border-gray-200">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full text-green-600 border-green-600 hover:bg-green-50"
+                                  onClick={() => {
+                                    saveFormDataToTemp();
+                                    navigate('/patient-settings?from=patient-sidebar');
+                                  }}
+                                >
+                                  <Edit2 className="w-4 h-4 mr-2" />
+                                  Update Profile Information
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="bg-yellow-50 border border-yellow-300 rounded-md p-4">
+                              <div className="flex items-start gap-2">
+                                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-sm font-medium text-yellow-800 mb-2">Profile Not Complete</p>
+                                  <p className="text-xs text-yellow-700 mb-3">
+                                    Please complete your profile to book appointments quickly and easily.
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                                    onClick={() => {
+                                      console.log('🔘 Complete Profile button clicked');
+                                      saveFormDataToTemp();
+                                      console.log('✅ Form data saved, navigating to settings...');
+                                      setTimeout(() => {
+                                        navigate('/patient-settings?from=patient-sidebar');
+                                      }, 100);
+                                    }}
+                                  >
+                                    Complete Profile Now
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Input fields — only for non-sidebar users */}
+                      {!isFromPatientSidebar && (
+                        <>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="firstName">First Name <span className="text-red-600">*</span></Label>
+                              <Input id="firstName" type="text" value={formData.firstName} onChange={handleInputChange} onBlur={handleBlur} className={touched.firstName && errors.firstName ? "border-red-500" : ""} required placeholder="e.g. Juan" />
+                              {touched.firstName && errors.firstName && <p className="text-xs text-red-500 mt-1">{errors.firstName}</p>}
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="lastName">Surname / Last Name <span className="text-red-600">*</span></Label>
+                              <Input id="lastName" type="text" value={formData.lastName} onChange={handleInputChange} onBlur={handleBlur} className={touched.lastName && errors.lastName ? "border-red-500" : ""} required placeholder="e.g. Dela Cruz" />
+                              {touched.lastName && errors.lastName && <p className="text-xs text-red-500 mt-1">{errors.lastName}</p>}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="middleName">Middle Name <span className="text-gray-400 font-normal">(optional)</span></Label>
+                            <Input id="middleName" type="text" value={formData.middleName} onChange={handleInputChange} placeholder="e.g. Santos" />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="age">Age <span className="text-red-600">*</span></Label>
+                              <Input id="age" type="number" min="0" value={formData.age} onChange={handleInputChange} onBlur={handleBlur} className={touched.age && errors.age ? "border-red-500" : ""} required />
+                              {touched.age && errors.age && <p className="text-xs text-red-500 mt-1">{errors.age}</p>}
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="phoneNum">Phone Number <span className="text-red-600">*</span></Label>
+                              <div className="flex">
+                                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm font-medium">
+                                  +63
+                                </span>
+                                <Input
+                                  id="phoneNum"
+                                  type="tel"
+                                  value={formData.phoneNum}
+                                  onChange={handlePhoneChange}
+                                  onBlur={handleBlur}
+                                  className={`rounded-l-none ${touched.phoneNum && errors.phoneNum ? "border-red-500" : ""}`}
+                                  placeholder="9123456789"
+                                  maxLength={10}
+                                  minLength={10}
+                                  pattern="9\d{9}"
+                                  inputMode="numeric"
+                                  required
+                                />
+                              </div>
+                              {touched.phoneNum && errors.phoneNum && <p className="text-xs text-red-500 mt-1">{errors.phoneNum}</p>}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="patientEmail">Email Address <span className="text-red-600">*</span></Label>
+                            <Input id="patientEmail" type="email" value={formData.patientEmail} onChange={handleInputChange} onBlur={handleBlur} className={touched.patientEmail && errors.patientEmail ? "border-red-500" : ""} required placeholder="e.g. juan@example.com" />
+                            {touched.patientEmail && errors.patientEmail && <p className="text-xs text-red-500 mt-1">{errors.patientEmail}</p>}
+                          </div>
+                        </>
+                      )}
+
+                      {/* New / Returning patient */}
+                      <div className="space-y-3 p-4 rounded-lg border-2 border-blue-300 bg-blue-50">
+                        <Label className="text-blue-800 font-bold">Are you a new or returning patient? <span className="text-red-600">*</span></Label>
+                        <div className="space-y-3">
+                          <div className="flex items-center"><input type="radio" id="newPatient" name="patientType" checked={!formData.isReturningPatient} onChange={() => setFormData(p => ({ ...p, isReturningPatient: false }))} className="h-4 w-4" required /><Label htmlFor="newPatient" className="ml-2">New Patient</Label></div>
+                          <div className="flex items-center"><input type="radio" id="returningPatient" name="patientType" checked={formData.isReturningPatient} onChange={() => setFormData(p => ({ ...p, isReturningPatient: true }))} className="h-4 w-4" required /><Label htmlFor="returningPatient" className="ml-2">Returning Patient</Label></div>
+                        </div>
+                      </div>
+
+                      {/* Priority — Walk-in only */}
+                      {selectedPatientType === "Walk-in" && (
+                        <div className="space-y-3 p-4 rounded-lg border-2 border-purple-300 bg-purple-50">
+                          <div className="flex items-center justify-between"><Label className="text-purple-700 font-bold">Priority Patient</Label><input type="checkbox" id="isPriority" checked={formData.isPriority} onChange={(e) => handlePriorityChange(e.target.checked)} className="h-5 w-5" /></div>
+                          {formData.isPriority && (
+                            <div className="space-y-3 pl-2">
+                              <div className="flex items-center"><input type="radio" id="pwd" name="priorityType" value="PWD" checked={formData.priorityType === "PWD"} onChange={(e) => handlePriorityTypeChange(e.target.value)} className="h-4 w-4" /><Label htmlFor="pwd" className="ml-2">PWD</Label></div>
+                              <div className="flex items-center"><input type="radio" id="pregnant" name="priorityType" value="Pregnant" checked={formData.priorityType === "Pregnant"} onChange={(e) => handlePriorityTypeChange(e.target.value)} className="h-4 w-4" /><Label htmlFor="pregnant" className="ml-2">Pregnant</Label></div>
+                              <div className="flex items-center"><input type="radio" id="senior" name="priorityType" value="Senior" checked={formData.priorityType === "Senior"} onChange={(e) => handlePriorityTypeChange(e.target.value)} className="h-4 w-4" /><Label htmlFor="senior" className="ml-2">Senior Citizen</Label></div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Symptoms */}
+                      <div className={`space-y-3 p-4 rounded-lg border ${touched.symptoms && errors.symptoms ? "border-red-500 bg-red-50" : "border-green-300"}`}>
+                        <Label className={`${touched.symptoms && errors.symptoms ? "text-red-700" : "text-green-700"} font-bold`}>
+                          Symptoms <span className="text-red-600">*</span>
+                        </Label>
+                        {touched.symptoms && errors.symptoms && <p className="text-xs text-red-500 mt-1">{errors.symptoms}</p>}
+                        {symptomsList.map(symptom => (
+                          <div key={symptom} className="space-y-2">
+                            <div className="flex items-center">
+                              <input type="checkbox" id={symptom} checked={formData.symptoms.includes(symptom)} onChange={(e) => handleSymptomChange(symptom, e.target.checked)} className="h-4 w-4" />
+                              <Label htmlFor={symptom} className="ml-2">{symptom}</Label>
+                            </div>
+                            {symptom === 'Other' && formData.symptoms.includes('Other') && (
+                              <div className="ml-6 mt-1">
+                                <Input
+                                  id="otherSymptomText"
+                                  placeholder="Please specify your symptoms"
+                                  value={formData.otherSymptomText}
+                                  onChange={handleInputChange}
+                                  className="border-green-300 focus:ring-green-500"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Select Services — restored to end for Walk-in only */}
+                      {selectedPatientType === "Walk-in" && (
+                        <div className="space-y-3 p-4 rounded-lg border border-green-300 bg-green-50">
+                          <Label className="text-green-700 font-bold">Select Services <span className="text-gray-400 font-normal">(optional)</span></Label>
+                          {serviceCategories.map(cat => (
+                            <div key={cat.id} className="pt-2 border-b last:border-b-0">
+                              <div className="cursor-pointer flex justify-between font-semibold text-green-700" onClick={() => toggleCategory(cat.id)}>{cat.label} <span>{expandedCategory === cat.id ? "▲" : "▼"}</span></div>
+                              {expandedCategory === cat.id && (
+                                <div className="ml-2 mt-2 space-y-2">
+                                  {cat.services.map(svc => (
+                                    <div key={svc.id} className="flex items-center"><input type="checkbox" id={svc.id} checked={formData.services.includes(svc.id)} onChange={(e) => handleServiceChange(svc.id, e.target.checked)} className="h-4 w-4" /><Label htmlFor={svc.id} className="ml-2">{svc.label}</Label></div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           ))}
                         </div>
                       )}
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               )}
 
               <div className="space-y-3">

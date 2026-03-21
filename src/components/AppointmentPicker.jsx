@@ -7,7 +7,8 @@ import { AlertCircle } from "lucide-react";
 const AppointmentPicker = ({
   selectedDateTime,
   onDateTimeChange,
-  getAvailableSlots
+  getAvailableSlots,
+  checkIsDoctorWorkingDay // optional: (date) => bool — if provided, dates returning false are shown as disabled (not working days)
 }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState("");
@@ -154,7 +155,7 @@ const AppointmentPicker = ({
     }
     return date;
   };
-  // Disable past dates and Sundays
+  // Disable past dates, Sundays, and doctor's non-working days
   const tileDisabled = ({ date, view }) => {
     if (view === 'month') {
       const minAllowedDate = getMinBookingTime();
@@ -168,6 +169,11 @@ const AppointmentPicker = ({
 
       // Disable Sundays (0 = Sunday)
       if (date.getDay() === 0) {
+        return true;
+      }
+
+      // Disable dates that are not part of the doctor's working schedule
+      if (typeof checkIsDoctorWorkingDay === 'function' && !checkIsDoctorWorkingDay(date)) {
         return true;
       }
     }
@@ -184,13 +190,17 @@ const AppointmentPicker = ({
         return 'past-date';
       }
 
-      // Line 109 fix:
+      // If the doctor doesn't work this day, mark as unavailable (gray), not fully booked (red)
+      if (typeof checkIsDoctorWorkingDay === 'function' && !checkIsDoctorWorkingDay(date)) {
+        return 'doctor-unavailable-date';
+      }
+
+      // Check if any time slot has availability on this date
       const hasAvailableSlots = timeSlots.some(slot => {
         const testDate = new Date(date);
         const [hours, minutes] = slot.value.split(':');
         testDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-        // ADD THIS CHECK: Ensure the function exists before calling it
         return typeof getAvailableSlots === 'function' ? getAvailableSlots(testDate.toISOString()) > 0 : false;
       });
 
@@ -297,6 +307,12 @@ const AppointmentPicker = ({
           background: #fee2e2;
           color: #991b1b;
         }
+
+        .doctor-unavailable-date {
+          background: #f3f4f6 !important;
+          color: #9ca3af !important;
+          cursor: not-allowed !important;
+        }
       `}</style>
 
       {/* Date Selection */}
@@ -311,6 +327,7 @@ const AppointmentPicker = ({
         </p>
         <p className="text-xs text-amber-600 mb-4 font-medium italic">
           * Appointments must be booked at least two days in advance. Sundays are closed.
+          {checkIsDoctorWorkingDay && ' Grayed-out dates are outside the selected doctor\'s schedule.'}
         </p>
 
         <Calendar
@@ -321,15 +338,21 @@ const AppointmentPicker = ({
           tileClassName={tileClassName}
         />
 
-        <div className="flex gap-4 mt-4 text-sm">
+        <div className="flex flex-wrap gap-3 mt-4 text-sm">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-green-100 border border-green-300 rounded"></div>
+            <div className="w-5 h-5 bg-green-100 border border-green-300 rounded"></div>
             <span>Available</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-red-100 border border-red-300 rounded"></div>
+            <div className="w-5 h-5 bg-red-100 border border-red-300 rounded"></div>
             <span>Fully Booked</span>
           </div>
+          {checkIsDoctorWorkingDay && (
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 bg-gray-100 border border-gray-300 rounded"></div>
+              <span>Doctor Not Available</span>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1244,7 +1244,9 @@ const Appointment = () => {
                   >
                     <option value="all">All Doctors</option>
                     {doctors.map(d => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
+                      <option key={d.id} value={d.id}>
+                        {d.name} ({d.schedule || 'Schedule NA'})
+                      </option>
                     ))}
                   </select>
                 </div>

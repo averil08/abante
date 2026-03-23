@@ -8,143 +8,127 @@ export const doctors = [
       "pedia", "follow-up", // Pediatrics
       "urinalysis", "fecalysis" // Basic lab work for pediatrics
     ],
-    schedule: "Thu-Fri: 9AM-5PM, Wed (2nd & 4th): 9AM-3PM",
+    schedule: "Thu-Fri: 10AM-12NN then 2PM-4PM, 2nd & 4th Wed, 1st & 3rd Sat: 10AM-4PM",
     availability: [
-      { days: [4, 5], startHour: 9, endHour: 17 },
-      { days: [3], startHour: 9, endHour: 15, weeksOfMonth: [2, 4] }
+      { days: [4, 5], startHour: 10, endHour: 12 },
+      { days: [4, 5], startHour: 14, endHour: 16 },
+      { days: [3], startHour: 10, endHour: 16, weeksOfMonth: [2, 4] },
+      { days: [6], startHour: 10, endHour: 16, weeksOfMonth: [1, 3] }
     ]
   },
   {
     id: 2,
-    name: "Dr. Genevive Bandiwan-Laking",
+    name: "Dr. Leila Rachel Dupiag",
     specialization: "Pediatrics",
     specializations: [
-      "pedia", "follow-up", // Pediatrics
-      "urinalysis", "fecalysis" // Basic lab work for pediatrics
+      "pedia", "follow-up",
+      "urinalysis", "fecalysis"
     ],
-    schedule: "By Appointment Only",
+    schedule: "Mon-Tue, 1st & 3rd Wed, 2nd & 4th Sat: 10AM-12NN, Thu-Fri: 12PM-2PM",
     availability: [
-      { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 }
+      { days: [1, 2], startHour: 10, endHour: 12 },
+      { days: [4, 5], startHour: 12, endHour: 14 },
+      { days: [3], startHour: 10, endHour: 12, weeksOfMonth: [1, 3] },
+      { days: [6], startHour: 10, endHour: 12, weeksOfMonth: [2, 4] }
     ]
   },
   {
     id: 3,
-    name: "Dr. Cynthia Moran",
-    specialization: "Internal Medicine",
+    name: "Dr. Genevive Bandiwan-Laking",
+    specialization: "Pediatrics",
     specializations: [
-      "adult", "senior", "preventive", "follow-up", // General Internal Medicine
-      "cbc", "platelet", "esr", "abo",              // Hematology
-      "fbs", "rbs", "hba1c",                        // Diabetes monitoring
-      "lipid", "totalCh", "triglycerides", "hdl", "ldl", // Lipids
-      "alt", "ast", "uric", "creatinine", "bun",    // Liver + Kidney
-      "albumin", "totalProtein", "alp", "phosphorus", // Proteins + Minerals
-      "sodium", "potassium", "chloride", "ionizedCal", "totalCal", "magnesium", // Electrolytes
-      "urinalysis", "fecalysis", "fecal",           // Clinical Microscopy
-      "tsh", "ft3", "t4", "t3",                     // Thyroid function tests
-      "totalBilirubin"                              // Liver function
+      "pedia", "follow-up",
+      "urinalysis", "fecalysis"
     ],
-    schedule: "Wed: 9AM-12PM",
+    schedule: "Mon-Tue, 1st & 3rd Wed, 2nd & 4th Sat: 2:30PM-5PM",
     availability: [
-      { days: [3], startHour: 9, endHour: 12 }
+      { days: [1, 2], startHour: 14.5, endHour: 17 },
+      { days: [3], startHour: 14.5, endHour: 17, weeksOfMonth: [1, 3] },
+      { days: [6], startHour: 14.5, endHour: 17, weeksOfMonth: [2, 4] }
     ]
   },
   {
     id: 4,
-    name: "Dr. Edrian O. Geronimo",
-    specialization: "Infectious Disease",
-    specializations: [
-      "adult", "senior", "preventive", "follow-up", // Infectious Disease consults
-      "cbc", "platelet", "esr", "abo",              // Hematology
-      "hbsag", "vdrl", "antiHCV", "hpylori",        // Immunology & Serology
-      "dengueIg", "dengueNs1", "dengueDuo", "typhidot", // Tropical infections
-      "urinalysis", "fecalysis", "fecal"            // Clinical Microscopy
-    ],
-    schedule: "Tue, Thu: 9AM-12PM",
-    availability: [
-      { days: [2, 4], startHour: 9, endHour: 12 }
-    ]
-  },
-  {
-    id: 5,
-    name: "Dr. Feb Golocan-Alquiza",
-    specialization: "Nephrology",
-    specializations: [
-      "fbs", "rbs", "creatinine", "bun", "hba1c", // Nephrology (kidney + diabetes)
-      "urinalysis",                                // Kidney function assessment
-      "75g"                                        // Glucose tolerance test for diabetes
-    ],
-    schedule: "Mon, Tue, Thu: 1PM-5PM",
-    availability: [
-      { days: [1, 2, 4], startHour: 13, endHour: 17 }
-    ]
-  },
-  {
-    id: 6,
-    name: "Dr. Tanya Charissa Diomampo",
-    specialization: "Nephrology",
-    specializations: [
-      "creatinine", "bun", "hba1c", // Nephrology (kidney + diabetes)
-      "urinalysis",                  // Kidney function assessment
-      "75g"                          // Glucose tolerance test for diabetes
-    ],
-    schedule: "Wed: 1PM-5PM, Sat: 10AM-1PM",
-    availability: [
-      { days: [3], startHour: 13, endHour: 17 },
-      { days: [6], startHour: 10, endHour: 13 }
-    ]
-  },
-  {
-    id: 7,
-    name: "Dr. Maricar Josephine A. Geronimo",
-    specialization: "Nephrology",
-    specializations: [
-      "lipid", "totalCh", "triglycerides", "hdl", "ldl", "fbs", "rbs", // Nephrology (lipids + diabetes)
-      "urinalysis",                                                      // Kidney assessment
-      "75g"                                                              // Glucose tolerance test
-    ],
-    schedule: "Fri: 1PM-5PM",
-    availability: [
-      { days: [5], startHour: 13, endHour: 17 }
-    ]
-  },
-  {
-    id: 8,
-    name: "Dr. Elvira T. Lampacan",
+    name: "Dr. Elvira Lampacan",
     specialization: "OB-GYN",
     specializations: [
-      "pregnancyT", "follow-up", // OB-GYN
-      "urinalysis",              // Prenatal screening
-      "fecalysis"                // General health screening
+      "pregnancyT", "follow-up",
+      "urinalysis",
+      "fecalysis"
     ],
-    schedule: "Wed, Fri: 9:30AM-12PM, Thu: 1PM-3PM",
+    schedule: "Wed, Fri: 10AM-12NN, Thu: 10AM-12NN then 1PM-3PM",
     availability: [
-      { days: [3, 5], startHour: 9.5, endHour: 12 },
+      { days: [3, 5], startHour: 10, endHour: 12 },
+      { days: [4], startHour: 10, endHour: 12 },
       { days: [4], startHour: 13, endHour: 15 }
     ]
   },
   {
-    id: 9,
-    name: "Dr. Clarissa Mae L. Lee",
+    id: 5,
+    name: "Dr. Herschel Charisse Rivera-Ang",
     specialization: "OB-GYN",
     specializations: [
-      "pregnancyT", "follow-up", // OB-GYN
-      "urinalysis",              // Prenatal screening
-      "fecalysis"                // General health screening
+      "pregnancyT", "follow-up",
+      "urinalysis",
+      "fecalysis"
     ],
-    schedule: "Mon, Tue: 9:30AM-12PM, Sat: 1PM-3PM",
+    schedule: "Mon-Wed: 3PM-5PM",
     availability: [
-      { days: [1, 2], startHour: 9.5, endHour: 12 },
-      { days: [6], startHour: 13, endHour: 15 }
+      { days: [1, 2, 3], startHour: 15, endHour: 17 }
     ]
   },
   {
-    id: 10,
-    name: "Dr. Herschel Charisse C. Rivera-Ang",
+    id: 6,
+    name: "Dr. Clarissa Lee",
     specialization: "OB-GYN",
     specializations: [
-      "pregnancyT", "follow-up", // OB-GYN
-      "urinalysis",              // Prenatal screening
-      "fecalysis"                // General health screening
+      "pregnancyT", "follow-up",
+      "urinalysis",
+      "fecalysis"
+    ],
+    schedule: "Mon-Tue: 10AM-12NN, Fri: 1PM-3PM",
+    availability: [
+      { days: [1, 2], startHour: 10, endHour: 12 },
+      { days: [5], startHour: 13, endHour: 15 }
+    ]
+  },
+  {
+    id: 7,
+    name: "Dr. Cecille Pating",
+    specialization: "OB-GYN",
+    specializations: [
+      "pregnancyT", "follow-up",
+      "urinalysis",
+      "fecalysis"
+    ],
+    schedule: "Sat: 10AM-3PM",
+    availability: [
+      { days: [6], startHour: 10, endHour: 15 }
+    ]
+  },
+  {
+    id: 8,
+    name: "Dr. Rajiv Laoagan",
+    specialization: "General Surgery",
+    specializations: [
+      "general surgery",
+      "urinalysis", "fecalysis", "fecal"
+    ],
+    schedule: "Thu, Sat: 10AM-3PM",
+    availability: [
+      { days: [4, 6], startHour: 10, endHour: 15 }
+    ]
+  },
+  {
+    id: 9,
+    name: "Dr. Richard Ang",
+    specialization: "Orthopedic Surgery",
+    specializations: [
+      "follow-up",
+      "orthopedic",
+      "psa",
+      "semen",
+      "urinalysis"
     ],
     schedule: "Mon-Wed: 1PM-3PM",
     availability: [
@@ -152,48 +136,63 @@ export const doctors = [
     ]
   },
   {
-    id: 11,
-    name: "Dr. Cecille P. Pating",
-    specialization: "OB-GYN",
+    id: 10,
+    name: "Dr. Rhea Jeanne Awas",
+    specialization: "ENT",
     specializations: [
-      "pregnancyT", "follow-up", // OB-GYN
-      "urinalysis",              // Prenatal screening
-      "fecalysis"                // General health screening
+      "ent",
+      "urinalysis", "fecalysis"
     ],
-    schedule: "Thu, Sat: 9:30AM-12PM, Fri: 1PM-3PM",
+    schedule: "Fri: 10AM-1PM",
     availability: [
-      { days: [4, 6], startHour: 9.5, endHour: 12 },
-      { days: [5], startHour: 13, endHour: 15 }
+      { days: [5], startHour: 10, endHour: 13 }
+    ]
+  },
+  {
+    id: 11,
+    name: "Dr. Cynthia Moran",
+    specialization: "Internal Medicine",
+    specializations: [
+      "adult", "senior", "preventive", "follow-up",
+      "cbc", "platelet", "esr", "abo",
+      "fbs", "rbs", "hba1c",
+      "lipid", "totalCh", "triglycerides", "hdl", "ldl",
+      "alt", "ast", "uric", "creatinine", "bun",
+      "albumin", "totalProtein", "alp", "phosphorus",
+      "sodium", "potassium", "chloride", "ionizedCal", "totalCal", "magnesium",
+      "urinalysis", "fecalysis", "fecal",
+      "tsh", "ft3", "t4", "t3",
+      "totalBilirubin"
+    ],
+    schedule: "Fri: 10AM-12NN",
+    availability: [
+      { days: [5], startHour: 10, endHour: 12 }
     ]
   },
   {
     id: 12,
-    name: "Dr. Richard S. Ang",
-    specialization: "Orthopedics & Urology",
+    name: "Dr. Richard Boado",
+    specialization: "Internal Medicine",
     specializations: [
-      "follow-up",
-      "orthopedic",
-      "psa",        // Prostate screening (male health/urology)
-      "semen",      // Semen analysis (urology/male fertility)
-      "urinalysis"  // Urinary system assessment
+      "adult", "senior", "preventive", "follow-up"
     ],
-    schedule: "Mon-Fri: 8AM-5PM",
+    schedule: "Mon, Sat: 9AM-12NN",
     availability: [
-      { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 }
+      { days: [1, 6], startHour: 9, endHour: 12 }
     ]
   },
   {
     id: 13,
-    name: "Dr. Rajiv D. Laoagan",
-    specialization: "General Surgery",
+    name: "Dr. Ian Feb Golocan-Alquiza",
+    specialization: "Nephrology",
     specializations: [
-      "general surgery",
-      "urinalysis", "fecalysis", "fecal" // Pre-surgical screening
+      "fbs", "rbs", "creatinine", "bun", "hba1c",
+      "urinalysis",
+      "75g"
     ],
-    schedule: "Thu: 8AM-5PM, Fri-Sat: 8AM-12PM",
+    schedule: "Mon, Thu: 12PM-4PM",
     availability: [
-      { days: [4], startHour: 8, endHour: 17 },
-      { days: [5, 6], startHour: 8, endHour: 12 }
+      { days: [1, 4], startHour: 12, endHour: 16 }
     ]
   },
   {
@@ -202,26 +201,13 @@ export const doctors = [
     specialization: "General Surgery",
     specializations: [
       "general surgery",
-      "urinalysis", "fecalysis", "fecal" // Pre-surgical screening
+      "urinalysis", "fecalysis", "fecal"
     ],
     schedule: "By Appointment Only",
     availability: [
       { days: [1, 2, 3, 4, 5], startHour: 8, endHour: 17 }
     ]
-  },
-  {
-    id: 15,
-    name: "Dr. Rhea Jeanne L. Awas",
-    specialization: "ENT",
-    specializations: [
-      "ent",
-      "urinalysis", "fecalysis" // General screening
-    ],
-    schedule: "Mon-Wed: 8AM-5PM",
-    availability: [
-      { days: [1, 2, 3], startHour: 8, endHour: 17 }
-    ]
-  },
+  }
 ];
 
 

@@ -19,14 +19,13 @@ const DoctorSelection = () => {
     // Specialization categories mapping (synced with Homepage.jsx)
     const specializationCategories = {
         'all': { label: 'All Doctors', doctorIds: [] },
-        'pediatrics': { label: 'Pediatrics', doctorIds: [1, 2] },
-        'internalMedicine': { label: 'Internal Medicine', doctorIds: [3] },
-        'infectiousDisease': { label: 'Infectious Disease', doctorIds: [4] },
-        'nephrology': { label: 'Nephrology', doctorIds: [5, 6, 7] },
-        'obgyn': { label: 'OB-GYN', doctorIds: [8, 9, 10, 11] },
-        'orthopedicsUrology': { label: 'Orthopedics & Urology', doctorIds: [12] },
-        'generalSurgery': { label: 'General Surgery', doctorIds: [13, 14] },
-        'ent': { label: 'ENT', doctorIds: [15] }
+        'pediatrics': { label: 'Pediatrics', doctorIds: [1, 2, 3] }, // Melissa, Leila, Genevieve
+        'obgyn': { label: 'OB-GYN', doctorIds: [4, 5, 6, 7] }, // Elvira, Herschel, Clarissa, Cecille
+        'internalMedicine': { label: 'Internal Medicine', doctorIds: [11, 12] }, // Cynthia, Richard Boado
+        'nephrology': { label: 'Nephrology', doctorIds: [13] }, // Ian Feb
+        'orthopedicsUrology': { label: 'Orthopedics & Urology', doctorIds: [9] }, // Richard Ang
+        'generalSurgery': { label: 'General Surgery', doctorIds: [8, 14] }, // Rajiv, Jefferson
+        'ent': { label: 'ENT', doctorIds: [10] } // Rhea
     };
 
     const filteredDoctors = selectedSpecialization === 'all'

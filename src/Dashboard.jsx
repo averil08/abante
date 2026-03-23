@@ -511,7 +511,14 @@ const Dashboard = () => {
       // First check for priority patients from the FILTERED list
       // Sort by queueNo to ensure FIFO (Lowest queue number first)
       const sortedPriority = [...filteredPriorityPatients]
-        .filter(p => p.status === "waiting")
+        .filter(p => {
+          if (p.status !== "waiting") return false;
+          if (p.type === "Appointment") {
+            // Only auto-call if appointment time has arrived
+            return new Date() >= new Date(p.appointmentDateTime);
+          }
+          return true;
+        })
         .sort((a, b) => a.queueNo - b.queueNo);
 
       const firstPriorityPatient = sortedPriority[0];
@@ -525,7 +532,13 @@ const Dashboard = () => {
       // Then check for regular waiting patients from the FILTERED list
       // Sort by queueNo to ensure FIFO (Lowest queue number first)
       const sortedWaiting = [...filteredQueuePatients]
-        .filter(p => p.status === "waiting")
+        .filter(p => {
+          if (p.status !== "waiting") return false;
+          if (p.type === "Appointment") {
+            return new Date() >= new Date(p.appointmentDateTime);
+          }
+          return true;
+        })
         .sort((a, b) => a.queueNo - b.queueNo);
 
       const firstWaitingPatient = sortedWaiting[0];
@@ -552,7 +565,13 @@ const Dashboard = () => {
 
     // Check filtered priority patients first
     const sortedPriority = [...filteredPriorityPatients]
-      .filter(p => p.status === "waiting")
+      .filter(p => {
+        if (p.status !== "waiting") return false;
+        if (p.type === "Appointment") {
+          return new Date() >= new Date(p.appointmentDateTime);
+        }
+        return true;
+      })
       .sort((a, b) => a.queueNo - b.queueNo);
 
     const nextPriorityPatient = sortedPriority[0];
@@ -565,7 +584,13 @@ const Dashboard = () => {
 
     // If no priority patients, find the next regular waiting patient
     const sortedWaiting = [...filteredQueuePatients]
-      .filter(p => p.status === "waiting")
+      .filter(p => {
+        if (p.status !== "waiting") return false;
+        if (p.type === "Appointment") {
+          return new Date() >= new Date(p.appointmentDateTime);
+        }
+        return true;
+      })
       .sort((a, b) => a.queueNo - b.queueNo);
 
     const nextWaitingPatient = sortedWaiting[0];
@@ -644,12 +669,7 @@ const Dashboard = () => {
     if (p.status === "done" || p.status === "cancelled") return false;
     if (p.isPriority) return false;
 
-    // ✅ FIX: For appointments, also enforce that their scheduled time has arrived
     if (p.type === "Appointment") {
-      const appDate = new Date(p.appointmentDateTime);
-      // Allow 'in progress' patients through even if their time window has passed
-      const isReady = p.status === 'in progress' || new Date() >= appDate;
-      if (!isReady) return false;
       return isWithinDateRange(p.appointmentDateTime);
     }
 
@@ -671,6 +691,12 @@ const Dashboard = () => {
     if (!isWithinDateRange(p.cancelledAt || p.registeredAt)) return false;
     return p.status === "cancelled" && p.inQueue;
   });
+  const pendingTodayPatients = (patients || []).filter(p => {
+    if (dateFilter !== 'today') return false;
+    if (p.isInactive) return false;
+    if (p.type !== "Appointment" || p.appointmentStatus !== "pending") return false;
+    return isWithinDateRange(p.appointmentDateTime);
+  });
 
   const priorityPatients = (patients || []).filter(p => {
     if (dateFilter !== 'today') return false;
@@ -678,11 +704,7 @@ const Dashboard = () => {
     if (p.status === "done" || p.status === "cancelled") return false;
     if (!p.isPriority || !p.inQueue) return false;
 
-    // ✅ FIX: For appointments, also enforce that their scheduled time has arrived
     if (p.type === "Appointment") {
-      const appDate = new Date(p.appointmentDateTime);
-      const isReady = p.status === 'in progress' || new Date() >= appDate;
-      if (!isReady) return false;
       return isWithinDateRange(p.appointmentDateTime);
     }
     return isWithinDateRange(p.registeredAt);
@@ -702,6 +724,7 @@ const Dashboard = () => {
   const filteredPriorityPatients = getFilteredPatients(priorityPatients);
   const filteredDonePatients = getFilteredPatients(donePatients);
   const filteredCancelPatients = getFilteredPatients(cancelPatients);
+  const filteredPendingPatients = getFilteredPatients(pendingTodayPatients);
 
   // Line 453 Fix: Added safety check
   const totalWaiting = (queuePatients?.filter(p => p.status === "waiting").length || 0) +
@@ -1641,6 +1664,60 @@ const Dashboard = () => {
             </div>
           )}
 
+          {activeTab === 'active' && filteredPendingPatients.length > 0 && (
+            <div className="mb-6">
+              <Card className="border-l-4 border-l-amber-500 bg-amber-50/20">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-amber-800">
+                        <AlertTriangle className="w-5 h-5" />
+                        Needs Approval (Appointments Today)
+                      </CardTitle>
+                      <CardDescription className="text-[10px] sm:text-xs text-amber-600 font-medium"> These patients are booked but not yet in the queue </CardDescription>
+                    </div>
+                    <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-200">
+                      {filteredPendingPatients.length} Pending
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {filteredPendingPatients.map(p => (
+                      <Card key={`pend-${p.id}`} className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => handlePatientSelect(p)}>
+                        <CardContent className="p-3">
+                          <div className="flex justify-between items-start mb-2">
+                            <p className="font-bold text-sm text-gray-900 truncate max-w-[120px]">{p.name}</p>
+                            <Badge variant="outline" className={`${p.isPriority ? 'bg-yellow-100 text-yellow-800 border-yellow-200' : 'bg-blue-100 text-blue-800 border-blue-200'} text-[9px] uppercase font-bold`}>
+                              {p.isPriority ? "Priority" : "Regular"}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-[10px] text-gray-500 mb-2">
+                            <Clock className="w-3 h-3" />
+                            <span>{new Date(p.appointmentDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span>•</span>
+                            <span>{p.assignedDoctor?.name || 'Not Assigned'}</span>
+                          </div>
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            className="w-full bg-amber-600 hover:bg-amber-700 text-white h-7 text-[10px] font-bold uppercase tracking-wider"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.location.href = '/appointment'; // Redirect to the approval page
+                            }}
+                          >
+                            Review & Accept
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          
           {/* Patient Queue Table */}
           {activeTab === 'active' && (
             <>

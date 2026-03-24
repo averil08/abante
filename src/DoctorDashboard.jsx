@@ -1803,13 +1803,38 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
 
     let patientVisits = (patients || [])
         .filter(p => {
-            if (p.type === 'Appointment' && (p.appointmentStatus === 'rejected' || p.appointmentStatus === 'cancelled' || p.appointmentStatus === 'withdrawn' || p.appointmentStatus === 'pending')) return false;
-            if (targetEmail && p.patientEmail && p.patientEmail.toLowerCase().trim() === targetEmail) return true;
-            if (targetPhone && p.phoneNum && p.phoneNum.trim() === targetPhone) return true;
-            if (!targetEmail && !targetPhone && p.name && p.name.toLowerCase().trim() === targetName) return true;
+            // Exclude invalid/non-clinical appointments
+            if (p.type === 'Appointment' && (['rejected', 'cancelled', 'withdrawn', 'pending'].includes(p.appointmentStatus))) return false;
+
+            const pEmail = (p.patientEmail || '').toLowerCase().trim();
+            const pPhone = (p.phoneNum || '').trim();
+            const pName = (p.name || '').toLowerCase().trim();
+
+            // 1. Primary Match: Email (Most unique)
+            if (targetEmail && pEmail) {
+                if (pEmail === targetEmail) {
+                    // Check name to prevent edge cases with shared emails (though rare)
+                    return pName === targetName;
+                }
+                return false;
+            }
+
+            // 2. Secondary Match: Phone + Name (Household support - shared phone but different person)
+            if (targetPhone && pPhone) {
+                if (pPhone === targetPhone) {
+                    return pName === targetName;
+                }
+                return false;
+            }
+
+            // 3. Fallback: Name only (Only if no contact info at all is available)
+            if (!targetEmail && !targetPhone && !pEmail && !pPhone) {
+                return pName === targetName && pName !== "";
+            }
+
             return false;
         })
-        .sort((a, b) => new Date(b.registeredAt) - new Date(a.registeredAt));
+        .sort((a, b) => new Date(b.registeredAt || b.created_at) - new Date(a.registeredAt || a.created_at));
 
     if (patientVisits.length === 0) {
         const isForbiddenLogStatus = patient.type === 'Appointment' && (

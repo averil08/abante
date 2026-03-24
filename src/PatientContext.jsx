@@ -173,7 +173,7 @@ export const PatientProvider = ({ children }) => {
       ? doctors.find(d => d.name === dbPatient.assigned_doctor_name) || { name: dbPatient.assigned_doctor_name }
       : null,
     preferredDoctor: dbPatient.physician
-      ? doctors.find(d => d.name === dbPatient.physician) || { name: dbPatient.physician }
+      ? doctors.find(d => d.name.toLowerCase().trim() === dbPatient.physician.toLowerCase().trim()) || { name: dbPatient.physician }
       : null,
     bookingMode: dbPatient.physician ? 'doctor' : 'service',
     isInactive: dbPatient.is_inactive || false,
@@ -694,15 +694,20 @@ export const PatientProvider = ({ children }) => {
 
       // Preferred doctor check — ONLY assign if that doctor's queue is currently active
       if (patient.preferredDoctor) {
-        const preferredId = Number(patient.preferredDoctor.id);
-        if (activeDoctors.includes(preferredId)) {
-          const preferred = doctors.find(d => d.id === preferredId);
-          if (preferred) doctor = preferred;
-        } else {
-          // Preferred doctor's queue not started yet — skip assignment for now.
-          // The useEffect will re-run when activeDoctors changes and assign then.
-          console.log(`⏳ Preferred doctor #${preferredId} queue not active yet — deferring assignment for patient ${patient.name}`);
-          return; // Do NOT fall through to auto-assign a different doctor
+        // Robust lookup by ID or Name
+        const matchedDoctor = doctors.find(d =>
+          (patient.preferredDoctor.id && d.id === Number(patient.preferredDoctor.id)) ||
+          (d.name.toLowerCase().trim() === (patient.preferredDoctor.name || "").toLowerCase().trim())
+        );
+
+        if (matchedDoctor) {
+          if (activeDoctors.includes(matchedDoctor.id)) {
+            doctor = matchedDoctor;
+          } else {
+            // Preferred doctor's queue not started yet — skip assignment for now.
+            console.log(`⏳ Preferred doctor ${matchedDoctor.name} queue not active yet — deferring assignment for patient ${patient.name}`);
+            return;
+          }
         }
       }
 

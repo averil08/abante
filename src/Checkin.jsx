@@ -575,11 +575,16 @@ function Checkin() {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // ✅ FIXED: Only attempt auto-assignment for service-based walk-ins when a queue IS active.
-    // Doctor-mode bookings store the preference; actual assignment happens in PatientContext
-    // once that doctor's queue is started (preventing premature assignment).
+    // ✅ REVISED: Proactively assign the selected doctor if their queue is ALREADY active.
     let autoAssignedDoctor = null;
-    if (bookingMode !== 'doctor') {
+    if (bookingMode === 'doctor' && selectedDoctor) {
+      if ((activeDoctors || []).includes(selectedDoctor.id)) {
+        console.log(`⚡ Immediate assignment: Doctor ${selectedDoctor.name} queue is already active.`);
+        autoAssignedDoctor = selectedDoctor;
+      } else {
+        console.log(`⏳ Deferred assignment: Doctor ${selectedDoctor.name} queue is not active yet.`);
+      }
+    } else if (bookingMode !== 'doctor') {
       const isWalkIn = selectedPatientType === "Walk-in";
       const isApptToday = selectedPatientType === "Appointment" && isToday(formData.appointmentDateTime);
       const hasServices = formData.services && formData.services.length > 0;
@@ -595,8 +600,6 @@ function Checkin() {
         console.log('⏳ Future appointment with blank services — deferring assignment until the day.');
       }
     }
-    // For doctor-mode: finalDoctor is intentionally null here — the preferredDoctor field
-    // will trigger assignment in PatientContext when that doctor\'s queue starts.
     const finalDoctor = autoAssignedDoctor; // Never use selectedDoctor as finalDoctor directly
 
     const composedName = getFullName(formData) || "Guest Patient";

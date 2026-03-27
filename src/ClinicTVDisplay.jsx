@@ -2,6 +2,22 @@ import React, { useContext, useEffect, useState, useMemo } from 'react';
 import { PatientContext } from './PatientContext';
 import { doctors } from './doctorData';
 
+// Matches doctor names even if the DB includes middle initials/extra punctuation.
+// Example: "Dr. Rajiv D. Laoagan" should match "Dr. Rajiv Laoagan".
+const normalizeDoctorNameForMatch = (name) => {
+  if (!name) return '';
+  return name
+    .replace(/\bdr\.?\b/gi, ' ')
+    .replace(/[.,]/g, ' ')
+    .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .filter(token => token.length > 1) // drop middle initials (single-letter tokens)
+    .join(' ')
+    .toLowerCase();
+};
+
 const ClinicTVDisplay = () => {
   const { patients, activeDoctors } = useContext(PatientContext);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -123,10 +139,25 @@ const ClinicTVDisplay = () => {
       return date >= startOfToday && date <= endOfToday;
     };
 
+    // Appointment patients should be keyed off appointmentDateTime, not registeredAt.
+    const isForToday = (p) => {
+      if (!p) return false;
+      if (p.type === 'Appointment' && p.appointmentDateTime) return isToday(p.appointmentDateTime);
+      return isToday(p.registeredAt);
+    };
+
+    const matchesDoctor = (p, doctor) => {
+      if (!p || !doctor) return false;
+      if (p.assignedDoctor?.id != null) return Number(p.assignedDoctor.id) === Number(doctor.id);
+      const assignedName = p.assignedDoctor?.name || '';
+      if (!assignedName) return false;
+      return normalizeDoctorNameForMatch(assignedName) === normalizeDoctorNameForMatch(doctor.name);
+    };
+
     return doctors.map(doctor => {
       const currentServingPatient = currentData.find(p =>
         !p.isInactive &&
-        p.assignedDoctor?.id === doctor.id &&
+        matchesDoctor(p, doctor) &&
         p.status === "in progress" &&
         p.inQueue &&
         (p.status === "in progress" || isToday(p.registeredAt)) &&
@@ -136,10 +167,10 @@ const ClinicTVDisplay = () => {
       const doctorPatients = currentData
         .filter(p =>
           !p.isInactive &&
-          p.assignedDoctor?.id === doctor.id &&
+          matchesDoctor(p, doctor) &&
           p.status === "waiting" &&
           p.inQueue &&
-          isToday(p.registeredAt) &&
+          isForToday(p) &&
           (!p.appointmentDateTime || isToday(p.appointmentDateTime))
         )
         .sort((a, b) => a.queueNo - b.queueNo);

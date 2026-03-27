@@ -5,6 +5,7 @@ import { PatientContext } from "./PatientContext";
 import { Bell, Clock, TicketCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AiOutlineMenu, AiOutlineClose } from "react-icons/ai";
+import { doctors, specializationCategories } from "./doctorData";
 
 //THIS IS THE PATIENT DASHBOARD IN PATIENT UI
 const Homepage = () => {
@@ -42,240 +43,31 @@ const Homepage = () => {
   };
 
   // Updated function to check if doctor is available today
-  const isDoctorAvailableToday = (scheduleArray) => {
-    const currentDay = getCurrentDay();
+  const isDoctorAvailableToday = (doctor) => {
+    if (!doctor || !doctor.availability) return false;
 
-    // If no schedule array, return false
-    if (!scheduleArray || scheduleArray.length === 0) return false;
+    const now = new Date();
+    const currentDayIndex = now.getDay(); // 0 is Sunday, 1 is Monday ... 6 is Saturday
+    const currentDayOfMonth = now.getDate();
+    const currentWeekOfMonth = Math.ceil(currentDayOfMonth / 7);
 
-    // Check each schedule entry
-    for (const entry of scheduleArray) {
-      // If it's an appointment-only doctor, return false (not walk-in available)
-      if (entry.type === "byAppointment") return false;
+    // If it's the 14th doctor, he's "By Appointment Only"
+    if (doctor.id === 14) return false;
 
-      // If no days property, skip
-      if (!entry.days) continue;
+    return doctor.availability.some(range => {
+      // Basic day match
+      const dayMatches = range.days.includes(currentDayIndex);
+      if (!dayMatches) return false;
 
-      const scheduleDays = entry.days.toLowerCase();
-
-      // Handle "Mon - Sat" or "Mon - Fri" format
-      if (scheduleDays.includes('-')) {
-        if (scheduleDays.includes('mon - sat')) {
-          if (currentDay !== 'Sunday') return true;
-        }
-        if (scheduleDays.includes('mon - fri')) {
-          if (currentDay !== 'Saturday' && currentDay !== 'Sunday') return true;
-        }
-        if (scheduleDays.includes('mon - wed')) {
-          if (['Monday', 'Tuesday', 'Wednesday'].includes(currentDay)) return true;
-        }
-        if (scheduleDays.includes('thu - fri')) {
-          if (['Thursday', 'Friday'].includes(currentDay)) return true;
-        }
+      // Week match (if specified)
+      if (range.weeksOfMonth && !range.weeksOfMonth.includes(currentWeekOfMonth)) {
+        return false;
       }
 
-      // Handle specific days like "Mon, Wed, Fri" or "Tue, Thu, Sat"
-      const dayAbbreviations = {
-        'Monday': 'mon',
-        'Tuesday': 'tue',
-        'Wednesday': 'wed',
-        'Thursday': 'thu',
-        'Friday': 'fri',
-        'Saturday': 'sat',
-        'Sunday': 'sun'
-      };
-
-      const currentDayAbbr = dayAbbreviations[currentDay];
-      if (scheduleDays.includes(currentDayAbbr)) return true;
-    }
-
-    return false;
+      return true;
+    });
   };
 
-  // Specialization categories mapping
-  const specializationCategories = {
-    'all': {
-      label: 'All Doctors',
-      doctorIds: []
-    },
-    'pediatrics': {
-      label: 'Pediatrics',
-      doctorIds: [1, 2, 3] // Melissa, Leila, Genevieve
-    },
-    'internalMedicine': {
-      label: 'Internal Medicine',
-      doctorIds: [11, 12] // Cynthia, Richard Boado
-    },
-    'nephrology': {
-      label: 'Nephrology',
-      doctorIds: [13] // Ian Feb
-    },
-    'obgyn': {
-      label: 'OB-GYN',
-      doctorIds: [4, 5, 6, 7] // Elvira, Herschel, Clarissa, Cecille
-    },
-    'orthopedicsUrology': {
-      label: 'Orthopedics & Urology',
-      doctorIds: [9] // Richard Ang
-    },
-    'generalSurgery': {
-      label: 'General Surgery',
-      doctorIds: [8, 14] // Rajiv, Jefferson
-    },
-    'ent': {
-      label: 'ENT',
-      doctorIds: [10] // Rhea
-    }
-  };
-
-  // Doctor data with schedules
-  const doctors = [
-    {
-      id: 1,
-      name: "Dr. Melissa Edic",
-      consultationPrice: 1000,
-      specializations: ["pedia", "follow-up"],
-      schedule: [
-        { days: "Thu - Fri", time: "10:00 AM - 12:00 NN" },
-        { days: "Thu - Fri", time: "2:00 PM - 4:00 PM" },
-        { days: "Wednesday", frequency: "2nd and 4th", time: "10:00 AM - 4:00 PM" },
-        { days: "Saturday", frequency: "1st and 3rd", time: "10:00 AM - 4:00 PM" }
-      ]
-    },
-    {
-      id: 2,
-      name: "Dr. Leila Rachel Dupiag",
-      consultationPrice: 1000,
-      specializations: ["pedia", "follow-up"],
-      schedule: [
-        { days: "Mon - Tue", time: "10:00 AM - 12:00 NN" },
-        { days: "Thu - Fri", time: "12:00 PM - 2:00 PM" },
-        { days: "Wednesday", frequency: "1st and 3rd", time: "10:00 AM - 12:00 NN" },
-        { days: "Saturday", frequency: "2nd and 4th", time: "10:00 AM - 12:00 NN" }
-      ]
-    },
-    {
-      id: 3,
-      name: "Dr. Genevieve Laking",
-      consultationPrice: 1200,
-      specializations: ["pedia", "follow-up"],
-      schedule: [
-        { days: "Mon - Tue", time: "2:30 PM - 5:00 PM" },
-        { days: "Wednesday", frequency: "1st and 3rd", time: "2:30 PM - 5:00 PM" },
-        { days: "Saturday", frequency: "2nd and 4th", time: "2:30 PM - 5:00 PM" }
-      ]
-    },
-    {
-      id: 4,
-      name: "Dr. Elvira Lampacan",
-      consultationPrice: 800,
-      specializations: ["pregnancyT", "follow-up"],
-      schedule: [
-        { days: "Wed, Fri", time: "10:00 AM - 12:00 NN" },
-        { days: "Thu", time: "10:00 AM - 12:00 NN" },
-        { days: "Thu", time: "1:00 PM - 3:00 PM" }
-      ]
-    },
-    {
-      id: 5,
-      name: "Dr. Herschel Charisse Rivera-Ang",
-      consultationPrice: 1000,
-      specializations: ["pregnancyT", "follow-up"],
-      schedule: [
-        { days: "Mon - Wed", time: "3:00 PM - 5:00 PM" }
-      ]
-    },
-    {
-      id: 6,
-      name: "Dr. Clarissa Lee",
-      consultationPrice: 1000,
-      specializations: ["pregnancyT", "follow-up"],
-      schedule: [
-        { days: "Mon - Tue", time: "10:00 AM - 12:00 NN" },
-        { days: "Fri", time: "1:00 PM - 3:00 PM" }
-      ]
-    },
-    {
-      id: 7,
-      name: "Dr. Cecille Pating",
-      consultationPrice: 1200,
-      specializations: ["pregnancyT", "follow-up"],
-      schedule: [
-        { days: "Sat", time: "10:00 AM - 3:00 PM" }
-      ]
-    },
-    {
-      id: 8,
-      name: "Dr. Rajiv Laoagan",
-      consultationPrice: 1200,
-      specializations: ["generalSurgery"],
-      schedule: [
-        { days: "Thu, Sat", time: "10:00 AM - 3:00 PM" }
-      ]
-    },
-    {
-      id: 9,
-      name: "Dr. Richard Ang",
-      consultationPrice: 1500,
-      specializations: ["follow-up", "psa"],
-      schedule: [
-        { days: "Mon - Wed", time: "1:00 PM - 3:00 PM" }
-      ]
-    },
-    {
-      id: 10,
-      name: "Dr. Rhea Jeanne Awas",
-      consultationPrice: 1200,
-      specializations: ["ent"],
-      schedule: [
-        { days: "Fri", time: "10:00 AM - 1:00 PM" }
-      ]
-    },
-    {
-      id: 11,
-      name: "Dr. Cynthia Moran",
-      consultationPrice: 1200,
-      specializations: [
-        "adult", "senior", "preventive", "follow-up",
-        "cbc", "platelet", "esr", "abo",
-        "fbs", "rbs", "hba1c",
-        "lipid", "totalCh", "triglycerides", "hdl", "ldl",
-        "alt", "ast", "uric", "creatinine", "bun",
-        "albumin", "totalProtein", "alp", "phosphorus",
-        "sodium", "potassium", "chloride", "ionizedCal", "totalCal", "magnesium"
-      ],
-      schedule: [
-        { days: "Fri", time: "10:00 AM - 12:00 NN" }
-      ]
-    },
-    {
-      id: 12,
-      name: "Dr. Richard Boado",
-      consultationPrice: 1500,
-      specializations: ["adult", "senior", "preventive", "follow-up"],
-      schedule: [
-        { days: "Mon, Sat", time: "9:00 AM - 12:00 NN" }
-      ]
-    },
-    {
-      id: 13,
-      name: "Dr. Ian Feb Golocan-Alquiza",
-      consultationPrice: 1500,
-      specializations: ["fbs", "rbs", "creatinine", "bun", "hba1c"],
-      schedule: [
-        { days: "Mon, Thu", time: "12:00 PM - 4:00 PM" }
-      ]
-    },
-    {
-      id: 14,
-      name: "Dr. Jefferson Richmond G. Chomenwey",
-      consultationPrice: 1500,
-      specializations: ["generalSurgery"],
-      schedule: [
-        { type: "byAppointment", note: "Book an appointment to arrange" }
-      ]
-    }
-  ];
 
   // Filter doctors based on selected specialization and search query
   const getFilteredDoctors = () => {
@@ -631,15 +423,15 @@ const Homepage = () => {
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <h3 className="font-bold text-lg text-gray-900 mb-1">{doctor.name}</h3>
-                      {isDoctorAvailableToday(doctor.schedule) ? (
+                      {isDoctorAvailableToday(doctor) ? (
                         <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <span>Available</span>
+                          <span>Available Today</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-sm text-gray-400 font-medium">
                           <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                          <span>Not Available</span>
+                          <span>Not Available Today</span>
                         </div>
                       )}
                     </div>
@@ -647,7 +439,7 @@ const Homepage = () => {
                     <div className="ml-2 shrink-0 flex flex-col items-end">
                       <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Consultation</span>
                       <span className="text-base font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-lg leading-tight">
-                        ₱{doctor.consultationPrice.toLocaleString()}
+                        ₱{doctor.consultationPrice?.toLocaleString() || '0'}
                       </span>
                     </div>
                   </div>
@@ -666,38 +458,13 @@ const Homepage = () => {
 
                     <div className="pt-3 border-t border-gray-200">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Schedule</p>
-                      <div className="space-y-2">
-                        {doctor.schedule.map((entry, idx) => (
-                          <div key={idx} className="space-y-1">
-                            {entry.type === "byAppointment" ? (
-                              <div className="text-sm text-gray-700 italic">
-                                <span className="font-medium">{entry.note}</span>
-                              </div>
-                            ) : (
-                              <>
-                                {entry.days && (
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                    <span className="text-gray-700 font-medium">
-                                      {entry.days}
-                                      {entry.frequency && <span className="text-xs text-gray-500 ml-1">({entry.frequency})</span>}
-                                    </span>
-                                  </div>
-                                )}
-                                {entry.time && (
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    <span className="text-gray-700 font-medium">{entry.time}</span>
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-                        ))}
+                      <div className="text-sm text-gray-700 font-medium leading-relaxed">
+                        <div className="flex items-start gap-2">
+                          <svg className="w-4 h-4 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span>{doctor.schedule}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -721,15 +488,15 @@ const Homepage = () => {
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h3 className="font-bold text-base text-gray-900">{doctor.name}</h3>
-                      {isDoctorAvailableToday(doctor.schedule) ? (
+                      {isDoctorAvailableToday(doctor) ? (
                         <div className="flex items-center gap-2 text-xs text-green-600 font-medium mt-1">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <span>Available</span>
+                          <span>Available Today</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-2 text-xs text-gray-400 font-medium mt-1">
                           <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                          <span>Not Available</span>
+                          <span>Not Available Today</span>
                         </div>
                       )}
                     </div>
@@ -737,7 +504,7 @@ const Homepage = () => {
                     <div className="shrink-0 flex flex-col items-end ml-2">
                       <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Consultation</span>
                       <span className="text-sm font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg leading-tight">
-                        ₱{doctor.consultationPrice.toLocaleString()}
+                        ₱{doctor.consultationPrice?.toLocaleString() || '0'}
                       </span>
                     </div>
                   </div>
@@ -756,21 +523,7 @@ const Homepage = () => {
 
                     <div className="pt-2 border-t border-gray-100">
                       <p className="text-xs font-semibold text-gray-500 uppercase mb-1.5">Schedule</p>
-                      <div className="space-y-2">
-                        {doctor.schedule.map((entry, idx) => (
-                          <div key={idx} className="text-sm text-gray-700">
-                            {entry.type === "byAppointment" ? (
-                              <p className="italic">{entry.note}</p>
-                            ) : (
-                              <>
-                                {entry.days && <p className="font-medium">{entry.days}</p>}
-                                {entry.time && <p className="text-gray-600">{entry.time}</p>}
-                                {entry.frequency && <p className="text-xs text-gray-500">({entry.frequency})</p>}
-                              </>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                      <p className="text-sm text-gray-700 leading-normal">{doctor.schedule}</p>
                     </div>
                   </div>
 

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { doctors } from "./doctorData";
+import { doctors, specializationCategories } from "./doctorData";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,17 +16,6 @@ const DoctorSelection = () => {
     const [showModal, setShowModal] = useState(false);
     const [selectedSpecialization, setSelectedSpecialization] = useState('all');
 
-    // Specialization categories mapping (synced with Homepage.jsx)
-    const specializationCategories = {
-        'all': { label: 'All Doctors', doctorIds: [] },
-        'pediatrics': { label: 'Pediatrics', doctorIds: [1, 2, 3] }, // Melissa, Leila, Genevieve
-        'obgyn': { label: 'OB-GYN', doctorIds: [4, 5, 6, 7] }, // Elvira, Herschel, Clarissa, Cecille
-        'internalMedicine': { label: 'Internal Medicine', doctorIds: [11, 12] }, // Cynthia, Richard Boado
-        'nephrology': { label: 'Nephrology', doctorIds: [13] }, // Ian Feb
-        'orthopedicsUrology': { label: 'Orthopedics & Urology', doctorIds: [9] }, // Richard Ang
-        'generalSurgery': { label: 'General Surgery', doctorIds: [8, 14] }, // Rajiv, Jefferson
-        'ent': { label: 'ENT', doctorIds: [10] } // Rhea
-    };
 
     const filteredDoctors = selectedSpecialization === 'all'
         ? doctors

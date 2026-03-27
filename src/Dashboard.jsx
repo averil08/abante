@@ -688,8 +688,11 @@ const Dashboard = () => {
   const cancelPatients = (patients || []).filter(p => {
     if (p.isInactive) return false;
     // Check cancellation date, fallback to registration date for backward compatibility
-    if (!isWithinDateRange(p.cancelledAt || p.registeredAt)) return false;
-    return p.status === "cancelled" && p.inQueue;
+    // Prefer cancelledAt, then queueExitTime (persisted by cancel mutations), then registeredAt.
+    if (!isWithinDateRange(p.cancelledAt || p.queueExitTime || p.registeredAt)) return false;
+    // `inQueue` is not always reliably set/updated by cancel mutations,
+    // so only rely on status + date to ensure cancelled patients show up.
+    return p.status === "cancelled";
   });
   const pendingTodayPatients = (patients || []).filter(p => {
     if (dateFilter !== 'today') return false;
@@ -710,13 +713,45 @@ const Dashboard = () => {
     return isWithinDateRange(p.registeredAt);
   });
 
+  // Matches doctor names even if the stored/DB name includes middle initials/extra punctuation.
+  const normalizeDoctorNameForMatch = (name) => {
+    if (!name) return '';
+    return name
+      .replace(/\bdr\.?\b/gi, ' ')
+      .replace(/[.,]/g, ' ')
+      .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+      .split(/\s+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .filter(token => token.length > 1) // drop middle initials (single-letter tokens)
+      .join(' ')
+      .toLowerCase();
+  };
+
   // NEW: Filter patients based on selected doctor
   const getFilteredPatients = (patientList) => {
     if (viewMode === 'general' || !selectedDoctor) {
       return patientList; // Show all patients
     }
+
+    const selectedDoctorObj = doctors.find(d => d.id === selectedDoctor);
+    const selectedDoctorName = selectedDoctorObj?.name || '';
+
     // Filter to only show selected doctor's patients
-    return patientList.filter(p => p.assignedDoctor?.id === selectedDoctor);
+    // - Prefer ID match
+    // - Fallback to name match if `assignedDoctor` is missing `id`
+    return patientList.filter(p => {
+      const assigned = p.assignedDoctor;
+      if (!assigned) return false;
+
+      if (assigned.id != null) {
+        return Number(assigned.id) === Number(selectedDoctor);
+      }
+
+      const assignedName = assigned.name || '';
+      if (!assignedName || !selectedDoctorName) return false;
+      return normalizeDoctorNameForMatch(assignedName) === normalizeDoctorNameForMatch(selectedDoctorName);
+    });
   };
 
   // Apply filters to all patient lists

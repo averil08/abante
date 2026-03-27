@@ -1,8 +1,44 @@
 //updated frontend only code
+export const specializationCategories = {
+  'all': {
+    label: 'All Doctors',
+    doctorIds: []
+  },
+  'pediatrics': {
+    label: 'Pediatrics',
+    doctorIds: [1, 2, 3] // Melissa, Leila, Genevive
+  },
+  'internalMedicine': {
+    label: 'Internal Medicine',
+    doctorIds: [11, 12] // Cynthia, Richard Boado
+  },
+  'nephrology': {
+    label: 'Nephrology',
+    doctorIds: [13] // Ian Feb
+  },
+  'obgyn': {
+    label: 'OB-GYN',
+    doctorIds: [4, 5, 6, 7] // Elvira, Herschel, Clarissa, Cecille
+  },
+  'orthopedicsUrology': {
+    label: 'Orthopedics & Urology',
+    doctorIds: [9] // Richard Ang
+  },
+  'generalSurgery': {
+    label: 'General Surgery',
+    doctorIds: [8, 14] // Rajiv, Jefferson
+  },
+  'ent': {
+    label: 'ENT',
+    doctorIds: [10] // Rhea
+  }
+};
+
 export const doctors = [
   {
     id: 1,
     name: "Dr. Melissa B. Edic",
+    consultationPrice: 1000,
     specialization: "Pediatrics", // Keep for backward compatibility if needed
     specializations: [
       "pedia", "follow-up", // Pediatrics
@@ -19,6 +55,7 @@ export const doctors = [
   {
     id: 2,
     name: "Dr. Leila Rachel Dupiag",
+    consultationPrice: 1000,
     specialization: "Pediatrics",
     specializations: [
       "pedia", "follow-up",
@@ -35,6 +72,7 @@ export const doctors = [
   {
     id: 3,
     name: "Dr. Genevive Bandiwan-Laking",
+    consultationPrice: 1200,
     specialization: "Pediatrics",
     specializations: [
       "pedia", "follow-up",
@@ -50,6 +88,7 @@ export const doctors = [
   {
     id: 4,
     name: "Dr. Elvira Lampacan",
+    consultationPrice: 800,
     specialization: "OB-GYN",
     specializations: [
       "pregnancyT", "follow-up",
@@ -66,6 +105,7 @@ export const doctors = [
   {
     id: 5,
     name: "Dr. Herschel Charisse Rivera-Ang",
+    consultationPrice: 1000,
     specialization: "OB-GYN",
     specializations: [
       "pregnancyT", "follow-up",
@@ -80,6 +120,7 @@ export const doctors = [
   {
     id: 6,
     name: "Dr. Clarissa Lee",
+    consultationPrice: 1000,
     specialization: "OB-GYN",
     specializations: [
       "pregnancyT", "follow-up",
@@ -95,6 +136,7 @@ export const doctors = [
   {
     id: 7,
     name: "Dr. Cecille Pating",
+    consultationPrice: 1200,
     specialization: "OB-GYN",
     specializations: [
       "pregnancyT", "follow-up",
@@ -109,6 +151,7 @@ export const doctors = [
   {
     id: 8,
     name: "Dr. Rajiv Laoagan",
+    consultationPrice: 1200,
     specialization: "General Surgery",
     specializations: [
       "general surgery",
@@ -122,6 +165,7 @@ export const doctors = [
   {
     id: 9,
     name: "Dr. Richard Ang",
+    consultationPrice: 1500,
     specialization: "Orthopedic Surgery",
     specializations: [
       "follow-up",
@@ -138,6 +182,7 @@ export const doctors = [
   {
     id: 10,
     name: "Dr. Rhea Jeanne Awas",
+    consultationPrice: 1200,
     specialization: "ENT",
     specializations: [
       "ent",
@@ -151,6 +196,7 @@ export const doctors = [
   {
     id: 11,
     name: "Dr. Cynthia Moran",
+    consultationPrice: 1200,
     specialization: "Internal Medicine",
     specializations: [
       "adult", "senior", "preventive", "follow-up",
@@ -172,6 +218,7 @@ export const doctors = [
   {
     id: 12,
     name: "Dr. Richard Boado",
+    consultationPrice: 1500,
     specialization: "Internal Medicine",
     specializations: [
       "adult", "senior", "preventive", "follow-up"
@@ -184,6 +231,7 @@ export const doctors = [
   {
     id: 13,
     name: "Dr. Ian Feb Golocan-Alquiza",
+    consultationPrice: 1500,
     specialization: "Nephrology",
     specializations: [
       "fbs", "rbs", "creatinine", "bun", "hba1c",
@@ -198,6 +246,7 @@ export const doctors = [
   {
     id: 14,
     name: "Dr. Jefferson Richmond G. Chomenwey",
+    consultationPrice: 1500,
     specialization: "General Surgery",
     specializations: [
       "general surgery",

@@ -387,19 +387,34 @@ const DoctorDashboard = () => {
 
 
 
+    // Matches doctor names even if the DB includes middle initials/extra punctuation.
+    const normalizeDoctorNameForMatch = (name) => {
+        if (!name) return '';
+        return name
+            .replace(/\bdr\.?\b/gi, ' ') // remove "Dr" token
+            .replace(/[.,]/g, ' ')
+            .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+            .split(/\s+/)
+            .map(s => s.trim())
+            .filter(Boolean)
+            .filter(token => token.length > 1) // drop middle initials (single-letter tokens)
+            .join(' ')
+            .toLowerCase();
+    };
+
     const myPatients = (patients || []).filter(p => {
         if (p.isInactive) return false;
 
-        const myName = currentDoctor.name?.toLowerCase().trim();
-        const patientAssignedName = p.assignedDoctor?.name?.toLowerCase().trim();
-        const patientPreferredName = p.preferredDoctor?.name?.toLowerCase().trim();
+        const myName = normalizeDoctorNameForMatch(currentDoctor.name);
+        const patientAssignedName = normalizeDoctorNameForMatch(p.assignedDoctor?.name);
+        const patientPreferredName = normalizeDoctorNameForMatch(p.preferredDoctor?.name);
 
-        // Check by ID (preferred) or by trimmed name (fallback)
-        const isAssigned = p.assignedDoctor?.id === doctorId ||
+        // Check by ID (preferred) or by robustly normalized name (fallback)
+        const isAssigned = (p.assignedDoctor?.id != null && Number(p.assignedDoctor.id) === doctorId) ||
             (patientAssignedName && patientAssignedName === myName);
 
         const isPreferred = !p.assignedDoctor &&
-            (p.preferredDoctor?.id === doctorId ||
+            ((p.preferredDoctor?.id != null && Number(p.preferredDoctor.id) === doctorId) ||
                 (patientPreferredName && patientPreferredName === myName));
 
         return isAssigned || isPreferred;
@@ -429,9 +444,10 @@ const DoctorDashboard = () => {
 
     const cancelledQueuePatients = myPatients.filter(p => {
         if (p.isInactive) return false;
-        if (!p.inQueue) return false;
+        // RELAXED: Removed inQueue check because cancelAppointment sets it to false,
+        // but we still want these today's cancellations to show in this tab.
         if (p.status !== 'cancelled') return false;
-        return isQueueDateInFilter(p.cancelledAt || p.registeredAt);
+        return isQueueDateInFilter(p.cancelledAt || p.queueExitTime || p.registeredAt);
     });
 
     const allQueuePatients = [...activeQueuePatients, ...doneQueuePatients, ...cancelledQueuePatients]

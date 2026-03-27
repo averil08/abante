@@ -21,6 +21,22 @@ const isForToday = (p) => {
   return isToday(p.registeredAt);
 };
 
+// Matches doctor names even if the DB includes middle initials/extra punctuation.
+// Example: "Dr. Rajiv D. Laoagan" should match "Dr. Rajiv Laoagan".
+const normalizeDoctorNameForMatch = (name) => {
+  if (!name) return '';
+  return name
+    .replace(/\bdr\.?\b/gi, ' ') // remove "Dr" token
+    .replace(/[.,]/g, ' ')
+    .replace(/[^a-zA-Z0-9\s-]/g, ' ')
+    .split(/\s+/)
+    .map(s => s.trim())
+    .filter(Boolean)
+    .filter(token => token.length > 1) // drop middle initials (single-letter tokens)
+    .join(' ')
+    .toLowerCase();
+};
+
 export const PatientProvider = ({ children }) => {
   const [activePatient, setActivePatient] = useState(null);
   const [isLoadingFromDB, setIsLoadingFromDB] = useState(true); // NEW: Loading state
@@ -170,10 +186,20 @@ export const PatientProvider = ({ children }) => {
     inQueue: dbPatient.in_queue ?? (dbPatient.patient_type === 'walk-in' || dbPatient.appointment_status === 'accepted'),
     registeredAt: dbPatient.registered_at || dbPatient.created_at,
     assignedDoctor: dbPatient.assigned_doctor_name
-      ? doctors.find(d => d.name === dbPatient.assigned_doctor_name) || { name: dbPatient.assigned_doctor_name }
+      ? (() => {
+        const assignedName = dbPatient.assigned_doctor_name;
+        const normalizedAssigned = normalizeDoctorNameForMatch(assignedName);
+        const matchedDoctor = doctors.find(d => normalizeDoctorNameForMatch(d.name) === normalizedAssigned);
+        return matchedDoctor || { name: assignedName };
+      })()
       : null,
     preferredDoctor: dbPatient.physician
-      ? doctors.find(d => d.name.toLowerCase().trim() === dbPatient.physician.toLowerCase().trim()) || { name: dbPatient.physician }
+      ? (() => {
+        const physicianName = dbPatient.physician;
+        const normalizedPhysician = normalizeDoctorNameForMatch(physicianName);
+        const matchedDoctor = doctors.find(d => normalizeDoctorNameForMatch(d.name) === normalizedPhysician);
+        return matchedDoctor || { name: physicianName };
+      })()
       : null,
     bookingMode: dbPatient.physician ? 'doctor' : 'service',
     isInactive: dbPatient.is_inactive || false,

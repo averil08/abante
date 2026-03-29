@@ -291,7 +291,7 @@ const Dashboard = () => {
             patient.name,
             patient.age,
             patient.phoneNum || 'N/A',
-            patient.assignedDoctor?.name || 'Not Assigned',
+            (patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned',
             patient.type,
             formatArray(patient.symptoms),
             formatArray(patient.services),
@@ -346,7 +346,7 @@ const Dashboard = () => {
             patient.name,
             patient.age,
             patient.phoneNum || 'N/A',
-            patient.assignedDoctor?.name || 'Not Assigned',
+            (patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned',
             patient.type,
             formatArray(patient.symptoms),
             formatArray(patient.services),
@@ -404,7 +404,7 @@ const Dashboard = () => {
           patient.name,
           patient.age,
           patient.phoneNum || 'N/A',
-          patient.assignedDoctor?.name || 'Not Assigned',
+          (patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned',
           patient.type,
           formatArray(patient.symptoms),  // NEW
           formatArray(patient.services)  // NEW
@@ -452,7 +452,7 @@ const Dashboard = () => {
           patient.name,
           patient.age,
           patient.phoneNum || 'N/A',
-          patient.assignedDoctor?.name || 'Not Assigned',
+          (patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned',
           patient.type,
           formatArray(patient.symptoms),  // NEW
           formatArray(patient.services)
@@ -872,7 +872,7 @@ const Dashboard = () => {
                         <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Assigned Doctor</p>
                         <div className="flex items-center gap-2">
                           <Stethoscope className="w-4 h-4 text-green-600" />
-                          <p className="text-sm font-medium">{patient.assignedDoctor?.name || 'Not Assigned'}</p>
+                          <p className="text-sm font-medium">{(patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned'}</p>
                         </div>
                       </div>
                       <div className="space-y-1">
@@ -922,7 +922,7 @@ const Dashboard = () => {
                           <p className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Assigned Doctor</p>
                           <div className="flex items-center gap-2">
                             <Stethoscope className="w-4 h-4 text-green-600" />
-                            <p className="text-sm font-medium">{visit.assignedDoctor?.name || 'Not Assigned'}</p>
+                            <p className="text-sm font-medium">{(visit.assignedDoctor || visit.preferredDoctor)?.name || 'Not assigned'}</p>
                           </div>
                         </div>
                         <div className="space-y-1">
@@ -1731,7 +1731,7 @@ const Dashboard = () => {
                             <Clock className="w-3 h-3" />
                             <span>{new Date(p.appointmentDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                             <span>•</span>
-                            <span>{p.assignedDoctor?.name || (p.preferredDoctor?.name ? `${p.preferredDoctor.name} (requested)` : 'Not Assigned')}</span>
+                            <span>{(p.assignedDoctor || p.preferredDoctor)?.name || 'Not assigned'}</span>
                           </div>
                           <Button 
                             variant="secondary" 
@@ -1823,7 +1823,7 @@ const Dashboard = () => {
 
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Doctor:</span>
-                                  <span className="font-medium">{patient.assignedDoctor?.name || (patient.preferredDoctor?.name ? `${patient.preferredDoctor.name} (requested)` : 'Not Assigned')}</span>
+                                  <span className="font-medium">{(patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned'}</span>
                                 </div>
 
                                 <div className="pt-2 border-t">
@@ -1884,7 +1884,7 @@ const Dashboard = () => {
                                 <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
                                 <td className="p-2 align-middle text-xs">{patient.age}</td>
                                 <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
-                                <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name || patient.preferredDoctor?.name}>{patient.assignedDoctor?.name || (patient.preferredDoctor?.name ? <span>{patient.preferredDoctor.name} <span className="text-amber-500 font-normal">(requested)</span></span> : 'Not Assigned')}</td>
+                                <td className="p-2 align-middle text-xs text-gray-600" title={(patient.assignedDoctor || patient.preferredDoctor)?.name}>{(patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned'}</td>
                                 <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
                                 <td className="p-2 align-middle text-xs">
                                   <div className="flex flex-wrap gap-1">
@@ -2031,7 +2031,7 @@ const Dashboard = () => {
 
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Doctor:</span>
-                                  <span className="font-medium">{patient.assignedDoctor?.name || (patient.preferredDoctor?.name ? `${patient.preferredDoctor.name} (requested)` : 'Not Assigned')}</span>
+                                  <span className="font-medium">{(patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned'}</span>
                                 </div>
 
                                 <div className="pt-2 border-t">
@@ -2093,7 +2093,7 @@ const Dashboard = () => {
                                 <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
                                 <td className="p-2 align-middle text-xs">{patient.age}</td>
                                 <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
-                                <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name || patient.preferredDoctor?.name}>{patient.assignedDoctor?.name || (patient.preferredDoctor?.name ? <span>{patient.preferredDoctor.name} <span className="text-amber-500 font-normal">(requested)</span></span> : 'Not Assigned')}</td>
+                                <td className="p-2 align-middle text-xs text-gray-600" title={(patient.assignedDoctor || patient.preferredDoctor)?.name}>{(patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned'}</td>
                                 <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
                                 <td className="p-2 align-middle text-xs">
                                   <div className="flex flex-wrap gap-1">
@@ -2227,7 +2227,7 @@ const Dashboard = () => {
 
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Doctor:</span>
-                                <span className="font-medium">{patient.assignedDoctor?.name || (patient.preferredDoctor?.name ? `${patient.preferredDoctor.name} (requested)` : 'Not Assigned')}</span>
+                                <span className="font-medium">{(patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned'}</span>
                               </div>
 
                               <div className="pt-2 border-t">
@@ -2288,7 +2288,7 @@ const Dashboard = () => {
                               <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
                               <td className="p-2 align-middle text-xs">{patient.age}</td>
                               <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
-                              <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name || patient.preferredDoctor?.name}>{patient.assignedDoctor?.name || (patient.preferredDoctor?.name ? <span>{patient.preferredDoctor.name} <span className="text-amber-500 font-normal">(requested)</span></span> : 'Not Assigned')}</td>
+                              <td className="p-2 align-middle text-xs text-gray-600" title={(patient.assignedDoctor || patient.preferredDoctor)?.name}>{(patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned'}</td>
                               <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
                               <td className="p-2 align-middle text-xs">
                                 <div className="flex flex-wrap gap-1">
@@ -2401,7 +2401,7 @@ const Dashboard = () => {
 
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Doctor:</span>
-                                <span className="font-medium">{patient.assignedDoctor?.name || (patient.preferredDoctor?.name ? `${patient.preferredDoctor.name} (requested)` : 'Not Assigned')}</span>
+                                <span className="font-medium">{(patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned'}</span>
                               </div>
 
                               <div className="pt-2 border-t">
@@ -2462,7 +2462,7 @@ const Dashboard = () => {
                               <td className="p-2 align-middle text-xs font-medium" title={patient.name}>{patient.name}</td>
                               <td className="p-2 align-middle text-xs">{patient.age}</td>
                               <td className="p-2 align-middle text-xs text-gray-600">{patient.phoneNum || 'N/A'}</td>
-                              <td className="p-2 align-middle text-xs text-gray-600" title={patient.assignedDoctor?.name || patient.preferredDoctor?.name}>{patient.assignedDoctor?.name || (patient.preferredDoctor?.name ? <span>{patient.preferredDoctor.name} <span className="text-amber-500 font-normal">(requested)</span></span> : 'Not Assigned')}</td>
+                              <td className="p-2 align-middle text-xs text-gray-600" title={(patient.assignedDoctor || patient.preferredDoctor)?.name}>{(patient.assignedDoctor || patient.preferredDoctor)?.name || 'Not assigned'}</td>
                               <td className="p-2 align-middle text-xs text-gray-500 uppercase tracking-tight">{patient.type}</td>
                               <td className="p-2 align-middle text-xs">
                                 <div className="flex flex-wrap gap-1">

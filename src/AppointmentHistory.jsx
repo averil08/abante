@@ -289,11 +289,11 @@ const AppointmentHistory = () => {
           </div>
 
           {/* Doctor */}
-          {appointment.assignedDoctor && (
+          {(appointment.assignedDoctor || appointment.preferredDoctor) && (
             <div className="flex items-center gap-2 mb-3">
               <Stethoscope className="w-4 h-4 text-green-600" />
               <span className="text-green-700 font-medium text-sm">
-                {appointment.assignedDoctor.name}
+                {(appointment.assignedDoctor || appointment.preferredDoctor).name}
               </span>
             </div>
           )}
@@ -428,7 +428,7 @@ const AppointmentHistory = () => {
                           <div className="min-w-0 flex-1">
                             <p className="text-xs text-gray-500 mb-1">Doctor</p>
                             <p className="font-semibold text-sm text-gray-900 truncate">
-                              {visit.assignedDoctor ? visit.assignedDoctor.name : 'Not assigned'}
+                              {(visit.assignedDoctor || visit.preferredDoctor) ? (visit.assignedDoctor || visit.preferredDoctor).name : 'Not assigned'}
                             </p>
                           </div>
                         </div>
@@ -574,12 +574,12 @@ const AppointmentHistory = () => {
                 </div>
               </div>
 
-              {appointment.assignedDoctor && (
+              {(appointment.assignedDoctor || appointment.preferredDoctor) && (
                 <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                   <Stethoscope className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-xs text-gray-500 mb-1">Doctor</p>
-                    <p className="font-semibold text-green-700 text-sm">{appointment.assignedDoctor.name}</p>
+                    <p className="font-semibold text-green-700 text-sm">{(appointment.assignedDoctor || appointment.preferredDoctor).name}</p>
                   </div>
                 </div>
               )}
@@ -745,7 +745,7 @@ const AppointmentHistory = () => {
                       <div>
                         <p className="text-xs text-gray-500 mb-1">Assigned Doctor</p>
                         <p className="font-semibold text-gray-900">
-                          {activeVisit.assignedDoctor ? activeVisit.assignedDoctor.name : 'Not assigned'}
+                          {(activeVisit.assignedDoctor || activeVisit.preferredDoctor) ? (activeVisit.assignedDoctor || activeVisit.preferredDoctor).name : 'Not assigned'}
                         </p>
                       </div>
                     </div>
@@ -1022,11 +1022,11 @@ const AppointmentHistory = () => {
                                 </TableCell>
 
                                 <TableCell>
-                                  {appointment.assignedDoctor ? (
+                                  {(appointment.assignedDoctor || appointment.preferredDoctor) ? (
                                     <div className="flex items-center gap-2">
                                       <Stethoscope className="w-4 h-4 text-green-600" />
                                       <span className="text-green-700 font-medium text-sm">
-                                        {appointment.assignedDoctor.name}
+                                        {(appointment.assignedDoctor || appointment.preferredDoctor).name}
                                       </span>
                                     </div>
                                   ) : (

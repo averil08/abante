@@ -39,7 +39,7 @@ export const getAllPatientProfiles = async () => {
   try {
     const { data, error } = await supabase
       .from('patients')
-      .select('*')
+      .select('*, appointments(notes)')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -54,7 +54,7 @@ export const searchPatient = async (searchTerm) => {
   try {
     const { data, error } = await supabase
       .from('patients')
-      .select('*')
+      .select('*, appointments(notes)')
       .or(`name.ilike.%${searchTerm}%,phone_num.ilike.%${searchTerm}%`)
       .order('created_at', { ascending: false });
 

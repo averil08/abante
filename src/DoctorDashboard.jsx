@@ -4,7 +4,7 @@ import {
     Users, Search, Calendar, Clock, User, ChevronRight, ChevronDown,
     MoreHorizontal, History, CheckCircle2, Filter,
     Bell, CalendarDays, Menu, X, Phone, Stethoscope,
-    ArrowLeft, DoorOpen, Activity, XCircle, Eye, ChevronLeft, RotateCcw
+    ArrowLeft, DoorOpen, Activity, XCircle, Eye, ChevronLeft, RotateCcw, MessageSquare
 } from 'lucide-react';
 
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,7 @@ const SERVICE_LABELS = {
     orthopedic: "Orthopedic Surgery Consultation", tsh: "TSH (Thyroid Stimulating Hormone)",
     ft3: "FT3 (Free T3)", "75g": "75g OGTT", t4: "T4 Thyroid Hormone",
     t3: "T3 Thyroid Hormone", psa: "PSA (Prostate Health Screening)",
-    totalBilirubin: "Total/Direct Bilirubin"
+    totalBilirubin: "Total/Direct Bilirubin", "follow-up-doctor": "Follow-up – Requested by Doctor"
 };
 function getServiceLabel(serviceId) { return SERVICE_LABELS[serviceId] || serviceId; }
 
@@ -628,7 +628,7 @@ const DoctorDashboard = () => {
                             onClick={() => setActiveTab('appointments')}
                             className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all uppercase tracking-widest ${activeTab === 'appointments' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                            Schedule
+                            APPOINTMENTS
                         </button>
                     </div>
                 </div>
@@ -1534,103 +1534,103 @@ const DoctorDashboard = () => {
                             {/* ── Scrollable body ── */}
                             <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pt-5 pb-4 space-y-5 min-h-0">
 
-                            {/* Previously Recorded Symptoms (read-only) — with Visit # badge */}
-                            <div>
-                                <div className="flex items-center gap-2 mb-2">
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest">Previously Recorded Symptoms</label>
-                                    {followUpPatient?.queueNo != null && (
-                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 leading-none">
-                                            Visit #{String(followUpPatient.queueNo).padStart(3, '0')}
-                                        </span>
+                                {/* Previously Recorded Symptoms (read-only) — with Visit # badge */}
+                                <div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest">Previously Recorded Symptoms</label>
+                                        {followUpPatient?.queueNo != null && (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 leading-none">
+                                                Visit #{String(followUpPatient.queueNo).padStart(3, '0')}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {followUpSymptoms && followUpSymptoms.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                                            {followUpSymptoms.map((s, i) => (
+                                                <Badge
+                                                    key={i}
+                                                    variant="outline"
+                                                    className="text-[11px] py-0.5 px-2 bg-blue-100 text-blue-700 border-blue-200 pointer-events-none"
+                                                >
+                                                    {s}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-slate-400 italic">No previous symptoms recorded.</p>
                                     )}
                                 </div>
-                                {followUpSymptoms && followUpSymptoms.length > 0 ? (
-                                    <div className="flex flex-wrap gap-1.5 p-3 bg-blue-50 rounded-xl border border-blue-100">
-                                        {followUpSymptoms.map((s, i) => (
-                                            <Badge
-                                                key={i}
-                                                variant="outline"
-                                                className="text-[11px] py-0.5 px-2 bg-blue-100 text-blue-700 border-blue-200 pointer-events-none"
-                                            >
-                                                {s}
-                                            </Badge>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-slate-400 italic">No previous symptoms recorded.</p>
-                                )}
-                            </div>
 
-                            {/* Reason for Follow-Up */}
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
-                                    Reason for Follow-Up <span className="text-red-500">*</span>
-                                </label>
-                                <Textarea
-                                    placeholder="e.g., Monitor blood pressure, re-evaluate lab results…"
-                                    value={followUpReason}
-                                    onChange={e => setFollowUpReason(e.target.value)}
-                                    className="min-h-[80px] resize-none text-sm rounded-xl border-slate-200 focus-visible:ring-emerald-500"
-                                    maxLength={500}
-                                />
-                                <p className="text-right text-[11px] text-slate-400 mt-1">{followUpReason.length}/500</p>
-                            </div>
+                                {/* Reason for Follow-Up */}
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-2">
+                                        Reason for Follow-Up <span className="text-red-500">*</span>
+                                    </label>
+                                    <Textarea
+                                        placeholder="e.g., Monitor blood pressure, re-evaluate lab results…"
+                                        value={followUpReason}
+                                        onChange={e => setFollowUpReason(e.target.value)}
+                                        className="min-h-[80px] resize-none text-sm rounded-xl border-slate-200 focus-visible:ring-emerald-500"
+                                        maxLength={500}
+                                    />
+                                    <p className="text-right text-[11px] text-slate-400 mt-1">{followUpReason.length}/500</p>
+                                </div>
 
-                            {/* Date & Time — doctor-aware AppointmentPicker */}
-                            <div>
-                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
-                                    Date and Time of Follow-Up <span className="text-red-500">*</span>
-                                </label>
-                                <AppointmentPicker
-                                    selectedDateTime={followUpDateTime}
-                                    onDateTimeChange={setFollowUpDateTime}
-                                    getAvailableSlots={(dateTimeString) => {
-                                        if (!dateTimeString) return 1;
-                                        // Check doctor's schedule availability
-                                        if (currentDoctor?.availability) {
-                                            const apptDate = new Date(dateTimeString);
-                                            const dayOfWeek = apptDate.getDay();
-                                            const apptHour = apptDate.getHours() + (apptDate.getMinutes() / 60);
-                                            const weekOfMonth = Math.ceil(apptDate.getDate() / 7);
-                                            const isOnDuty = currentDoctor.schedule?.includes('By Appointment Only')
-                                                ? dayOfWeek !== 0
-                                                : currentDoctor.availability.some(slot => {
-                                                    if (!slot.days.includes(dayOfWeek)) return false;
-                                                    if (apptHour < slot.startHour || apptHour >= slot.endHour) return false;
-                                                    if (slot.weeksOfMonth && !slot.weeksOfMonth.includes(weekOfMonth)) return false;
-                                                    return true;
-                                                });
-                                            if (!isOnDuty) return -1; // 'Not on Duty'
-                                        }
-                                        const MAX_SLOTS = 1;
-                                        const targetDate = new Date(dateTimeString);
-                                        const mins = targetDate.getMinutes();
-                                        targetDate.setMinutes(mins < 30 ? 0 : 30, 0, 0);
-                                        const bookedCount = patients.filter(p => {
-                                            if (!p.appointmentDateTime) return false;
-                                            if (p.appointmentStatus === 'rejected' || p.appointmentStatus === 'cancelled') return false;
-                                            const pDate = new Date(p.appointmentDateTime);
-                                            pDate.setMinutes(pDate.getMinutes() < 30 ? 0 : 30, 0, 0);
-                                            if (pDate.getTime() !== targetDate.getTime()) return false;
-                                            const pDoctorId = p.assignedDoctor?.id || p.preferredDoctor?.id || null;
-                                            return String(pDoctorId) === String(currentDoctor?.id);
-                                        }).length;
-                                        return Math.max(0, MAX_SLOTS - bookedCount);
-                                    }}
-                                    checkIsDoctorWorkingDay={currentDoctor?.availability ? (date) => {
-                                        if (currentDoctor.schedule?.includes('By Appointment Only')) {
-                                            return date.getDay() !== 0;
-                                        }
-                                        const dayOfWeek = date.getDay();
-                                        const weekOfMonth = Math.ceil(date.getDate() / 7);
-                                        return currentDoctor.availability.some(slot => {
-                                            if (!slot.days.includes(dayOfWeek)) return false;
-                                            if (slot.weeksOfMonth && !slot.weeksOfMonth.includes(weekOfMonth)) return false;
-                                            return true;
-                                        });
-                                    } : undefined}
-                                />
-                            </div>
+                                {/* Date & Time — doctor-aware AppointmentPicker */}
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
+                                        Date and Time of Follow-Up <span className="text-red-500">*</span>
+                                    </label>
+                                    <AppointmentPicker
+                                        selectedDateTime={followUpDateTime}
+                                        onDateTimeChange={setFollowUpDateTime}
+                                        getAvailableSlots={(dateTimeString) => {
+                                            if (!dateTimeString) return 1;
+                                            // Check doctor's schedule availability
+                                            if (currentDoctor?.availability) {
+                                                const apptDate = new Date(dateTimeString);
+                                                const dayOfWeek = apptDate.getDay();
+                                                const apptHour = apptDate.getHours() + (apptDate.getMinutes() / 60);
+                                                const weekOfMonth = Math.ceil(apptDate.getDate() / 7);
+                                                const isOnDuty = currentDoctor.schedule?.includes('By Appointment Only')
+                                                    ? dayOfWeek !== 0
+                                                    : currentDoctor.availability.some(slot => {
+                                                        if (!slot.days.includes(dayOfWeek)) return false;
+                                                        if (apptHour < slot.startHour || apptHour >= slot.endHour) return false;
+                                                        if (slot.weeksOfMonth && !slot.weeksOfMonth.includes(weekOfMonth)) return false;
+                                                        return true;
+                                                    });
+                                                if (!isOnDuty) return -1; // 'Not on Duty'
+                                            }
+                                            const MAX_SLOTS = 1;
+                                            const targetDate = new Date(dateTimeString);
+                                            const mins = targetDate.getMinutes();
+                                            targetDate.setMinutes(mins < 30 ? 0 : 30, 0, 0);
+                                            const bookedCount = patients.filter(p => {
+                                                if (!p.appointmentDateTime) return false;
+                                                if (p.appointmentStatus === 'rejected' || p.appointmentStatus === 'cancelled') return false;
+                                                const pDate = new Date(p.appointmentDateTime);
+                                                pDate.setMinutes(pDate.getMinutes() < 30 ? 0 : 30, 0, 0);
+                                                if (pDate.getTime() !== targetDate.getTime()) return false;
+                                                const pDoctorId = p.assignedDoctor?.id || p.preferredDoctor?.id || null;
+                                                return String(pDoctorId) === String(currentDoctor?.id);
+                                            }).length;
+                                            return Math.max(0, MAX_SLOTS - bookedCount);
+                                        }}
+                                        checkIsDoctorWorkingDay={currentDoctor?.availability ? (date) => {
+                                            if (currentDoctor.schedule?.includes('By Appointment Only')) {
+                                                return date.getDay() !== 0;
+                                            }
+                                            const dayOfWeek = date.getDay();
+                                            const weekOfMonth = Math.ceil(date.getDate() / 7);
+                                            return currentDoctor.availability.some(slot => {
+                                                if (!slot.days.includes(dayOfWeek)) return false;
+                                                if (slot.weeksOfMonth && !slot.weeksOfMonth.includes(weekOfMonth)) return false;
+                                                return true;
+                                            });
+                                        } : undefined}
+                                    />
+                                </div>
                             </div>
 
                             {/* ── Sticky Footer ── */}
@@ -1777,6 +1777,16 @@ const PatientCard = ({ patient, selectedPatient, onClick, onFollowUp }) => {
                         <Badge variant="outline" className={`text-[10px] h-5 font-semibold px-1.5 shrink-0 pointer-events-none ${isSelected ? 'bg-white/10 text-emerald-50 border-none' : badge.style}`}>
                             {badge.text}
                         </Badge>
+                        {!isSelected && patient.services?.includes('follow-up-doctor') && (
+                            <span className="text-[11px] text-blue-600 font-semibold bg-blue-50 px-2 py-0.5 rounded-sm w-fit border border-blue-100">
+                                Follow-up – Requested by Doctor
+                            </span>
+                        )}
+                        {isSelected && patient.services?.includes('follow-up-doctor') && (
+                            <span className="text-[11px] text-white font-semibold bg-white/20 px-2 py-0.5 rounded-sm w-fit border border-white/20">
+                                Follow-up – Requested by Doctor
+                            </span>
+                        )}
                     </div>
                     <div className="flex flex-col gap-1 mt-2.5 border-t border-slate-100/50 pt-2.5">
                         <p className={`text-[9px] font-bold uppercase tracking-widest leading-none ${isSelected ? 'text-emerald-100/90' : 'text-slate-400'}`}>
@@ -1791,11 +1801,10 @@ const PatientCard = ({ patient, selectedPatient, onClick, onFollowUp }) => {
                     {onFollowUp && (
                         <button
                             onClick={(e) => onFollowUp(patient, e)}
-                            className={`mt-2.5 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${
-                                isSelected
-                                    ? 'bg-white/20 text-white hover:bg-white/30 border border-white/30'
-                                    : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-100'
-                            }`}
+                            className={`mt-2.5 w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all ${isSelected
+                                ? 'bg-white/20 text-white hover:bg-white/30 border border-white/30'
+                                : 'bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-100'
+                                }`}
                         >
                             <RotateCcw className="w-3 h-3" />
                             Follow-Up
@@ -1959,6 +1968,14 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                             )}
                                         </div>
                                     </div>
+                                    {patient.notes && patient.notes.includes('Follow-up reason:') && (
+                                        <div className="col-span-2 lg:col-span-3 mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Doctor's Follow-up Note</p>
+                                            <p className="text-sm text-blue-800 font-medium italic">
+                                                "{patient.notes.replace('Follow-up reason: ', '')}"
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -2008,10 +2025,18 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                                 )}
                                                 {appt.services && appt.services.length > 0 && appt.services.slice(0, 2).map((s, si) => (
                                                     <Badge key={si} variant="outline" className="text-xs font-medium uppercase tracking-wider text-purple-700 bg-purple-50 border-none rounded-md px-2 py-1 pointer-events-none">
-                                                        {s}
+                                                        {getServiceLabel(s)}
                                                     </Badge>
                                                 ))}
                                             </div>
+                                            {appt.notes && appt.notes.includes('Follow-up reason:') && (
+                                                <div className="mt-4 p-3 bg-blue-50/50 border border-blue-100 rounded-lg w-full">
+                                                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Follow-up Reason</p>
+                                                    <p className="text-sm text-blue-800 font-medium italic">
+                                                        "{appt.notes.replace('Follow-up reason: ', '')}"
+                                                    </p>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -2068,6 +2093,13 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                                                 {visit.assignedDoctor?.name || 'Unassigned'}
                                                             </span>
                                                         </div>
+                                                        {visit.services?.includes('follow-up-doctor') && (
+                                                            <div className="mt-1">
+                                                                <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-1.5 py-0.5 rounded-sm w-fit border border-blue-100">
+                                                                    Follow-up – Requested by Doctor
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="py-4">
                                                         <div className="flex flex-wrap gap-1.5">
@@ -2221,9 +2253,22 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                                                                     {getServiceLabel(s)}
                                                                                 </Badge>
                                                                             ))
-                                                                        ) : <span className="text-sm text-slate-400 italic">None</span>}
+                                                                        ) : <span className="text-sm text-slate-400 italic">No services listed</span>}
                                                                     </div>
                                                                 </div>
+                                                                {visit.notes && visit.notes.includes('Follow-up reason:') && (
+                                                                    <div className="col-span-1 xs:col-span-2 lg:col-span-3 mt-2 p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                                                                        <div className="flex items-start gap-3">
+                                                                            <MessageSquare className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
+                                                                            <div className="flex-1">
+                                                                                <p className="text-sm font-semibold text-indigo-900 mb-1">Doctor's Follow-up Reason</p>
+                                                                                <p className="text-sm text-indigo-800 italic">
+                                                                                    "{visit.notes.replace('Follow-up reason: ', '')}"
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                                 <div>
                                                                     <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Registered At</p>
                                                                     <p className="text-sm font-medium text-gray-700">{formatDate(visit.registeredAt)}</p>

@@ -213,7 +213,9 @@ export const PatientProvider = ({ children }) => {
     patientEmail: dbPatient.patient_email, // NEW: Add patient email for access control
     isPriority: dbPatient.is_priority || false,
     priorityType: dbPatient.priority_type || null,
-    daysSinceOnset: dbPatient.days_since_onset || null
+    daysSinceOnset: dbPatient.days_since_onset || null,
+    // Extract notes from joined appointments table if present
+    notes: dbPatient.notes || (dbPatient.appointments?.[0]?.notes) || null
   });
 
   // ==========================================

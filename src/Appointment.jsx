@@ -1186,7 +1186,20 @@ const Appointment = () => {
                   </div>
                 </div>
               )}
-
+              {/* Follow-up Note (Requested by Doctor) */}
+              {selectedAppointment.notes && selectedAppointment.notes.includes('Follow-up reason:') && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+                  <div className="flex items-start gap-3">
+                    <MessageSquare className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-blue-900 mb-1">Doctor's Remark (Follow-up)</p>
+                      <p className="text-sm text-blue-800 italic">
+                        "{selectedAppointment.notes.replace('Follow-up reason: ', '')}"
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* Rejection Reason */}
               {selectedAppointment.appointmentStatus === 'rejected' && selectedAppointment.rejectionReason && (
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg">

@@ -59,7 +59,7 @@ const Analytics = () => {
     endOfToday.setHours(23, 59, 59, 999);
 
     if (dateFilter === 'today') {
-      return date >= startOfToday && date <= endOfToday;
+      return date.toDateString() === now.toDateString();
     }
 
     if (dateFilter === 'thisWeek') {
@@ -97,25 +97,26 @@ const Analytics = () => {
   // Filter patients based on range and category restrictions
   const filteredPatients = useMemo(() => {
     return (patients || []).filter(p => {
-      // 1. Date Range Check
-      const inRange = isWithinDateRange(p.registeredAt);
-      if (!inRange) {
-        // Exception: For 'Today' view, keep ongoing patients
-        const isOngoing = p.status === "waiting" || p.status === "in progress";
-        if (dateFilter === 'today' && isOngoing && p.inQueue && !p.isInactive) {
-          // Keep it
-        } else {
-          return false;
-        }
-      }
+      // 1. Skip inactive/system records
+      if (p.isInactive) return false;
 
-      // 2. Category Restriction
-      if (dateFilter !== 'today') {
-        // Historical views only show finalized visits
-        return p.status === 'done' || p.status === 'cancelled';
-      }
+      // 2. Only include accepted appointments (or any walk-in)
+      if (p.type === 'Appointment' && p.appointmentStatus !== 'accepted') return false;
+      
+      // 3. Status-based exception for "Today" view
+      // If a patient is currently in queue, they are part of today's analytics 
+      // regardless of their original appointment/registration date.
+      const isOngoing = p.status === "waiting" || p.status === "in progress";
+      if (dateFilter === 'today' && isOngoing && p.inQueue) return true;
+      
+      // 4. Determine relevant date for range check
+      // For appointments, we care about the scheduled day, not the registration day
+      const dateToUse = (p.type === 'Appointment' && p.appointmentDateTime) 
+        ? p.appointmentDateTime 
+        : p.registeredAt;
 
-      return true;
+      // 5. Date Range Check - Strictly respect the selected range
+      return isWithinDateRange(dateToUse);
     });
   }, [patients, dateFilter, customStartDate, customEndDate]);
 
@@ -1292,8 +1293,8 @@ const Analytics = () => {
                     patientStatsType === 'appointment' ? 'bg-orange-400' :
                       'bg-red-400'
                     }`} />
-                  {patientStatsType === 'walkin' ? `${analytics.servedWalkIn} served so far` :
-                    patientStatsType === 'appointment' ? `${analytics.servedAppointment} served so far` :
+                  {patientStatsType === 'walkin' ? `${analytics.servedWalkIn} walk-ins served so far` :
+                    patientStatsType === 'appointment' ? `${analytics.servedAppointment} appointments served so far` :
                       "Total cancelled or missed appointments"}
                 </div>
               </CardContent>

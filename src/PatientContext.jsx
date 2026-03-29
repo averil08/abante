@@ -1136,7 +1136,7 @@ export const PatientProvider = ({ children }) => {
     }
   };
 
-  const requeuePatient = async (queueNo) => {
+  const requeuePatient = async (queueNo, extraUpdates = {}) => {
     try {
       const cancelledPatient = patients.find(p => p.queueNo === queueNo);
       if (!cancelledPatient) return null;
@@ -1149,60 +1149,34 @@ export const PatientProvider = ({ children }) => {
 
       console.log(`✅ Assigned new queue number: ${nextQueueNo}`);
 
-      // 2. Create new patient ticket object
-      // CRITICAL: Must remove ID/dbId so database creates a NEW record instead of updating old one
-      const { id, dbId, ...patientDataWithoutId } = cancelledPatient;
-
-      const newPatient = {
-        ...patientDataWithoutId,
+      // 2. Prepare update for the EXISTING patient (no more duplicate rows)
+      const updatedPatient = {
+        ...cancelledPatient,
+        ...extraUpdates,
         queueNo: nextQueueNo,
         status: "waiting",
         registeredAt: new Date().toISOString(),
-        requeued: true,
-        originalQueueNo: queueNo,
         inQueue: true,
         calledAt: null, // Reset timing
         queueExitTime: null,
         completedAt: null,
-        isInactive: false, // Ensure new ticket is active
-        tempId: `temp-${Date.now()}` // For local tracking if needed
+        cancelledAt: null,
+        isInactive: false, // Ensure it's active
+        requeued: true,
       };
 
-      // 3. Mark OLD ticket as inactive
-      const oldPatient = {
-        ...cancelledPatient,
-        isInactive: true,
-        inQueue: false,
-        status: 'cancelled',
-        queueExitTime: new Date().toISOString()
-      };
+      // 3. Update Local State
+      setPatients(prev => prev.map(p => p.id === cancelledPatient.id ? updatedPatient : p)
+        .sort((a, b) => (a.queueNo || 0) - (b.queueNo || 0)));
 
-      // 4. Update Local State Optimistically
-      setPatients(prev => {
-        // Replace old patient with updated "inactive" version
-        // Add new patient
-        const filtered = prev.filter(p => p.queueNo !== queueNo);
-        return [...filtered, oldPatient, newPatient].sort((a, b) => (a.queueNo || 0) - (b.queueNo || 0));
-      });
+      // 4. Sync to database (Updates existing ID because id is preserved in updatedPatient)
+      const syncResult = await syncPatientToDatabase(updatedPatient);
 
-      // 5. Sync OLD patient to database (Mark as inactive)
-      await syncPatientToDatabase(oldPatient);
-
-      // 6. Sync NEW patient to database
-      const syncResult = await syncPatientToDatabase(newPatient);
-
-      if (syncResult.success && syncResult.data?.id) {
-        // Update the local newPatient with the real DB ID
-        setPatients(prev => prev.map(p =>
-          (p.queueNo === nextQueueNo && p.tempId === newPatient.tempId)
-            ? { ...p, id: syncResult.data.id }
-            : p
-        ));
-        return { ...newPatient, id: syncResult.data.id };
+      if (syncResult.success) {
+        return updatedPatient;
       } else {
-        console.error("❌ Failed to sync new requeued patient:", syncResult.error);
-        // Rollback or alert? For now, we leave the optimistic update but log error
-        return newPatient;
+        console.error("❌ Failed to sync requeued patient:", syncResult.error);
+        return updatedPatient;
       }
 
     } catch (error) {

@@ -114,7 +114,7 @@ const DoctorDashboard = () => {
     const [isSubmittingFollowUp, setIsSubmittingFollowUp] = useState(false);
     const [followUpSuccess, setFollowUpSuccess] = useState(false);
 
-    const { patients, addPatient, lastDoctorNotificationCheck, markDoctorNotificationsAsRead, rejectAppointment, acceptAppointment, getAvailableSlots } = useContext(PatientContext);
+    const { patients, addPatient, lastDoctorNotificationCheck, markDoctorNotificationsAsRead, rejectAppointment, acceptAppointment, getAvailableSlots, requeuePatient } = useContext(PatientContext);
     const dropdownRef = useRef(null);
     const desktopDropdownRef = useRef(null);
     const workspaceRef = useRef(null);
@@ -211,50 +211,80 @@ const DoctorDashboard = () => {
                 notes: `Follow-up reason: ${followUpReason}`,
             };
 
-            const result = await registerAppointmentPatient(formData, followUpDateTime);
+            // ✅ OPTIMIZATION: If the follow-up is for TODAY and this patient record already exists for today, 
+            // just update the existing one (requeue) instead of creating a new row in visit logs.
+            const isToday = new Date(followUpDateTime).toDateString() === new Date().toDateString();
+            const wasFromTodayOrVeryRecent = new Date(p.registeredAt || p.created_at).toDateString() === new Date().toDateString();
 
-            if (result.success) {
-                const dbPatient = result.patient;
-                const newAppt = {
-                    id: dbPatient?.id,
-                    dbId: dbPatient?.id,
-                    name: p.name,
-                    age: p.age,
-                    phoneNum: p.phoneNum,
-                    type: 'Appointment',
+            // Only update existing if it's the same day registration (prevent cross-day updates)
+            if (isToday && wasFromTodayOrVeryRecent && p.id) {
+                console.log("🔄 Requeueing existing today's patient record instead of new entry");
+                const extraUpdates = {
                     symptoms: followUpSymptoms,
                     services: ['follow-up-doctor'],
-                    appointmentDateTime: followUpDateTime,
-                    isPriority: false,
-                    priorityType: null,
-                    isReturningPatient: true,
-                    patientEmail: p.patientEmail || null,
-                    assignedDoctor: assignedDoc ? {
-                        id: assignedDoc.id,
-                        name: assignedDoc.name,
-                        specialization: assignedDoc.specialization
-                    } : null,
-                    preferredDoctor: assignedDoc ? {
-                        id: assignedDoc.id,
-                        name: assignedDoc.name,
-                        specialization: assignedDoc.specialization
-                    } : null,
-                    bookingMode: 'doctor',
-                    status: 'waiting',
-                    appointmentStatus: 'accepted',
-                    inQueue: true,
-                    queueNo: dbPatient?.queue_no || null,
-                    registeredAt: new Date().toISOString(),
                     notes: `Follow-up reason: ${followUpReason}`,
+                    appointmentDateTime: followUpDateTime,
+                    type: 'Appointment',
+                    appointmentStatus: 'accepted'
                 };
-                addPatient(newAppt);
-                setFollowUpSuccess(true);
-                setTimeout(() => {
-                    setShowFollowUpModal(false);
-                    setFollowUpSuccess(false);
-                }, 1800);
+
+                const updated = await requeuePatient(p.queueNo, extraUpdates);
+                if (updated) {
+                    setFollowUpSuccess(true);
+                    setTimeout(() => {
+                        setShowFollowUpModal(false);
+                        setFollowUpSuccess(false);
+                        setFollowUpPatient(null);
+                    }, 1500);
+                }
             } else {
-                console.error('Follow-up submission failed:', result.error);
+                // Standard path: Register as a NEW appointment
+                const result = await registerAppointmentPatient(formData, followUpDateTime);
+
+                if (result.success) {
+                    const dbPatient = result.patient;
+                    const newAppt = {
+                        id: dbPatient?.id,
+                        dbId: dbPatient?.id,
+                        name: p.name,
+                        age: p.age,
+                        phoneNum: p.phoneNum,
+                        type: 'Appointment',
+                        symptoms: followUpSymptoms,
+                        services: ['follow-up-doctor'],
+                        appointmentDateTime: followUpDateTime,
+                        isPriority: false,
+                        priorityType: null,
+                        isReturningPatient: true,
+                        patientEmail: p.patientEmail || null,
+                        assignedDoctor: assignedDoc ? {
+                            id: assignedDoc.id,
+                            name: assignedDoc.name,
+                            specialization: assignedDoc.specialization
+                        } : null,
+                        preferredDoctor: assignedDoc ? {
+                            id: assignedDoc.id,
+                            name: assignedDoc.name,
+                            specialization: assignedDoc.specialization
+                        } : null,
+                        bookingMode: 'doctor',
+                        status: 'waiting',
+                        appointmentStatus: 'accepted',
+                        inQueue: true,
+                        queueNo: dbPatient?.queue_no || null,
+                        registeredAt: new Date().toISOString(),
+                        notes: `Follow-up reason: ${followUpReason}`,
+                    };
+                    addPatient(newAppt);
+                    setFollowUpSuccess(true);
+                    setTimeout(() => {
+                        setShowFollowUpModal(false);
+                        setFollowUpSuccess(false);
+                        setFollowUpPatient(null);
+                    }, 1500);
+                } else {
+                    console.error('Follow-up submission failed:', result.error);
+                }
             }
         } catch (err) {
             console.error('Follow-up error:', err);
@@ -1840,6 +1870,9 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
         .filter(p => {
             // Exclude invalid/non-clinical appointments
             if (p.type === 'Appointment' && (['rejected', 'cancelled', 'withdrawn', 'pending'].includes(p.appointmentStatus))) return false;
+            
+            // ✅ Hide inactive tickets (orphaned by old requeue method) to combine them into the latest active visit
+            if (p.isInactive) return false;
 
             const pEmail = (p.patientEmail || '').toLowerCase().trim();
             const pPhone = (p.phoneNum || '').trim();

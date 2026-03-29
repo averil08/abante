@@ -4,7 +4,7 @@ import { PatientContext } from "./PatientContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, Stethoscope, Activity, User, Phone, FileText, AlertCircle, X, History, Eye, Filter } from 'lucide-react';
+import { Calendar, Clock, Stethoscope, Activity, User, Phone, FileText, AlertCircle, X, History, Eye, Filter, MessageSquare } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -20,7 +20,7 @@ const AppointmentHistory = () => {
   const handleNav = () => setNav(!nav);
 
   const { patients, currentPatientEmail: contextEmail, isLoadingFromDB } = useContext(PatientContext);
-  
+
   // Use context email with a fallback to localStorage to be extremely resilient
   const currentPatientEmail = contextEmail || localStorage.getItem('currentPatientEmail');
 
@@ -242,7 +242,7 @@ const AppointmentHistory = () => {
               <AlertCircle className="w-16 h-16 mx-auto text-amber-500 mb-4" />
               <h3 className="text-lg font-bold text-gray-900 mb-2">No Active Session</h3>
               <p className="text-gray-600">Please log in to view your profile and appointment history.</p>
-              <Button 
+              <Button
                 onClick={() => window.location.href = '/login?type=patient'}
                 className="mt-6 bg-green-600 hover:bg-green-700"
               >
@@ -498,6 +498,20 @@ const AppointmentHistory = () => {
                         </div>
                       </div>
 
+                      {/* Follow-up Remark (Compact) */}
+                      {visit.notes && visit.notes.includes('Follow-up reason:') && (
+                        <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg md:col-span-3 mt-3">
+                          <div className="flex items-start gap-2">
+                            <MessageSquare className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Follow-up Remark</p>
+                              <p className="text-xs text-blue-800 italic">
+                                "{visit.notes.replace('Follow-up reason: ', '')}"
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -598,6 +612,21 @@ const AppointmentHistory = () => {
                       {symptom}
                     </Badge>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Follow-up Remark */}
+            {appointment.notes && appointment.notes.includes('Follow-up reason:') && (
+              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-start gap-3">
+                  <MessageSquare className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-blue-900 mb-1">Doctor's Remark (Follow-up)</p>
+                    <p className="text-sm text-blue-800 italic">
+                      "{appointment.notes.replace('Follow-up reason: ', '')}"
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

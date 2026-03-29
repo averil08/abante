@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from "@/components/ui/badge";
-import { Search, User, Calendar, Phone, Stethoscope, FileText, Clock, ChevronRight, ArrowLeft, Edit2, Save, X, AlertCircle, Activity, ChevronDown, ChevronUp, History, Eye, Filter } from 'lucide-react';
+import { Search, User, Calendar, Phone, Stethoscope, FileText, Clock, MessageSquare, ArrowLeft, Edit2, Save, X, AlertCircle, Activity, ChevronDown, ChevronUp, History, Eye, Filter } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Table,
@@ -162,7 +162,7 @@ const PatientProfile = () => {
           return 'accepted';
         }
       }
- else if (appointment.appointmentStatus === 'cancelled' || appointment.appointmentStatus === 'withdrawn') {
+      else if (appointment.appointmentStatus === 'cancelled' || appointment.appointmentStatus === 'withdrawn') {
         return 'cancelled';
       }
     }
@@ -1312,6 +1312,21 @@ const PatientProfile = () => {
                 </div>
               )}
 
+              {/* Follow-up Note (Requested by Doctor) */}
+              {selectedVisit.notes && selectedVisit.notes.includes('Follow-up reason:') && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <MessageSquare className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-blue-900 mb-1">Doctor's Remark (Follow-up)</p>
+                      <p className="text-sm text-blue-800 italic">
+                        "{selectedVisit.notes.replace('Follow-up reason: ', '')}"
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Services */}
               {selectedVisit.services && selectedVisit.services.length > 0 && (
                 <div className="p-4 bg-green-50 rounded-lg border border-green-100">
@@ -1455,6 +1470,21 @@ const PatientProfile = () => {
                         )}
                       </div>
                     </div>
+
+                    {/* Follow-up Remark (Compact) */}
+                    {visit.notes && visit.notes.includes('Follow-up reason:') && (
+                      <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <MessageSquare className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wider">Follow-up Remark</p>
+                            <p className="text-xs text-blue-800 italic leading-relaxed">
+                              "{visit.notes.replace('Follow-up reason: ', '')}"
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))

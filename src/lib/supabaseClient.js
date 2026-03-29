@@ -98,7 +98,8 @@ export const registerAppointmentPatient = async (formData, appointmentDateTime) 
             priority_type: formData.priorityType || null,
             patient_email: formData.patientEmail || localStorage.getItem('currentPatientEmail') || null,
             appointment_datetime: appointmentDateTime,
-            days_since_onset: formData.daysSinceOnSet ? parseInt(formData.daysSinceOnSet) : null
+            days_since_onset: formData.daysSinceOnSet ? parseInt(formData.daysSinceOnSet) : null,
+            notes: formData.notes || null  // ✅ FIX: Persist doctor's follow-up remark directly on the patient record
           }
         ])
         .select()

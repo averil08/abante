@@ -849,7 +849,8 @@ export const PatientProvider = ({ children }) => {
         inQueue: inputPatient.inQueue !== undefined ? inputPatient.inQueue : (inputPatient.patient_type === 'walk-in'),
         isPriority: inputPatient.isPriority !== undefined ? inputPatient.isPriority : (inputPatient.is_priority || false),
         priorityType: inputPatient.priorityType || inputPatient.priority_type || null,
-        registeredAt: inputPatient.registeredAt || inputPatient.registered_at || inputPatient.created_at || new Date().toISOString()
+        registeredAt: inputPatient.registeredAt || inputPatient.registered_at || inputPatient.created_at || new Date().toISOString(),
+        notes: inputPatient.notes || null
       };
 
       return [...prev, newPatientEntry].sort((a, b) => (a.queueNo || 0) - (b.queueNo || 0));
@@ -994,12 +995,15 @@ export const PatientProvider = ({ children }) => {
       }
 
       // 3. Prepare updates
+      // ✅ FIX: Carry the existing notes (e.g. follow-up reason) through the acceptance update
+      // so the doctor's remark is never wiped when the appointment status changes.
       const updates = {
         queue_no: newQueueNo,
         appointment_status: "accepted",
         in_queue: true,
         status: "waiting",
-        assigned_doctor_name: assignedDoctor?.name || null
+        assigned_doctor_name: assignedDoctor?.name || null,
+        ...(patient.notes ? { notes: patient.notes } : {})
       };
 
       // 4. Sync to database via supabase directly for critical update

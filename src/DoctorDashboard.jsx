@@ -1819,7 +1819,13 @@ const PatientCard = ({ patient, selectedPatient, onClick, onFollowUp }) => {
 
 /* ─── Patient Detail Panel (shared) ─── */
 const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, handleAcceptIndividual, setShowIndividualDeclineModal, setRejectionReason }) => {
-    const [expandedVisitId, setExpandedVisitId] = useState(null);
+    const [showVisitModal, setShowVisitModal] = useState(false);
+    const [selectedVisit, setSelectedVisit] = useState(null);
+
+    const handleOpenVisitModal = (visit) => {
+        setSelectedVisit(visit);
+        setShowVisitModal(true);
+    };
 
     // Find all visits for this patient using Email or Phone
     const targetEmail = (patient.patientEmail || '').toLowerCase().trim();
@@ -1896,6 +1902,7 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
     };
 
     return (
+        <>
         <div ref={workspaceRef} className="h-full flex-1 overflow-y-auto custom-scrollbar bg-slate-50/40">
             <div className="p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto w-full">
 
@@ -1928,115 +1935,50 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                         </div>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-4 pt-5 border-t border-slate-100">
-                                    <div>
-                                        <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Age & Contact</p>
-                                        <p className="text-base font-bold text-slate-800">
-                                            {patient.age} yrs • {patient.phoneNum || 'N/A'}
-                                        </p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Assigned Doctor</p>
-                                        <div className="flex items-center gap-1.5">
-                                            <Stethoscope className="w-3.5 h-3.5 text-purple-600 flex-shrink-0" />
-                                            <span className="text-purple-700 font-medium text-[15px]">
-                                                {patient.assignedDoctor?.name || 'Unassigned'}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Services</p>
-                                        <div className="flex flex-wrap gap-1">
-                                            {(patient.services || ['General Consultation']).map((s, i) => (
-                                                <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 bg-green-50 text-green-700 border-green-200 font-semibold pointer-events-none">
-                                                    {getServiceLabel(s)}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    <div className="col-span-2 lg:col-span-3">
-                                        <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Current Visit Symptoms</p>
-                                        <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                            {patient.symptoms && patient.symptoms.length > 0 ? (
-                                                patient.symptoms.map((s, i) => (
-                                                    <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 bg-blue-50 text-blue-700 border-blue-200 font-semibold pointer-events-none">
-                                                        {s}
-                                                    </Badge>
-                                                ))
-                                            ) : (
-                                                <p className="text-sm font-semibold text-slate-400 italic">Routine check-up / consultation</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {patient.notes && patient.notes.includes('Follow-up reason:') && (
-                                        <div className="col-span-2 lg:col-span-3 mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Doctor's Follow-up Note</p>
-                                            <p className="text-sm text-blue-800 font-medium italic">
-                                                "{patient.notes.replace('Follow-up reason: ', '')}"
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
                             </div>
                         </div>
 
                         {upcomingAppointments.length > 0 && (
-                            <div className="mt-8 pt-8 border-t border-slate-100">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <div className="p-2.5 bg-blue-50 rounded-xl shadow-sm">
-                                        <CalendarDays className="w-5 h-5 text-blue-600" />
+                            <div className="mt-4 pt-4 border-t border-slate-100">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="p-1.5 bg-blue-50 rounded-lg shadow-sm">
+                                        <CalendarDays className="w-4 h-4 text-blue-600" />
                                     </div>
-                                    <h3 className="text-base font-bold text-slate-800 uppercase tracking-widest">
+                                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest">
                                         Upcoming {upcomingAppointments.length === 1 ? 'Appointment' : 'Appointments'}
                                     </h3>
                                 </div>
-                                <div className="space-y-4">
+                                <div className="space-y-2">
                                     {upcomingAppointments.map((appt, i) => (
-                                        <div key={appt.id || i} className="flex flex-col sm:flex-row sm:items-center gap-4 p-5 bg-gradient-to-r from-blue-50/80 to-indigo-50/50 rounded-xl border border-blue-100/60 shadow-sm transition-all hover:shadow-md">
-                                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                <div className="flex flex-col items-center justify-center w-16 h-16 rounded-xl bg-white border border-blue-100 shadow-sm shrink-0">
-                                                    <span className="text-[10px] font-bold text-blue-400 uppercase leading-none">
+                                        <div key={appt.id || i} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/50 rounded-lg border border-blue-100/60 shadow-sm transition-all hover:shadow-md">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex flex-col items-center justify-center w-10 h-10 rounded-lg bg-white border border-blue-100 shadow-sm shrink-0">
+                                                    <span className="text-[8px] font-bold text-blue-400 uppercase leading-none">
                                                         {new Date(appt.appointmentDateTime).toLocaleDateString('en-US', { month: 'short' })}
                                                     </span>
-                                                    <span className="text-2xl font-bold text-blue-700 leading-none mt-1">
+                                                    <span className="text-sm font-bold text-blue-700 leading-none mt-0.5">
                                                         {new Date(appt.appointmentDateTime).getDate()}
                                                     </span>
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="text-base font-bold text-slate-800">
+                                                    <p className="text-sm font-bold text-slate-800 truncate">
                                                         {new Date(appt.appointmentDateTime).toLocaleDateString('en-US', {
                                                             weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
                                                         })}
                                                     </p>
-                                                    <p className="text-[13px] font-bold text-blue-600 mt-1 flex items-center gap-1.5">
-                                                        <Clock className="w-3.5 h-3.5" />
+                                                    <p className="text-xs font-bold text-blue-600 mt-0.5 flex items-center gap-1">
+                                                        <Clock className="w-3 h-3" />
                                                         {new Date(appt.appointmentDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                                                {appt.assignedDoctor?.name && (
-                                                    <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-50 rounded-lg border border-purple-100/50">
-                                                        <Stethoscope className="w-3.5 h-3.5 text-purple-600" />
-                                                        <span className="text-[11px] font-medium text-purple-700">
-                                                            {appt.assignedDoctor.name}
-                                                        </span>
-                                                    </div>
-                                                )}
+                                            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                                                 {appt.services && appt.services.length > 0 && appt.services.slice(0, 2).map((s, si) => (
-                                                    <Badge key={si} variant="outline" className="text-xs font-medium uppercase tracking-wider text-purple-700 bg-purple-50 border-none rounded-md px-2 py-1 pointer-events-none">
+                                                    <Badge key={si} variant="outline" className="text-[10px] font-medium uppercase tracking-wider text-purple-700 bg-purple-50 border-none rounded px-1.5 py-0.5 pointer-events-none">
                                                         {getServiceLabel(s)}
                                                     </Badge>
                                                 ))}
                                             </div>
-                                            {appt.notes && appt.notes.includes('Follow-up reason:') && (
-                                                <div className="mt-4 p-3 bg-blue-50/50 border border-blue-100 rounded-lg w-full">
-                                                    <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mb-1">Follow-up Reason</p>
-                                                    <p className="text-sm text-blue-800 font-medium italic">
-                                                        "{appt.notes.replace('Follow-up reason: ', '')}"
-                                                    </p>
-                                                </div>
-                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -2076,218 +2018,118 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                 <TableBody>
                                     {patientVisits.map((visit, idx) => {
                                         const vId = visit.id || idx;
-                                        const isExpanded = expandedVisitId === vId;
                                         const visitNum = patientVisits.length - idx;
                                         return (
-                                            <React.Fragment key={vId}>
-                                                <TableRow className="border-slate-50 hover:bg-slate-50/80 group transition-all">
-                                                    <TableCell className="py-4 pl-6">
-                                                        <Badge variant="outline" className="font-mono text-xs">
-                                                            #{String(visitNum).padStart(3, '0')}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="py-4 pr-2">
-                                                        <div className="flex items-start gap-1.5">
-                                                            <Stethoscope className="w-3.5 h-3.5 text-purple-600 flex-shrink-0 mt-0.5" />
-                                                            <span className="text-purple-700 font-medium text-xs xl:text-sm whitespace-normal break-words">
-                                                                {visit.assignedDoctor?.name || 'Unassigned'}
+                                            <TableRow key={vId} className="border-slate-50 hover:bg-slate-50/80 group transition-all">
+                                                <TableCell className="py-4 pl-6">
+                                                    <Badge variant="outline" className="font-mono text-xs">
+                                                        #{String(visitNum).padStart(3, '0')}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="py-4 pr-2">
+                                                    <div className="flex items-start gap-1.5">
+                                                        <Stethoscope className="w-3.5 h-3.5 text-purple-600 flex-shrink-0 mt-0.5" />
+                                                        <span className="text-purple-700 font-medium text-xs xl:text-sm whitespace-normal break-words">
+                                                            {visit.assignedDoctor?.name || 'Unassigned'}
+                                                        </span>
+                                                    </div>
+                                                    {visit.services?.includes('follow-up-doctor') && (
+                                                        <div className="mt-1">
+                                                            <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-1.5 py-0.5 rounded-sm w-fit border border-blue-100">
+                                                                Follow-up – Requested by Doctor
                                                             </span>
                                                         </div>
-                                                        {visit.services?.includes('follow-up-doctor') && (
-                                                            <div className="mt-1">
-                                                                <span className="text-[10px] text-blue-600 font-semibold bg-blue-50 px-1.5 py-0.5 rounded-sm w-fit border border-blue-100">
-                                                                    Follow-up – Requested by Doctor
-                                                                </span>
-                                                            </div>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="py-4">
-                                                        <div className="flex flex-wrap gap-1.5">
-                                                            {visit.symptoms && visit.symptoms.length > 0 ? (
-                                                                <>
-                                                                    {visit.symptoms.slice(0, 2).map((s, i) => (
-                                                                        <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 bg-blue-50 text-blue-700 border-blue-200 pointer-events-none">
-                                                                            {s}
-                                                                        </Badge>
-                                                                    ))}
-                                                                    {visit.symptoms.length > 2 && (
-                                                                        <Badge variant="outline" className="text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-100 border-none rounded-md px-2 py-0.5 pointer-events-none">
-                                                                            +{visit.symptoms.length - 2}
-                                                                        </Badge>
-                                                                    )}
-                                                                </>
-                                                            ) : <span className="text-xs text-slate-400 font-medium italic">None reported</span>}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="py-4 text-center">
-                                                        {visit.type === 'Appointment' ? (
-                                                            visit.appointmentStatus === 'accepted' ? (
-                                                                (visit.appointmentDateTime && new Date(new Date(visit.appointmentDateTime).setHours(0, 0, 0, 0)) > new Date(new Date().setHours(0, 0, 0, 0))) ? (
-                                                                    <Badge className="bg-blue-600 text-white text-[10px] xl:text-xs">Upcoming</Badge>
-                                                                ) : (
-                                                                    <Badge className="bg-green-600 text-[10px] xl:text-xs">Accepted</Badge>
-                                                                )
-                                                            ) : visit.appointmentStatus === 'rejected' ? (
-                                                                <Badge variant="destructive" className="bg-red-600 text-white text-[10px] xl:text-xs h-auto whitespace-normal text-center">
-                                                                    Not Accepted
-                                                                </Badge>
-                                                            ) : visit.appointmentStatus === 'cancelled' ? (
-                                                                <Badge variant="outline" className="border-gray-400 text-gray-500 text-[10px] xl:text-xs">
-                                                                    Cancelled
-                                                                </Badge>
-                                                            ) : (
-                                                                <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] xl:text-xs">
-                                                                    Pending
-                                                                </Badge>
-                                                            )
-                                                        ) : (
-                                                            <Badge variant="outline" className={`text-[10px] xl:text-xs ${statusStyle(visit.status)}`}>
-                                                                {getDisplayStatus(visit.status)}
-                                                            </Badge>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="py-4 align-middle">
-                                                        <div className="flex justify-center gap-1 flex-nowrap">
-                                                            <Button
-                                                                variant="ghost"
-                                                                onClick={() => setExpandedVisitId(isExpanded ? null : vId)}
-                                                                className="text-blue-600 hover:bg-blue-50 rounded-xl w-9 h-9 p-0 flex items-center justify-center shrink-0"
-                                                                title={isExpanded ? 'Hide Details' : 'View More'}
-                                                            >
-                                                                <Eye className="w-5 h-5" />
-                                                            </Button>
-
-                                                            {visit.type === 'Appointment' && (!visit.appointmentStatus || visit.appointmentStatus === 'pending') && (
-                                                                <>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className="h-9 w-9 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-xl shrink-0"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            handleAcceptIndividual(visit.id || visit.dbId);
-                                                                        }}
-                                                                        title="Accept"
-                                                                    >
-                                                                        <CheckCircle2 className="w-5 h-5 transition-transform hover:scale-110" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl shrink-0"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            setSelectedPatient(visit);
-                                                                            setRejectionReason("");
-                                                                            setShowIndividualDeclineModal(true);
-                                                                        }}
-                                                                        title="Decline"
-                                                                    >
-                                                                        <XCircle className="w-5 h-5 transition-transform hover:rotate-90" />
-                                                                    </Button>
-                                                                </>
-                                                            )}
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                                {isExpanded && (
-                                                    <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 transition-all">
-                                                        <TableCell colSpan={5} className="p-0 border-b border-slate-100">
-                                                            <div className="p-6 sm:p-8 pb-6 grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-6 border-l-4 border-emerald-400 ml-6 my-3 rounded-r-2xl bg-white shadow-md mr-6 animate-in slide-in-from-left-2 duration-200">
-                                                                <div>
-                                                                    <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Status</p>
-                                                                    {visit.type === 'Appointment' ? (
-                                                                        visit.appointmentStatus === 'accepted' ? (
-                                                                            (visit.appointmentDateTime && new Date(new Date(visit.appointmentDateTime).setHours(0, 0, 0, 0)) > new Date(new Date().setHours(0, 0, 0, 0))) ? (
-                                                                                <Badge className="bg-blue-600 text-white text-[10px] xl:text-xs pointer-events-none">Upcoming</Badge>
-                                                                            ) : (
-                                                                                <Badge className="bg-green-600 text-[10px] xl:text-xs pointer-events-none">Accepted</Badge>
-                                                                            )
-                                                                        ) : visit.appointmentStatus === 'rejected' ? (
-                                                                            <Badge variant="destructive" className="bg-red-600 text-white text-[10px] xl:text-xs pointer-events-none">
-                                                                                Not Accepted
-                                                                            </Badge>
-                                                                        ) : visit.appointmentStatus === 'cancelled' ? (
-                                                                            <Badge variant="outline" className="border-gray-400 text-gray-500 text-[10px] xl:text-xs pointer-events-none">
-                                                                                Cancelled
-                                                                            </Badge>
-                                                                        ) : (
-                                                                            <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] xl:text-xs pointer-events-none">
-                                                                                Pending
-                                                                            </Badge>
-                                                                        )
-                                                                    ) : (
-                                                                        <Badge variant="outline" className={`text-xs font-semibold px-3 py-1 rounded-md pointer-events-none ${statusStyle(visit.status)}`}>
-                                                                            {getDisplayStatus(visit.status)}
-                                                                        </Badge>
-                                                                    )}
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Visit Type</p>
-                                                                    <p className="text-sm font-bold text-slate-700">{visit.type || 'Walk-in'}</p>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Queue Number</p>
-                                                                    <Badge variant="outline" className="font-mono text-xs">
-                                                                        {String(visit.queueNo || 0).padStart(3, '0')}
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="py-4">
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {visit.symptoms && visit.symptoms.length > 0 ? (
+                                                            <>
+                                                                {visit.symptoms.slice(0, 2).map((s, i) => (
+                                                                    <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 bg-blue-50 text-blue-700 border-blue-200 pointer-events-none">
+                                                                        {s}
                                                                     </Badge>
-                                                                </div>
-                                                                <div className="col-span-1 xs:col-span-2 lg:col-span-3">
-                                                                    <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-2">Full Symptoms List</p>
-                                                                    <div className="flex flex-wrap gap-1.5">
-                                                                        {visit.symptoms && visit.symptoms.length > 0 ? (
-                                                                            visit.symptoms.map((s, i) => (
-                                                                                <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 bg-blue-50 text-blue-700 border-blue-200 pointer-events-none">
-                                                                                    {s}
-                                                                                </Badge>
-                                                                            ))
-                                                                        ) : <span className="text-sm text-slate-400 italic">None reported</span>}
-                                                                    </div>
-                                                                </div>
-                                                                <div>
-                                                                    <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Services Availed</p>
-                                                                    <div className="flex flex-wrap gap-1.5">
-                                                                        {visit.services && visit.services.length > 0 ? (
-                                                                            visit.services.map((s, i) => (
-                                                                                <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 bg-green-50 text-green-700 border-green-200 pointer-events-none">
-                                                                                    {getServiceLabel(s)}
-                                                                                </Badge>
-                                                                            ))
-                                                                        ) : <span className="text-sm text-slate-400 italic">No services listed</span>}
-                                                                    </div>
-                                                                </div>
-                                                                {visit.notes && visit.notes.includes('Follow-up reason:') && (
-                                                                    <div className="col-span-1 xs:col-span-2 lg:col-span-3 mt-2 p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl">
-                                                                        <div className="flex items-start gap-3">
-                                                                            <MessageSquare className="w-5 h-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-                                                                            <div className="flex-1">
-                                                                                <p className="text-sm font-semibold text-indigo-900 mb-1">Doctor's Follow-up Reason</p>
-                                                                                <p className="text-sm text-indigo-800 italic">
-                                                                                    "{visit.notes.replace('Follow-up reason: ', '')}"
-                                                                                </p>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
+                                                                ))}
+                                                                {visit.symptoms.length > 2 && (
+                                                                    <Badge variant="outline" className="text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-100 border-none rounded-md px-2 py-0.5 pointer-events-none">
+                                                                        +{visit.symptoms.length - 2}
+                                                                    </Badge>
                                                                 )}
-                                                                <div>
-                                                                    <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Registered At</p>
-                                                                    <p className="text-sm font-medium text-gray-700">{formatDate(visit.registeredAt)}</p>
-                                                                </div>
-                                                                {(visit.completedAt || visit.status === 'cancelled') && (
-                                                                    <div>
-                                                                        <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">
-                                                                            {visit.status === 'cancelled' ? 'Cancelled At' : 'Completed At'}
-                                                                        </p>
-                                                                        <p className="text-sm font-medium text-gray-700">
-                                                                            {formatDate(visit.status === 'cancelled' ? (visit.cancelledAt || visit.queueExitTime || visit.registeredAt) : visit.completedAt)}
-                                                                        </p>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </React.Fragment>
+                                                            </>
+                                                        ) : <span className="text-xs text-slate-400 font-medium italic">None reported</span>}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="py-4 text-center">
+                                                    {visit.type === 'Appointment' ? (
+                                                        visit.appointmentStatus === 'accepted' ? (
+                                                            (visit.appointmentDateTime && new Date(new Date(visit.appointmentDateTime).setHours(0, 0, 0, 0)) > new Date(new Date().setHours(0, 0, 0, 0))) ? (
+                                                                <Badge className="bg-blue-600 text-white text-[10px] xl:text-xs">Upcoming</Badge>
+                                                            ) : (
+                                                                <Badge className="bg-green-600 text-[10px] xl:text-xs">Accepted</Badge>
+                                                            )
+                                                        ) : visit.appointmentStatus === 'rejected' ? (
+                                                            <Badge variant="destructive" className="bg-red-600 text-white text-[10px] xl:text-xs h-auto whitespace-normal text-center">
+                                                                Not Accepted
+                                                            </Badge>
+                                                        ) : visit.appointmentStatus === 'cancelled' ? (
+                                                            <Badge variant="outline" className="border-gray-400 text-gray-500 text-[10px] xl:text-xs">
+                                                                Cancelled
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px] xl:text-xs">
+                                                                Pending
+                                                            </Badge>
+                                                        )
+                                                    ) : (
+                                                        <Badge variant="outline" className={`text-[10px] xl:text-xs ${statusStyle(visit.status)}`}>
+                                                            {getDisplayStatus(visit.status)}
+                                                        </Badge>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell className="py-4 align-middle">
+                                                    <div className="flex justify-center gap-1 flex-nowrap">
+                                                        <Button
+                                                            variant="ghost"
+                                                            onClick={() => handleOpenVisitModal(visit)}
+                                                            className="text-blue-600 hover:bg-blue-50 rounded-xl w-9 h-9 p-0 flex items-center justify-center shrink-0"
+                                                            title="View Details"
+                                                        >
+                                                            <Eye className="w-5 h-5" />
+                                                        </Button>
+
+                                                        {visit.type === 'Appointment' && (!visit.appointmentStatus || visit.appointmentStatus === 'pending') && (
+                                                            <>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-9 w-9 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-xl shrink-0"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleAcceptIndividual(visit.id || visit.dbId);
+                                                                    }}
+                                                                    title="Accept"
+                                                                >
+                                                                    <CheckCircle2 className="w-5 h-5 transition-transform hover:scale-110" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-9 w-9 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl shrink-0"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setSelectedPatient(visit);
+                                                                        setRejectionReason("");
+                                                                        setShowIndividualDeclineModal(true);
+                                                                    }}
+                                                                    title="Decline"
+                                                                >
+                                                                    <XCircle className="w-5 h-5 transition-transform hover:rotate-90" />
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
                                         );
                                     })}
                                 </TableBody>
@@ -2297,7 +2139,6 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                         <div className="sm:hidden divide-y divide-slate-100">
                             {patientVisits.map((visit, idx) => {
                                 const vId = visit.id || idx;
-                                const isExpanded = expandedVisitId === vId;
                                 const visitNum = patientVisits.length - idx;
                                 return (
                                     <div key={vId} className="p-5 space-y-5">
@@ -2335,9 +2176,9 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                             <div className="flex items-center gap-1">
                                                 <Button
                                                     variant="ghost"
-                                                    onClick={() => setExpandedVisitId(isExpanded ? null : vId)}
+                                                    onClick={() => handleOpenVisitModal(visit)}
                                                     className="text-blue-600 hover:bg-blue-50 rounded-xl w-9 h-9 p-0 flex items-center justify-center shrink-0"
-                                                    title={isExpanded ? 'Hide Details' : 'View More'}
+                                                    title="View Details"
                                                 >
                                                     <Eye className="w-5 h-5" />
                                                 </Button>
@@ -2388,7 +2229,7 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                                 <Activity className="w-5 h-5 text-rose-500 mt-0.5 shrink-0" />
                                                 <div className="w-full">
                                                     <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-2">Symptoms</p>
-                                                    <div className="flex flex-wrap gap-1.5" id={`symptoms-list-${vId}`}>
+                                                    <div className="flex flex-wrap gap-1.5">
                                                         {visit.symptoms && visit.symptoms.length > 0 ? (
                                                             visit.symptoms.map((s, i) => (
                                                                 <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 bg-blue-50 text-blue-700 border-blue-200 pointer-events-none">
@@ -2400,53 +2241,6 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                                 </div>
                                             </div>
                                         </div>
-
-                                        {isExpanded && (
-                                            <div className="grid grid-cols-2 gap-4 pt-3 border-t border-slate-50 animate-in fade-in slide-in-from-top-3 duration-300">
-                                                <div className="col-span-1">
-                                                    <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Status</p>
-                                                    <Badge variant="outline" className={`text-xs font-semibold px-3 py-1 rounded-lg shadow-sm pointer-events-none ${statusStyle(visit.status)}`}>
-                                                        {getDisplayStatus(visit.status)}
-                                                    </Badge>
-                                                </div>
-                                                <div className="col-span-1">
-                                                    <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Visit Type</p>
-                                                    <p className="text-sm font-bold text-slate-700">{visit.type || 'Walk-in'}</p>
-                                                </div>
-                                                <div className="col-span-1">
-                                                    <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Queue Number</p>
-                                                    <Badge variant="outline" className="font-mono text-xs">
-                                                        {String(visit.queueNo || 0).padStart(3, '0')}
-                                                    </Badge>
-                                                </div>
-                                                <div className="col-span-1">
-                                                    <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">Registered At</p>
-                                                    <p className="text-[13px] font-medium text-gray-700">{formatDate(visit.registeredAt)}</p>
-                                                </div>
-                                                <div className="col-span-2">
-                                                    <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-2">Services Availed</p>
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {visit.services && visit.services.length > 0 ? (
-                                                            visit.services.map((s, i) => (
-                                                                <Badge key={i} variant="outline" className="text-[10px] py-0 px-1.5 bg-green-50 text-green-700 border-green-200 pointer-events-none">
-                                                                    {getServiceLabel(s)}
-                                                                </Badge>
-                                                            ))
-                                                        ) : <span className="text-sm text-slate-400 italic">None</span>}
-                                                    </div>
-                                                </div>
-                                                {(visit.completedAt || visit.status === 'cancelled') && (
-                                                    <div className="col-span-2 border-t border-slate-50 pt-3">
-                                                        <p className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-1.5">
-                                                            {visit.status === 'cancelled' ? 'Cancelled At' : 'Completed At'}
-                                                        </p>
-                                                        <p className="text-[13px] font-medium text-gray-700">
-                                                            {formatDate(visit.status === 'cancelled' ? (visit.cancelledAt || visit.queueExitTime || visit.registeredAt) : visit.completedAt)}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
                                     </div>
                                 );
                             })}
@@ -2455,6 +2249,208 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                 </Card>
             </div>
         </div>
+
+        {/* ===== Visit Detail Modal ===== */}
+        <Dialog open={showVisitModal} onOpenChange={setShowVisitModal}>
+            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-xl">
+                        <User className="w-6 h-6 text-green-600" />
+                        Visit Details
+                    </DialogTitle>
+                    <DialogDescription>
+                        Visit #{selectedVisit ? String(patientVisits.findIndex(v => (v.id || patientVisits.indexOf(v)) === (selectedVisit.id || patientVisits.indexOf(selectedVisit))) === -1 ? 1 : patientVisits.length - patientVisits.findIndex(v => v.id === selectedVisit.id || v === selectedVisit)).padStart(3, '0') : '001'} • {selectedVisit?.name}
+                    </DialogDescription>
+                </DialogHeader>
+
+                {selectedVisit && (
+                    <div className="space-y-4 mt-4">
+                        {/* Status Badge */}
+                        <div className="flex items-center gap-2">
+                            {selectedVisit.type === 'Appointment' ? (
+                                selectedVisit.appointmentStatus === 'accepted' ? (
+                                    (selectedVisit.appointmentDateTime && new Date(new Date(selectedVisit.appointmentDateTime).setHours(0,0,0,0)) > new Date(new Date().setHours(0,0,0,0))) ?
+                                        <Badge className="bg-blue-600 text-white">Upcoming</Badge> :
+                                        <Badge className="bg-green-600">Accepted</Badge>
+                                ) : selectedVisit.appointmentStatus === 'rejected' ? (
+                                    <Badge variant="destructive" className="bg-red-600 text-white">Not Accepted</Badge>
+                                ) : selectedVisit.appointmentStatus === 'cancelled' ? (
+                                    <Badge variant="outline" className="border-gray-400 text-gray-500">Cancelled</Badge>
+                                ) : (
+                                    <Badge variant="secondary" className="bg-amber-100 text-amber-700">Pending</Badge>
+                                )
+                            ) : (
+                                <Badge variant="outline" className={statusStyle(selectedVisit.status)}>
+                                    {getDisplayStatus(selectedVisit.status)}
+                                </Badge>
+                            )}
+                            <Badge variant="outline" className="font-mono text-xs">
+                                #{String(selectedVisit.queueNo || 0).padStart(3, '0')}
+                            </Badge>
+                        </div>
+
+                        {/* Info Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                <Clock className="w-5 h-5 text-green-600 flex-shrink-0" />
+                                <div>
+                                    <p className="text-xs text-gray-500 mb-1">
+                                        {selectedVisit.type === 'Appointment' ? 'Appointment Time' : 'Check-in Time'}
+                                    </p>
+                                    <p className="font-semibold text-gray-900 text-sm">
+                                        {formatDateTime(selectedVisit.type === 'Appointment'
+                                            ? (selectedVisit.appointmentDateTime || selectedVisit.appointment_datetime)
+                                            : selectedVisit.registeredAt)}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                <User className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                                <div>
+                                    <p className="text-xs text-gray-500 mb-1">Age</p>
+                                    <p className="font-semibold text-gray-900">{selectedVisit.age} years old</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                <Phone className="w-5 h-5 text-purple-600 flex-shrink-0" />
+                                <div>
+                                    <p className="text-xs text-gray-500 mb-1">Phone Number</p>
+                                    <p className="font-semibold text-gray-900">{selectedVisit.phoneNum || 'N/A'}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                <Calendar className="w-5 h-5 text-gray-600 flex-shrink-0" />
+                                <div>
+                                    <p className="text-xs text-gray-500 mb-1">Visit Type</p>
+                                    <p className="font-semibold text-gray-900">{selectedVisit.type || 'Walk-in'}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Symptoms */}
+                        <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Activity className="w-5 h-5 text-blue-600" />
+                                <p className="text-sm font-semibold text-blue-900">Symptoms</p>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                                {selectedVisit.symptoms && selectedVisit.symptoms.length > 0 ? (
+                                    selectedVisit.symptoms.map((symptom, idx) => (
+                                        <Badge key={idx} variant="outline" className="text-xs bg-white text-blue-700 border-blue-200">
+                                            {symptom}
+                                        </Badge>
+                                    ))
+                                ) : (
+                                    <span className="text-gray-500 text-sm">None reported</span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Doctor or Services */}
+                        {selectedVisit.assignedDoctor ? (
+                            <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Stethoscope className="w-5 h-5 text-purple-600" />
+                                    <p className="text-sm font-semibold text-purple-900">Assigned Doctor</p>
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-purple-900">{selectedVisit.assignedDoctor.name}</p>
+                                    {selectedVisit.assignedDoctor.specialization && (
+                                        <p className="text-sm text-purple-700">{selectedVisit.assignedDoctor.specialization}</p>
+                                    )}
+                                    {selectedVisit.services?.includes('follow-up-doctor') && (
+                                        <Badge variant="outline" className="mt-1.5 text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+                                            Follow-up – Requested by Doctor
+                                        </Badge>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="p-4 bg-green-50 rounded-lg border border-green-100">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Stethoscope className="w-5 h-5 text-green-600" />
+                                    <p className="text-sm font-semibold text-green-900">Services Availed</p>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {selectedVisit.services && selectedVisit.services.length > 0 ? (
+                                        selectedVisit.services.map((serviceId, idx) => (
+                                            <Badge key={idx} variant="outline" className="text-xs bg-white text-green-700 border-green-200">
+                                                {getServiceLabel(serviceId)}
+                                            </Badge>
+                                        ))
+                                    ) : (
+                                        <span className="text-gray-500 text-sm">None selected</span>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Follow-up Note */}
+                        {selectedVisit.notes && selectedVisit.notes.includes('Follow-up reason:') && (
+                            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                                <div className="flex items-start gap-3">
+                                    <MessageSquare className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-semibold text-blue-900 mb-1">Doctor's Remark (Follow-up)</p>
+                                        <p className="text-sm text-blue-800 italic">
+                                            "{selectedVisit.notes.replace('Follow-up reason: ', '')}"
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Rejection Reason */}
+                        {selectedVisit.appointmentStatus === 'rejected' && selectedVisit.rejectionReason && (
+                            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                                <div className="flex items-start gap-3">
+                                    <MessageSquare className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-semibold text-red-900 mb-1">Reason for Appointment Refusal</p>
+                                        <p className="text-sm text-red-800">{selectedVisit.rejectionReason}</p>
+                                        {selectedVisit.rejectedAt && (
+                                            <p className="text-xs text-red-600 mt-1">
+                                                Not Accepted on {formatDateTime(selectedVisit.rejectedAt)}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Timestamps */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                <CalendarDays className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                                <div>
+                                    <p className="text-xs text-gray-500 mb-1">Registered At</p>
+                                    <p className="font-semibold text-gray-900 text-sm">{formatDateTime(selectedVisit.registeredAt)}</p>
+                                </div>
+                            </div>
+                            {(selectedVisit.completedAt || selectedVisit.status === 'cancelled') && (
+                                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                                    <CalendarDays className="w-5 h-5 text-gray-500 flex-shrink-0" />
+                                    <div>
+                                        <p className="text-xs text-gray-500 mb-1">
+                                            {selectedVisit.status === 'cancelled' ? 'Cancelled At' : 'Completed At'}
+                                        </p>
+                                        <p className="font-semibold text-gray-900 text-sm">
+                                            {formatDateTime(selectedVisit.status === 'cancelled'
+                                                ? (selectedVisit.cancelledAt || selectedVisit.queueExitTime || selectedVisit.registeredAt)
+                                                : selectedVisit.completedAt)}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </DialogContent>
+        </Dialog>
+        </>
     );
 };
 

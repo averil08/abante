@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { useNavigate } from "react-router-dom";
 import PatientSidebar from "@/components/PatientSidebar";
 import { PatientContext } from "./PatientContext";
-import { Bell, Clock, TicketCheck } from "lucide-react";
+import { Bell, Clock, TicketCheck, CheckCircle, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { AiOutlineMenu, AiOutlineClose } from "react-icons/ai";
 import { doctors, specializationCategories } from "./doctorData";
@@ -207,13 +207,11 @@ const Homepage = () => {
                 </button>
 
                 {showNotifications && (
-                  <div className="absolute right-0 mt-3 w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                    <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                    <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Recent Activity</h3>
-                        <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px] font-bold">
-                          {notifications.length}
-                        </Badge>
+                        <Bell className="w-4 h-4 text-green-600" />
+                        <h3 className="font-bold text-gray-800">Recent Activity</h3>
                       </div>
                       <div className="flex items-center gap-3">
                         {notifications.length > 0 && (
@@ -231,41 +229,50 @@ const Homepage = () => {
                           onClick={() => setShowNotifications(false)}
                           className="text-gray-400 hover:text-gray-600 transition-colors"
                         >
-                          <AiOutlineClose size={14} />
+                          <XCircle className="w-5 h-5" />
                         </button>
                       </div>
                     </div>
                     <div className="max-h-[400px] overflow-y-auto no-scrollbar">
                       {notifications.length === 0 ? (
-                        <div className="p-10 text-center">
+                        <div className="p-8 text-center">
                           <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <Bell className="h-6 w-6 text-gray-200" />
+                            <CheckCircle className="w-6 h-6 text-gray-300" />
                           </div>
-                          <p className="text-sm font-bold text-gray-400">All caught up!</p>
-                          <p className="text-[11px] text-gray-300 mt-1">No new notifications at the moment.</p>
+                          <p className="text-sm text-gray-500 font-medium">All caught up!</p>
                         </div>
                       ) : (
                         notifications.map(notification => (
                           <div
                             key={notification.id}
-                            className={`p-4 border-b border-gray-50 last:border-0 hover:bg-gray-50/80 transition-all cursor-default ${!notification.read ? 'bg-green-50/30' : 'bg-white'}`}
+                            className={`p-4 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors cursor-default ${!notification.read ? 'bg-green-50/30' : 'bg-white'}`}
                           >
-                            <div className="flex items-start gap-4">
-                              <div className={`mt-1 h-2.5 w-2.5 rounded-full shrink-0 shadow-sm ${notification.type === 'accepted' ? 'bg-green-500 ring-4 ring-green-100' : 'bg-red-500 ring-4 ring-red-100'}`}></div>
+                            <div className="flex items-start gap-3">
+                              <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${notification.type === 'accepted' ? 'bg-green-50' : 'bg-red-50'}`}>
+                                {notification.type === 'accepted' ? (
+                                  <CheckCircle className="w-4 h-4 text-green-600" />
+                                ) : (
+                                  <XCircle className="w-4 h-4 text-red-600" />
+                                )}
+                              </div>
                               <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-start gap-2 mb-1">
-                                  <span className={`text-[10px] font-black uppercase tracking-widest ${notification.type === 'accepted' ? 'text-green-600' : 'text-red-600'}`}>
+                                <div className="flex justify-between items-start gap-2">
+                                  <p className="text-sm font-semibold text-gray-900 truncate">
                                     {notification.type === 'accepted' ? 'Appointment Accepted' : 'Appointment Declined'}
-                                  </span>
-                                  <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap">
+                                  </p>
+                                  <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap mt-0.5">
                                     {new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                   </span>
                                 </div>
-                                <p className="text-[13px] font-bold text-gray-800 leading-snug">{notification.message}</p>
-                                <p className="text-[10px] font-medium text-gray-400 mt-2 flex items-center gap-1">
-                                  <Clock size={10} />
-                                  {new Date(notification.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                <p className="text-xs text-gray-600 mt-0.5 leading-snug">
+                                  {notification.message}
                                 </p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <Clock className="w-3 h-3 text-gray-400" />
+                                  <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
+                                    {new Date(notification.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -301,9 +308,12 @@ const Homepage = () => {
                   </button>
 
                   {showNotifications && (
-                    <div className="absolute right-[-40px] mt-3 w-[calc(100vw-32px)] max-w-sm sm:right-0 sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-                        <h3 className="text-xs font-black text-gray-800 uppercase tracking-tight">Notifications</h3>
+                    <div className="absolute right-[-40px] mt-2 w-[calc(100vw-32px)] max-w-sm sm:right-0 sm:w-80 bg-white rounded-xl shadow-2xl border border-gray-100 z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-4 h-4 text-green-600" />
+                          <h3 className="font-bold text-gray-800">Notifications</h3>
+                        </div>
                         <div className="flex items-center gap-3">
                           {notifications.length > 0 && (
                             <button
@@ -320,14 +330,15 @@ const Homepage = () => {
                             onClick={() => setShowNotifications(false)}
                             className="text-gray-400"
                           >
-                            <AiOutlineClose size={14} />
+                            <XCircle className="w-5 h-5" />
                           </button>
                         </div>
                       </div>
                       <div className="max-h-[60vh] overflow-y-auto no-scrollbar">
                         {notifications.length === 0 ? (
                           <div className="p-8 text-center">
-                            <p className="text-xs font-bold text-gray-400">No notifications yet.</p>
+                            <CheckCircle className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                            <p className="text-sm font-medium text-gray-400">No notifications yet.</p>
                           </div>
                         ) : (
                           notifications.map(notification => (
@@ -336,12 +347,23 @@ const Homepage = () => {
                               className={`p-4 border-b border-gray-50 last:border-0 active:bg-gray-50 transition-colors ${!notification.read ? 'bg-green-50/30' : 'bg-white'}`}
                             >
                               <div className="flex items-start gap-3">
-                                <div className={`mt-1 h-2 w-2 rounded-full shrink-0 ${notification.type === 'accepted' ? 'bg-green-500 ring-2 ring-green-100' : 'bg-red-500 ring-2 ring-red-100'}`}></div>
+                                <div className={`mt-1 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${notification.type === 'accepted' ? 'bg-green-50' : 'bg-red-50'}`}>
+                                  {notification.type === 'accepted' ? (
+                                    <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+                                  ) : (
+                                    <XCircle className="w-3.5 h-3.5 text-red-600" />
+                                  )}
+                                </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold text-gray-800 leading-tight">{notification.message}</p>
-                                  <p className="text-[9px] font-medium text-gray-400 mt-1">
-                                    {new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                  </p>
+                                  <div className="flex justify-between items-start gap-2">
+                                    <p className="text-sm font-semibold text-gray-900 leading-tight">
+                                      {notification.type === 'accepted' ? 'Accepted' : 'Declined'}
+                                    </p>
+                                    <span className="text-[9px] font-bold text-gray-400 whitespace-nowrap mt-0.5">
+                                      {new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-gray-600 mt-1 leading-tight">{notification.message}</p>
                                 </div>
                               </div>
                             </div>

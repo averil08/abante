@@ -236,14 +236,14 @@ const DoctorDashboard = () => {
                     notes: `Follow-up reason: ${followUpReason}`,
                     appointmentDateTime: followUpDateTime,
                     type: 'Appointment',
-                    appointmentStatus: 'accepted'
+                    appointmentStatus: 'pending'
                 };
 
                 const updated = await requeuePatient(p.queueNo, extraUpdates);
                 if (updated) {
                     setFollowUpSuccess(true);
                     // Send email notification for requeued follow-up
-                    sendAppointmentEmail(p, 'accepted', {
+                    sendAppointmentEmail(p, 'follow-up-requested', {
                         queueNo: updated.queueNo || p.queueNo,
                         doctor: assignedDoc?.name || currentDoctor.name,
                         dateTime: followUpDateTime
@@ -286,7 +286,7 @@ const DoctorDashboard = () => {
                         } : null,
                         bookingMode: 'doctor',
                         status: 'waiting',
-                        appointmentStatus: 'accepted',
+                        appointmentStatus: 'pending',
                         inQueue: true,
                         queueNo: dbPatient?.queue_no || null,
                         registeredAt: new Date().toISOString(),
@@ -295,7 +295,7 @@ const DoctorDashboard = () => {
                     addPatient(newAppt);
                     setFollowUpSuccess(true);
                     // Send email notification for new follow-up
-                    sendAppointmentEmail(p, 'accepted', {
+                    sendAppointmentEmail(p, 'follow-up-requested', {
                         queueNo: dbPatient?.queue_no || null,
                         doctor: assignedDoc?.name || currentDoctor.name,
                         dateTime: followUpDateTime

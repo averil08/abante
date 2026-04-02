@@ -10,6 +10,7 @@ export const sendAppointmentEmail = async (patient, status, details) => {
   if (status === 'accepted') statusLabel = 'CONFIRMED';
   if (status === 'rejected') statusLabel = 'DECLINED';
   if (status === 'cancelled') statusLabel = 'CANCELLED';
+  if (status === 'follow-up-requested') statusLabel = 'FOLLOW-UP REQUESTED';
 
   const appointmentDate = new Date(details.dateTime || patient.appointmentDateTime).toLocaleDateString([], {
     weekday: 'long',
@@ -28,7 +29,10 @@ export const sendAppointmentEmail = async (patient, status, details) => {
     <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
       <h2 style="color: #059669;">Valley Care Clinic</h2>
       <p>Hello <strong>${patient.name}</strong>,</p>
-      <p>Your appointment request has been <strong>${statusLabel}</strong>.</p>
+      <p>${status === 'follow-up-requested' 
+        ? `Your doctor has requested a <strong>follow-up consultation</strong> for you. Please wait for a confirmation email once the clinic secretary has finalized the schedule.`
+        : `Your appointment request has been <strong>${statusLabel}</strong>.`
+      }</p>
       <div style="background: #f8fafc; padding: 15px; border-radius: 8px;">
         <p><strong>📅 Date:</strong> ${appointmentDate}</p>
         <p><strong>⏰ Time:</strong> ${appointmentTime}</p>
@@ -37,13 +41,22 @@ export const sendAppointmentEmail = async (patient, status, details) => {
         ${status === 'rejected' ? `<p style="color: #e11d48;"><strong>❌ Reason:</strong> ${details.reason || 'Not specified'}</p>` : ''}
         ${status === 'cancelled' ? `<p style="color: #64748b;"><strong>ℹ️ Note:</strong> This appointment was cancelled by the patient.</p>` : ''}
       </div>
-      <p style="margin-top: 20px; font-size: 12px; color: #64748b;">${status === 'cancelled' ? 'You can always book a new appointment when you are ready.' : 'Please arrive 15 minutes early. If you need to reschedule, please contact the clinic.'}</p>
+      <p style="margin-top: 20px; font-size: 12px; color: #64748b;">${
+        status === 'cancelled' 
+          ? 'You can always book a new appointment when you are ready.' 
+          : status === 'follow-up-requested'
+            ? 'We will notify you once your follow-up is officially confirmed. No further action is needed from your side for now.'
+            : 'Please arrive 15 minutes early. If you need to reschedule, please contact the clinic.'
+      }</p>
     </div>
   `;
 
   const textContent = `
     ValleyCare Clinic
-    Hello ${patient.name}, your appointment has been ${statusLabel}.
+    Hello ${patient.name}, ${status === 'follow-up-requested' 
+      ? 'your doctor has requested a follow-up consultation for you. Please wait for confirmation from the clinic.' 
+      : `your appointment has been ${statusLabel}.`
+    }
     Date: ${appointmentDate}
     Time: ${appointmentTime}
     Doctor: ${details.doctor || 'Assigned Physician'}

@@ -740,7 +740,7 @@ const Appointment = () => {
                               } else if (isFollowUp) {
                                 typeColor = "bg-blue-50 text-blue-600";
                                 typeIcon = <Stethoscope className="w-4 h-4" />;
-                                text = `Dr. ${notif.assignedDoctor?.name || 'Doctor'} scheduled a follow-up consultation.`;
+                                text = `${notif.assignedDoctor?.name || 'Doctor'} scheduled a follow-up consultation.`;
                               } else if (isNew) {
                                 typeColor = "bg-green-50 text-green-600";
                                 typeIcon = <CheckCircle className="w-4 h-4" />;

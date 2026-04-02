@@ -111,6 +111,12 @@ const NotificationModal = ({
                   <p className="text-xs text-red-700 italic">"{data.reason}"</p>
                 </div>
               )}
+              {data.followUpReason && (
+                <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 mt-2">
+                  <p className="text-[10px] text-blue-500 font-bold uppercase tracking-wider mb-1">Doctor's Follow-up Reason</p>
+                  <p className="text-xs text-blue-800 italic">"{data.followUpReason}"</p>
+                </div>
+              )}
             </div>
           </div>
         )}

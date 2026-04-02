@@ -149,12 +149,17 @@ const DoctorDashboard = () => {
         if (!doctorId) return [];
 
         return (patients || []).filter(p => {
-            if (p.type !== 'Appointment' || p.status === 'done') return false;
+            if (p.type !== 'Appointment' || p.status === 'done' || p.isInactive) return false;
             if (p.assignedDoctor?.id !== doctorId) return false;
 
             const isNew = !p.appointmentStatus || p.appointmentStatus === 'pending';
             const isCancelled = p.appointmentStatus === 'cancelled' || p.appointmentStatus === 'withdrawn';
             const isActioned = p.appointmentStatus === 'accepted' || p.appointmentStatus === 'rejected';
+
+            // Exclude follow-ups requested by the doctor that are already accepted 
+            // (since the doctor created them as accepted). We still want to see 
+            // if they are CANCELLED or REJECTED.
+            if (p.services?.includes('follow-up-doctor') && p.appointmentStatus === 'accepted') return false;
 
             return isNew || isCancelled || isActioned;
         }).sort((a, b) => new Date(b.registeredAt || b.created_at) - new Date(a.registeredAt || a.created_at))
@@ -2004,6 +2009,18 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                                 {patient.isPriority && <Badge variant="secondary" className="bg-amber-100/50 text-amber-700 border border-amber-200 text-xs font-medium uppercase tracking-wider rounded-md pointer-events-none" >Priority</Badge>}
                                             </div>
                                         </div>
+                                        {/* Follow-up reason banner */}
+                                        {patient.notes && patient.notes.includes('Follow-up reason:') && (
+                                            <div className="flex items-start gap-2 mt-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+                                                <MessageSquare className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" />
+                                                <div className="min-w-0">
+                                                    <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest leading-none mb-0.5">Doctor's Follow-up Reason</p>
+                                                    <p className="text-xs font-semibold text-blue-800 leading-snug">
+                                                        "{patient.notes.replace('Follow-up reason: ', '')}"
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

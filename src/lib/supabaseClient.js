@@ -38,7 +38,8 @@ export const registerWalkInPatient = async (patientData) => {
             queue_no: nextQueueNo,
             is_priority: patientData.isPriority || false,
             priority_type: patientData.priorityType || null,
-            patient_email: patientData.patientEmail || null
+            patient_email: patientData.patientEmail || null,
+            notes: patientData.notes || null
           }
         ])
         .select();

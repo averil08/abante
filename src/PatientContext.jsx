@@ -501,7 +501,36 @@ export const PatientProvider = ({ children }) => {
           if (payload.eventType === 'INSERT') {
             const newData = payload.new;
             const userRole = localStorage.getItem('userRole');
+            const currentUserEmail = localStorage.getItem('currentPatientEmail')?.toLowerCase();
+
+            // 1. Notification logic for PATIENT (on new follow-up from doctor)
+            if (currentUserEmail && newData.patient_email?.toLowerCase() === currentUserEmail) {
+              const isFollowUp = newData.services?.includes('follow-up-doctor');
+              if (isFollowUp) {
+                const message = `Dr. ${newData.assigned_doctor_name || 'Your Doctor'} has requested a follow-up consultation for you.`;
+                
+                setNotifications(prev => [{
+                  id: Date.now(),
+                  message,
+                  type: 'follow-up',
+                  timestamp: new Date().toISOString(),
+                  read: false
+                }, ...prev]);
+
+                setModalNotification({
+                  type: 'appointment',
+                  title: 'Follow-up Requested',
+                  description: message,
+                  data: {
+                    patientName: newData.name,
+                    dateTime: new Date(newData.appointment_datetime || newData.created_at).toLocaleString(),
+                    doctor: newData.assigned_doctor_name
+                  }
+                });
+              }
+            }
             
+            // 2. Notification logic for SECRETARY (on new submission)
             if ((userRole === 'secretary' || userRole === 'staff' || userRole === 'admin') && newData.patient_type === 'appointment') {
               setModalNotification({
                 type: 'appointment',

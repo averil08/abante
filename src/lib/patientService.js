@@ -16,7 +16,8 @@ export const savePatientProfile = async (patientData) => {
       appointment_status: patientData.appointmentStatus || null,
       rejection_reason: patientData.rejectionReason || null,
       in_queue: patientData.inQueue || false,
-      is_returning_patient: patientData.isReturningPatient || false
+      is_returning_patient: patientData.isReturningPatient || false,
+      notes: patientData.notes || null
     };
 
     const { data, error } = await supabase
@@ -119,7 +120,8 @@ export const syncPatientToDatabase = async (patientData) => {
       queue_exit_time: patientData.queueExitTime || null,
       completed_at: patientData.completedAt || null,
       registered_at: patientData.registeredAt || new Date().toISOString(),
-      appointment_datetime: patientData.appointmentDateTime || null
+      appointment_datetime: patientData.appointmentDateTime || null,
+      notes: patientData.notes || null
     };
 
     // Database update or insert operation

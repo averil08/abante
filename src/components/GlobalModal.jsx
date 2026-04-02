@@ -8,6 +8,11 @@ import NotificationModal from './NotificationModal';
  */
 const GlobalModal = () => {
   const { modalNotification, clearModalNotification } = useContext(PatientContext);
+  const userRole = localStorage.getItem('userRole');
+
+  // Skip global modal for staff/secretary/admin.
+  // They will see it explicitly rendered on the Appointment page instead.
+  if (userRole === 'secretary' || userRole === 'staff' || userRole === 'admin') return null;
 
   if (!modalNotification) return null;
 

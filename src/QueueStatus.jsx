@@ -216,7 +216,7 @@ const QueueStatus = () => {
   // Get all patients assigned to the same doctor
   const doctorPatients = currentPatient?.assignedDoctor
     ? patients.filter(p => {
-      if (!p.assignedDoctor || p.isInactive || !p.inQueue) return false;
+      if (!p.assignedDoctor || p.isInactive || (p.type !== 'Appointment' && !p.inQueue)) return false;
 
       // Exclude done/completed/cancelled patients (and specific requested removals)
       if (p.status === 'done' || p.status === 'completed' || p.status === 'cancelled' || p.queueNo === 19 || p.queueNo === '019') return false;

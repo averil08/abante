@@ -456,7 +456,7 @@ const DoctorDashboard = () => {
         if (p.isInactive) return false;
         if (p.type === 'Appointment' && p.appointmentStatus !== 'accepted') return false;
         if (p.status === 'done' || p.status === 'cancelled') return false;
-        if (!p.inQueue) return false;
+        if (p.type !== 'Appointment' && !p.inQueue) return false;
         if (p.type === 'Appointment') return isQueueDateInFilter(p.appointmentDateTime);
         return isQueueDateInFilter(p.registeredAt);
     });
@@ -467,7 +467,7 @@ const DoctorDashboard = () => {
     const doneQueuePatients = myPatients.filter(p => {
         if (p.isInactive) return false;
         if (p.type === 'Appointment' && p.appointmentStatus !== 'accepted') return false;
-        if (!p.inQueue) return false;
+        if (p.type !== 'Appointment' && !p.inQueue) return false;
         if (p.status !== 'done') return false;
         return isQueueDateInFilter(p.completedAt || p.registeredAt);
     });

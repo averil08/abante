@@ -195,7 +195,7 @@ const ClinicTVDisplay = () => {
         !p.isInactive &&
         matchesDoctor(p, doctor) &&
         p.status === "in progress" &&
-        p.inQueue &&
+        (p.type === 'Appointment' || p.inQueue) &&
         (p.status === "in progress" || isToday(p.registeredAt)) &&
         (!p.appointmentDateTime || isToday(p.appointmentDateTime))
       );
@@ -205,7 +205,7 @@ const ClinicTVDisplay = () => {
           !p.isInactive &&
           matchesDoctor(p, doctor) &&
           p.status === "waiting" &&
-          p.inQueue &&
+          (p.type === 'Appointment' || p.inQueue) &&
           isForToday(p) &&
           (!p.appointmentDateTime || isToday(p.appointmentDateTime))
         )

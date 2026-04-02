@@ -682,7 +682,7 @@ const Dashboard = () => {
     if (p.type === "Appointment" && p.appointmentStatus !== "accepted") return false;
     // Check completion date, fallback to registration date for backward compatibility
     if (!isWithinDateRange(p.completedAt || p.registeredAt)) return false;
-    return p.status === "done" && p.inQueue;
+    return p.status === "done" && (p.type === 'Appointment' || p.inQueue);
   });
 
   const cancelPatients = (patients || []).filter(p => {
@@ -705,7 +705,7 @@ const Dashboard = () => {
     if (dateFilter !== 'today') return false;
     if (p.isInactive) return false;
     if (p.status === "done" || p.status === "cancelled") return false;
-    if (!p.isPriority || !p.inQueue) return false;
+    if (!p.isPriority || (p.type !== "Appointment" && !p.inQueue)) return false;
 
     if (p.type === "Appointment") {
       return isWithinDateRange(p.appointmentDateTime);

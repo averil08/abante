@@ -248,9 +248,14 @@ const Homepage = () => {
                             className={`p-4 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors cursor-default ${!notification.read ? 'bg-green-50/30' : 'bg-white'}`}
                           >
                             <div className="flex items-start gap-3">
-                              <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${notification.type === 'accepted' ? 'bg-green-50' : 'bg-red-50'}`}>
+                              <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
+                                notification.type === 'accepted' ? 'bg-green-50' : 
+                                notification.type === 'follow-up' ? 'bg-blue-50' : 'bg-red-50'
+                              }`}>
                                 {notification.type === 'accepted' ? (
                                   <CheckCircle className="w-4 h-4 text-green-600" />
+                                ) : notification.type === 'follow-up' ? (
+                                  <Clock className="w-4 h-4 text-blue-600" />
                                 ) : (
                                   <XCircle className="w-4 h-4 text-red-600" />
                                 )}
@@ -258,7 +263,8 @@ const Homepage = () => {
                               <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start gap-2">
                                   <p className="text-sm font-semibold text-gray-900 truncate">
-                                    {notification.type === 'accepted' ? 'Appointment Accepted' : 'Appointment Declined'}
+                                    {notification.type === 'accepted' ? 'Appointment Accepted' : 
+                                     notification.type === 'follow-up' ? 'Follow-up Requested' : 'Appointment Declined'}
                                   </p>
                                   <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap mt-0.5">
                                     {new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -347,9 +353,11 @@ const Homepage = () => {
                               className={`p-4 border-b border-gray-50 last:border-0 active:bg-gray-50 transition-colors ${!notification.read ? 'bg-green-50/30' : 'bg-white'}`}
                             >
                               <div className="flex items-start gap-3">
-                                <div className={`mt-1 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${notification.type === 'accepted' ? 'bg-green-50' : 'bg-red-50'}`}>
+                                <div className={`mt-1 flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center ${notification.type === 'accepted' ? 'bg-green-50' : notification.type === 'follow-up' ? 'bg-blue-50' : 'bg-red-50'}`}>
                                   {notification.type === 'accepted' ? (
                                     <CheckCircle className="w-3.5 h-3.5 text-green-600" />
+                                  ) : notification.type === 'follow-up' ? (
+                                    <Clock className="w-3.5 h-3.5 text-blue-600" />
                                   ) : (
                                     <XCircle className="w-3.5 h-3.5 text-red-600" />
                                   )}
@@ -357,7 +365,7 @@ const Homepage = () => {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex justify-between items-start gap-2">
                                     <p className="text-sm font-semibold text-gray-900 leading-tight">
-                                      {notification.type === 'accepted' ? 'Accepted' : 'Declined'}
+                                      {notification.type === 'accepted' ? 'Accepted' : notification.type === 'follow-up' ? 'Follow-up' : 'Declined'}
                                     </p>
                                     <span className="text-[9px] font-bold text-gray-400 whitespace-nowrap mt-0.5">
                                       {new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

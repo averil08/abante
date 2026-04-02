@@ -694,7 +694,7 @@ const Appointment = () => {
                       <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
                         <h3 className="font-bold text-gray-800 flex items-center gap-2">
                           <Bell className="w-4 h-4 text-green-600" />
-                          Patient Cancellations
+                          Notification Updates
                         </h3>
                         <button
                           onClick={() => setShowNotifications(false)}
@@ -706,44 +706,80 @@ const Appointment = () => {
 
                       <div className="max-h-[400px] overflow-y-auto">
                         {(patients || [])
-                          .filter(p => p.type === "Appointment" && p.status === "cancelled" && p.appointmentStatus === "cancelled")
-                          .sort((a, b) => new Date(b.queueExitTime || b.registeredAt) - new Date(a.queueExitTime || a.registeredAt))
+                          .filter(p => {
+                            if (p.type !== "Appointment" || p.status === "done") return false;
+                            const isNew = !p.appointmentStatus || p.appointmentStatus === 'pending';
+                            const isCancelled = p.appointmentStatus === 'cancelled';
+                            const isFollowUp = p.services?.includes('follow-up-doctor');
+                            return isNew || isCancelled || isFollowUp;
+                          })
+                          .sort((a, b) => new Date(b.registeredAt || b.created_at) - new Date(a.registeredAt || a.created_at))
                           .length > 0 ? (
                           (patients || [])
-                            .filter(p => p.type === "Appointment" && p.status === "cancelled" && p.appointmentStatus === "cancelled")
-                            .sort((a, b) => new Date(b.queueExitTime || b.registeredAt) - new Date(a.queueExitTime || a.registeredAt))
-                            .map((notif) => (
-                              <div
-                                key={notif.id}
-                                className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-default"
-                              >
-                                <div className="flex items-start gap-3">
-                                  <div className="mt-1 flex-shrink-0 w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
-                                    <XCircle className="w-4 h-4 text-red-600" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <p className="text-sm font-semibold text-gray-900">
-                                      {notif.name}
-                                    </p>
-                                    <p className="text-xs text-gray-600 mt-0.5">
-                                      Cancelled their appointment for {formatDateTime(notif.appointmentDateTime || notif.appointment_datetime)}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-2">
-                                      <Clock className="w-3 h-3 text-gray-400" />
-                                      <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
-                                        {new Date(notif.queueExitTime || notif.registeredAt).toLocaleString()}
-                                      </span>
+                            .filter(p => {
+                              if (p.type !== "Appointment" || p.status === "done") return false;
+                              const isNew = !p.appointmentStatus || p.appointmentStatus === 'pending';
+                              const isCancelled = p.appointmentStatus === 'cancelled';
+                              const isFollowUp = p.services?.includes('follow-up-doctor');
+                              return isNew || isCancelled || isFollowUp;
+                            })
+                            .sort((a, b) => new Date(b.registeredAt || b.created_at) - new Date(a.registeredAt || a.created_at))
+                            .map((notif) => {
+                              const isNew = !notif.appointmentStatus || notif.appointmentStatus === 'pending';
+                              const isCancelled = notif.appointmentStatus === 'cancelled';
+                              const isFollowUp = notif.services?.includes('follow-up-doctor');
+
+                              let typeColor = "bg-amber-50 text-amber-600";
+                              let typeIcon = <Clock className="w-4 h-4" />;
+                              let text = "New appointment request submitted.";
+
+                              if (isCancelled) {
+                                typeColor = "bg-red-50 text-red-600";
+                                typeIcon = <XCircle className="w-4 h-4" />;
+                                text = `Cancelled their appointment for ${formatDateTime(notif.appointmentDateTime || notif.appointment_datetime)}`;
+                              } else if (isFollowUp) {
+                                typeColor = "bg-blue-50 text-blue-600";
+                                typeIcon = <Stethoscope className="w-4 h-4" />;
+                                text = `Dr. ${notif.assignedDoctor?.name || 'Doctor'} scheduled a follow-up consultation.`;
+                              } else if (isNew) {
+                                typeColor = "bg-green-50 text-green-600";
+                                typeIcon = <CheckCircle className="w-4 h-4" />;
+                                text = `Requested an appointment for ${formatDateTime(notif.appointmentDateTime || notif.appointment_datetime)}`;
+                              }
+
+                              return (
+                                <div
+                                  key={notif.id}
+                                  className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-default"
+                                >
+                                  <div className="flex items-start gap-3">
+                                    <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${typeColor}`}>
+                                      {typeIcon}
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-sm font-semibold text-gray-900">
+                                        {notif.name}
+                                      </p>
+                                      <p className="text-xs text-gray-600 mt-0.5">
+                                        {text}
+                                      </p>
+                                      <div className="flex items-center gap-2 mt-2">
+                                        <Clock className="w-3 h-3 text-gray-400" />
+                                        <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">
+                                          {new Date(notif.registeredAt || notif.created_at).toLocaleString()}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            ))
+                              );
+                            })
                         ) : (
                           <div className="p-8 text-center">
                             <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                               <CheckCircle className="w-6 h-6 text-gray-300" />
                             </div>
-                            <p className="text-sm text-gray-500 font-medium">No new cancellations</p>
+                            <p className="text-sm text-gray-500 font-medium">No new updates</p>
                           </div>
                         )}
                       </div>

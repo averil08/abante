@@ -402,13 +402,13 @@ export const PatientProvider = ({ children }) => {
             const currentUserEmail = localStorage.getItem('currentPatientEmail')?.toLowerCase();
 
             if (currentUserEmail && newData.patient_email?.toLowerCase() === currentUserEmail) {
-              // Get old status from state ref instead of relying on payload.old
               const oldPatient = patientsRef.current.find(p => p.id === newData.id);
-              const oldStatus = oldPatient?.appointmentStatus || 'pending'; // fallback
-
+              const oldStatus = oldPatient?.appointmentStatus || 'pending';
               const newStatus = newData.appointment_status;
+              const oldServices = oldPatient?.services || [];
+              const newServices = newData.services || [];
 
-              // Check if appointment status changed from pending to accepted/rejected
+              // 1. Check if appointment status changed from pending to accepted/rejected
               if (oldStatus === 'pending' && (newStatus === 'accepted' || newStatus === 'rejected')) {
                 const message = newStatus === 'accepted'
                   ? `Your appointment for ${new Date(newData.appointment_datetime).toLocaleDateString()} has been ACCEPTED.`
@@ -422,7 +422,6 @@ export const PatientProvider = ({ children }) => {
                   read: false
                 }, ...prev]);
 
-                // TRIGGER MODAL FOR PATIENT
                 setModalNotification({
                   type: newStatus === 'accepted' ? 'success' : 'error',
                   title: newStatus === 'accepted' ? 'Appointment Accepted!' : 'Appointment Declined',
@@ -434,15 +433,42 @@ export const PatientProvider = ({ children }) => {
                   }
                 });
               }
+
+              // 2. Check for new follow-up from doctor
+              if (!oldServices.includes('follow-up-doctor') && newServices.includes('follow-up-doctor')) {
+                const message = `Dr. ${newData.assigned_doctor_name || 'Your Doctor'} has requested a follow-up consultation for you.`;
+                
+                setNotifications(prev => [{
+                  id: Date.now(),
+                  message,
+                  type: 'follow-up',
+                  timestamp: new Date().toISOString(),
+                  read: false
+                }, ...prev]);
+
+                setModalNotification({
+                  type: 'appointment',
+                  title: 'Follow-up Requested',
+                  description: message,
+                  data: {
+                    patientName: newData.name,
+                    dateTime: new Date(newData.appointment_datetime || newData.created_at).toLocaleString(),
+                    doctor: newData.assigned_doctor_name
+                  }
+                });
+              }
             }
 
-            // NEW: Notification logic for SECRETARY (on cancellation)
+            // Notification logic for SECRETARY (on cancellation or follow-up)
             const userRole = localStorage.getItem('userRole');
             if (userRole === 'secretary' || userRole === 'staff' || userRole === 'admin') {
               const oldPatient = patientsRef.current.find(p => p.id === newData.id);
               const oldStatus = oldPatient?.appointmentStatus;
               const newStatus = newData.appointment_status;
+              const oldServices = oldPatient?.services || [];
+              const newServices = newData.services || [];
 
+              // Cancellation
               if (oldStatus !== 'cancelled' && newStatus === 'cancelled') {
                 setModalNotification({
                   type: 'cancel',
@@ -451,6 +477,20 @@ export const PatientProvider = ({ children }) => {
                   data: {
                     patientName: newData.name,
                     dateTime: new Date(newData.appointment_datetime || newData.created_at).toLocaleString(),
+                  }
+                });
+              }
+
+              // New Follow-up from Doctor
+              if (!oldServices.includes('follow-up-doctor') && newServices.includes('follow-up-doctor')) {
+                setModalNotification({
+                  type: 'appointment',
+                  title: 'New Doctor Follow-up',
+                  description: `Dr. ${newData.assigned_doctor_name} has scheduled a follow-up for ${newData.name}.`,
+                  data: {
+                    patientName: newData.name,
+                    dateTime: new Date(newData.appointment_datetime || newData.created_at).toLocaleString(),
+                    doctor: newData.assigned_doctor_name
                   }
                 });
               }
@@ -673,12 +713,18 @@ export const PatientProvider = ({ children }) => {
     // Only show for secretary/staff/admin
     if (userRole !== 'secretary' && userRole !== 'staff' && userRole !== 'admin') return 0;
 
-    return patients.filter(p =>
-      p.type === 'Appointment' &&
-      p.status === 'cancelled' &&
-      p.appointmentStatus === 'cancelled' &&
-      new Date(p.queueExitTime || p.registeredAt || p.created_at) > new Date(lastSecretaryNotificationCheck)
-    ).length;
+    return patients.filter(p => {
+      if (p.type !== 'Appointment' || p.status === 'done') return false;
+      
+      const isNewSubmission = !p.appointmentStatus || p.appointmentStatus === 'pending';
+      const isCancellation = p.appointmentStatus === 'cancelled';
+      const isDoctorFollowUp = p.services?.includes('follow-up-doctor');
+      
+      const notificationTime = new Date(p.registeredAt || p.created_at);
+      const lastCheck = new Date(lastSecretaryNotificationCheck);
+      
+      return (isNewSubmission || isCancellation || isDoctorFollowUp) && notificationTime > lastCheck;
+    }).length;
   }, [patients, lastSecretaryNotificationCheck]);
 
   const markSecretaryNotificationsAsRead = () => {

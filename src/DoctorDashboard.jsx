@@ -148,12 +148,17 @@ const DoctorDashboard = () => {
     const doctorNotifications = useMemo(() => {
         if (!doctorId) return [];
 
-        return (patients || []).filter(p =>
-            p.type === 'Appointment' &&
-            (p.appointmentStatus === 'cancelled' || p.appointmentStatus === 'withdrawn') &&
-            p.assignedDoctor?.id === doctorId
-        ).sort((a, b) => new Date(b.queueExitTime || b.registeredAt) - new Date(a.queueExitTime || a.registeredAt))
-            .slice(0, 20); // Keep reasonably fresh history
+        return (patients || []).filter(p => {
+            if (p.type !== 'Appointment' || p.status === 'done') return false;
+            if (p.assignedDoctor?.id !== doctorId) return false;
+
+            const isNew = !p.appointmentStatus || p.appointmentStatus === 'pending';
+            const isCancelled = p.appointmentStatus === 'cancelled' || p.appointmentStatus === 'withdrawn';
+            const isActioned = p.appointmentStatus === 'accepted' || p.appointmentStatus === 'rejected';
+
+            return isNew || isCancelled || isActioned;
+        }).sort((a, b) => new Date(b.registeredAt || b.created_at) - new Date(a.registeredAt || a.created_at))
+            .slice(0, 30); // Keep fresh history
     }, [patients, doctorId]);
 
     const unreadDoctorNotificationsCount = useMemo(() => {
@@ -707,7 +712,7 @@ const DoctorDashboard = () => {
             <div className="p-4 border-b border-gray-50 flex items-center justify-between bg-gray-50/50">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2">
                     <Bell className="w-4 h-4 text-green-600" />
-                    Patient Cancellations
+                    Doctor Updates
                 </h3>
                 <button
                     onClick={() => {
@@ -722,38 +727,67 @@ const DoctorDashboard = () => {
 
             <div className="max-h-[400px] overflow-y-auto">
                 {doctorNotifications.length > 0 ? (
-                    doctorNotifications.map((notif) => (
-                        <div
-                            key={notif.id}
-                            className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-default"
-                        >
-                            <div className="flex items-start gap-3">
-                                <div className="mt-1 flex-shrink-0 w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
-                                    <XCircle className="w-4 h-4 text-red-600" />
-                                </div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-semibold text-gray-900">
-                                        {notif.name}
-                                    </p>
-                                    <p className="text-xs text-gray-600 mt-0.5">
-                                        {notif.appointmentStatus === 'withdrawn' ? 'Withdrew' : 'Cancelled'} their appointment for {formatDateShort(notif.appointmentDateTime || notif.appointment_datetime)}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-2">
-                                        <Clock className="w-3 h-3 text-gray-400" />
-                                        <span className="text-[10px] text-gray-400 font-medium">
-                                            {formatDateTime(notif.queueExitTime || notif.registeredAt)}
-                                        </span>
+                    doctorNotifications.map((notif) => {
+                        const isNew = !notif.appointmentStatus || notif.appointmentStatus === 'pending';
+                        const isCancelled = notif.appointmentStatus === 'cancelled' || notif.appointmentStatus === 'withdrawn';
+                        const isAccepted = notif.appointmentStatus === 'accepted';
+                        const isRejected = notif.appointmentStatus === 'rejected';
+
+                        let typeColor = "bg-green-50 text-green-600";
+                        let typeIcon = <CheckCircle2 className="w-4 h-4" />;
+                        let text = "";
+
+                        if (isCancelled) {
+                            typeColor = "bg-red-50 text-red-600";
+                            typeIcon = <XCircle className="w-4 h-4" />;
+                            text = `Cancelled their appointment for ${formatDateShort(notif.appointmentDateTime || notif.appointment_datetime)}`;
+                        } else if (isNew) {
+                            typeColor = "bg-amber-50 text-amber-600";
+                            typeIcon = <Clock className="w-4 h-4" />;
+                            text = `New appointment request submitted for ${formatDateShort(notif.appointmentDateTime || notif.appointment_datetime)}`;
+                        } else if (isAccepted) {
+                            typeColor = "bg-emerald-50 text-emerald-600";
+                            typeIcon = <CheckCircle2 className="w-4 h-4" />;
+                            text = `Appointment request accepted by secretary.`;
+                        } else if (isRejected) {
+                            typeColor = "bg-red-50 text-red-600";
+                            typeIcon = <XCircle className="w-4 h-4" />;
+                            text = `Appointment request rejected by secretary.`;
+                        }
+
+                        return (
+                            <div
+                                key={notif.id}
+                                className="p-4 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-default"
+                            >
+                                <div className="flex items-start gap-3">
+                                    <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${typeColor}`}>
+                                        {typeIcon}
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm font-semibold text-gray-900">
+                                            {notif.name}
+                                        </p>
+                                        <p className="text-xs text-gray-600 mt-0.5">
+                                            {text}
+                                        </p>
+                                        <div className="flex items-center gap-2 mt-2">
+                                            <Clock className="w-3 h-3 text-gray-400" />
+                                            <span className="text-[10px] text-gray-400 font-medium tracking-tight">
+                                                {new Date(notif.registeredAt || notif.created_at).toLocaleString()}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 ) : (
                     <div className="p-8 text-center">
                         <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3">
                             <CheckCircle2 className="w-6 h-6 text-gray-300" />
                         </div>
-                        <p className="text-sm text-gray-500 font-medium">No new cancellations</p>
+                        <p className="text-sm text-gray-500 font-medium">No new updates</p>
                     </div>
                 )}
             </div>

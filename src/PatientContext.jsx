@@ -442,8 +442,8 @@ export const PatientProvider = ({ children }) => {
                   : rawReason.trim() || null;
                 const doctorName = newData.assigned_doctor_name || 'Your Doctor';
                 const message = followUpReason
-                  ? `Dr. ${doctorName} has requested a follow-up consultation. Reason: ${followUpReason}`
-                  : `Dr. ${doctorName} has requested a follow-up consultation for you.`;
+                  ? `${doctorName} has requested a follow-up consultation. Reason: ${followUpReason}`
+                  : `${doctorName} has requested a follow-up consultation for you.`;
                 
                 setNotifications(prev => [{
                   id: Date.now(),
@@ -456,7 +456,7 @@ export const PatientProvider = ({ children }) => {
                 setModalNotification({
                   type: 'appointment',
                   title: 'Follow-up Requested',
-                  description: `Dr. ${doctorName} has requested a follow-up consultation for you.`,
+                  description: `${doctorName} has requested a follow-up consultation for you.`,
                   data: {
                     patientName: newData.name,
                     dateTime: new Date(newData.appointment_datetime || newData.created_at).toLocaleString(),
@@ -494,7 +494,7 @@ export const PatientProvider = ({ children }) => {
                 setModalNotification({
                   type: 'appointment',
                   title: 'New Doctor Follow-up',
-                  description: `Dr. ${newData.assigned_doctor_name} has scheduled a follow-up for ${newData.name}.`,
+                  description: `${newData.assigned_doctor_name} has scheduled a follow-up for ${newData.name}.`,
                   data: {
                     patientName: newData.name,
                     dateTime: new Date(newData.appointment_datetime || newData.created_at).toLocaleString(),
@@ -521,8 +521,8 @@ export const PatientProvider = ({ children }) => {
                   : rawReason.trim() || null;
                 const doctorName = newData.assigned_doctor_name || 'Your Doctor';
                 const message = followUpReason
-                  ? `Dr. ${doctorName} has requested a follow-up consultation. Reason: ${followUpReason}`
-                  : `Dr. ${doctorName} has requested a follow-up consultation for you.`;
+                  ? `${doctorName} has requested a follow-up consultation. Reason: ${followUpReason}`
+                  : `${doctorName} has requested a follow-up consultation for you.`;
                 
                 setNotifications(prev => [{
                   id: Date.now(),
@@ -535,7 +535,7 @@ export const PatientProvider = ({ children }) => {
                 setModalNotification({
                   type: 'appointment',
                   title: 'Follow-up Requested',
-                  description: `Dr. ${doctorName} has requested a follow-up consultation for you.`,
+                  description: `${doctorName} has requested a follow-up consultation for you.`,
                   data: {
                     patientName: newData.name,
                     dateTime: new Date(newData.appointment_datetime || newData.created_at).toLocaleString(),
@@ -554,7 +554,7 @@ export const PatientProvider = ({ children }) => {
                 type: 'appointment',
                 title: isDoctorFollowUp ? 'New Doctor Follow-up' : 'New Appointment Request',
                 description: isDoctorFollowUp 
-                  ? `Dr. ${newData.assigned_doctor_name || 'the doctor'} has scheduled a follow-up for ${newData.name}.`
+                  ? `${newData.assigned_doctor_name || 'The doctor'} has scheduled a follow-up for ${newData.name}.`
                   : `A new appointment request has been submitted by ${newData.name}.`,
                 data: {
                   patientName: newData.name,

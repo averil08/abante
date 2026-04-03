@@ -1558,7 +1558,7 @@ const DoctorDashboard = () => {
                                                                 <div className="flex items-center gap-1.5 mt-0.5">
                                                                     <Stethoscope className={`w-3 h-3 flex-shrink-0 ${isDoc ? 'text-purple-500' : 'text-emerald-500'}`} />
                                                                     <span className={`text-xs truncate ${isDoc ? 'text-purple-700 font-medium' : 'text-emerald-700'}`}>
-                                                                        {isDoc ? `Dr. ${label}` : label}
+                                                                        {isDoc ? label : label}
                                                                     </span>
                                                                 </div>
                                                             </div>

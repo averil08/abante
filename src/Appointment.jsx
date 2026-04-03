@@ -1318,7 +1318,7 @@ const Appointment = () => {
                   Accepted Appointments
                 </DialogTitle>
                 <DialogDescription className="text-green-100 mt-1">
-                  Showing {isDoctor ? 'your accepted appointments' : (calendarFilterDoctor === 'all' ? 'all accepted appointments' : `accepted appointments for Dr. ${doctors.find(d => d.id === Number(calendarFilterDoctor))?.name}`)} for{' '}
+                  Showing {isDoctor ? 'your accepted appointments' : (calendarFilterDoctor === 'all' ? 'all accepted appointments' : `accepted appointments for ${doctors.find(d => d.id === Number(calendarFilterDoctor))?.name}`)} for{' '}
                   {new Date(calendarYear, calendarMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}
                 </DialogDescription>
               </DialogHeader>
@@ -1547,7 +1547,7 @@ const Appointment = () => {
                                 <div className="flex items-center gap-1.5 mt-0.5">
                                   <Stethoscope className={`w-3 h-3 flex-shrink-0 ${isDoc ? 'text-purple-500' : 'text-green-500'}`} />
                                   <span className={`text-xs truncate ${isDoc ? 'text-purple-700 font-medium' : 'text-green-700'}`}>
-                                    {isDoc ? `Dr. ${label}` : label}
+                                    {isDoc ? label : label}
                                   </span>
                                 </div>
                               </div>

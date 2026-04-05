@@ -5,28 +5,41 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// SHARED QUEUE HELPERS
+const APPT_OFFSET = 10000;
+const getBrandedBase = () => {
+  const now = new Date();
+  const utcNow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const start = Date.UTC(2024, 0, 1);
+  const dayOffset = Math.floor((utcNow - start) / (1000 * 60 * 60 * 24));
+  return dayOffset * 20000;
+};
+
 // Patient registration functions
-export const registerWalkInPatient = async (patientData) => {
+export const registerWalkInPatient = async (patientData, minNextNum = null) => {
   let attempts = 0;
   const maxAttempts = 3;
 
   while (attempts < maxAttempts) {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // 📥 GENERATE COMPACT BRANDED QUEUE NUMBER
+      const brandedBase = getBrandedBase();
 
-      // Walk-in Range: 1 - 9,999
+      // Walk-in Range: 1 - 9,999 (Today only)
       const { data: maxQData } = await supabase
         .from('patients')
         .select('queue_no')
-        .gte('queue_no', 1)
-        .lte('queue_no', 9999)
-        .gte('registered_at', today.toISOString())
+        .gte('queue_no', brandedBase + 1)
+        .lte('queue_no', brandedBase + 9999)
         .order('queue_no', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      const nextQueueNo = (maxQData?.queue_no || 0) + 1;
+      const nextSeq = (maxQData?.queue_no ? (maxQData.queue_no % 20000) : 0) + 1;
+      
+      // CRITICAL: Ensure we don't collide with local state (PatientContext)
+      // This solves the RLS issue where the database query might not see all patients.
+      let nextQueueNo = Math.max(brandedBase + nextSeq, minNextNum || 0);
 
       const { data, error } = await supabase
         .from('patients')
@@ -69,29 +82,38 @@ export const registerWalkInPatient = async (patientData) => {
   }
 };
 
-export const registerAppointmentPatient = async (formData, appointmentDateTime) => {
+export const registerAppointmentPatient = async (formData, appointmentDateTime, minNextNum = null) => {
   let attempts = 0;
   const maxAttempts = 3;
 
   while (attempts < maxAttempts) {
     try {
-      // Unified Queue Logic: Appointments now share the same sequence as walk-ins
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // ✅ STABILIZED: Optimized Sentinel Assignment
+      // 1. Identify if this is for a future date
+      const apptDate = new Date(appointmentDateTime);
+      const now = new Date();
+      const isTodayAppt = (apptDate.toDateString() === now.toDateString());
+      const brandedBase = getBrandedBase();
 
-      // Appointment Range: 10,001 - 19,999
-      const { data: maxQData } = await supabase
-        .from('patients')
-        .select('queue_no')
-        .gte('queue_no', 10001)
-        .lte('queue_no', 19999)
-        .gte('registered_at', today.toISOString())
-        .order('queue_no', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      let nextQueueNo;
+      if (!isTodayAppt) {
+        // If it's a future appointment, skip live numbering and assign a high Sentinel.
+        // This ensures the patient sees "#A--" until the day of their visit.
+        nextQueueNo = 900000 + Math.floor(Math.random() * 99999);
+      } else {
+        // Only generate live queue numbers (A01, A02...) if the appointment is for TODAY.
+        const { data: maxQData } = await supabase
+          .from('patients')
+          .select('queue_no')
+          .gte('queue_no', brandedBase + APPT_OFFSET + 1)
+          .lte('queue_no', brandedBase + 19999)
+          .order('queue_no', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      const nextBase = (maxQData?.queue_no || 10000);
-      const nextQueueNo = nextBase + 1;
+        const nextSeq = (maxQData?.queue_no ? (maxQData.queue_no % 20000) : APPT_OFFSET) + 1;
+        nextQueueNo = Math.max(brandedBase + nextSeq, minNextNum || 0);
+      }
 
       const { data: patientData, error: patientError } = await supabase
         .from('patients')

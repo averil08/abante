@@ -626,6 +626,10 @@ function Checkin() {
     };
 
     try {
+      // 🚫 CRITICAL: Clear any existing "Ghost" session before starting a new submission.
+      // This prevents previously cancelled records from being restored to your device.
+      clearActivePatient();
+
       if (formData.symptoms.length === 0) {
         setErrors(prev => ({ ...prev, symptoms: "Please select at least one symptom." }));
         setTouched(prev => ({ ...prev, symptoms: true }));
@@ -670,8 +674,13 @@ function Checkin() {
 
       let result;
 
+      // 📥 CALCULATE LOCAL MAX FOR TODAY (Cross-Context Sync)
+      const currentLocalMax = Math.max(0, ...patients
+        .filter(p => p.type === selectedPatientType && isToday(p.registeredAt || p.appointmentDateTime))
+        .map(p => p.queueNo || 0));
+
       if (selectedPatientType === "Walk-in") {
-        result = await registerWalkInPatient(dataToSubmit);
+        result = await registerWalkInPatient(dataToSubmit, currentLocalMax + 1);
       } else if (selectedPatientType === "Appointment") {
         if (!formData.appointmentDateTime) {
           showMessage("Validation Error", "Please select appointment date and time.", false);
@@ -695,7 +704,7 @@ function Checkin() {
           return;
         }
 
-        result = await registerAppointmentPatient(dataToSubmit, formData.appointmentDateTime);
+        result = await registerAppointmentPatient(dataToSubmit, formData.appointmentDateTime, currentLocalMax + 1);
       }
 
       if (result.success) {
@@ -785,6 +794,12 @@ function Checkin() {
           : `Appointment request submitted for ${composedName}. Please wait for confirmation.`;
 
         showMessage("Success", successMsg, true);
+
+        // ✅ STABILIZED: Update localStorage ID immediately to ensure it survives navigation
+        if (dbId) {
+          localStorage.setItem('activePatientId', dbId);
+          console.log('💾 Persisted fresh activePatientId to storage:', dbId);
+        }
 
         setTimeout(() => {
           const currentEmail = localStorage.getItem('currentPatientEmail');

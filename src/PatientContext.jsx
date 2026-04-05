@@ -20,25 +20,28 @@ const isForToday = (p) => {
   }
   return isToday(p.registeredAt);
 };
-
 // ✅ NEW: Powerful UI Formatter for the Prefixing System
 // This turns database integers (1, 1001) into display labels (W01, A01)
-export const formatQueueNumber = (num, type) => {
-  if (num === null || num === undefined) return "---";
+export const formatQueueNumber = (num, type, appointmentStatus, appointmentDateTime) => {
+  if (type === 'Appointment') {
+    // ✅ Only accepted appointments qualify for a real numeric ticket
+    if (appointmentStatus === 'accepted') {
+      const isApptToday = isToday(appointmentDateTime);
+      
+      if (num && isApptToday) {
+        // num should be the sequential position (1, 2, 3...) from resolveQueueDisplays
+        return `#A${String(num).padStart(2, '0')}`;
+      }
+      // If accepted but for a future date, or if number hasn't arrived yet
+      return `#A--`;
+    }
+    
+    // ✅ All other statuses (pending, rejected, cancelled) always stay as placeholders
+    return `#A--`;
+  }
   
-  // 1. System Records (Keep as is)
-  if (num >= 900000) return num;
-
-  // 2. Identify the prefix based on number range OR patient type
-  // This approach is "Smart" so it correctly labels old records too!
-  const isAppointment = num >= 1000 || (type || '').toLowerCase() === 'appointment';
-  const prefix = isAppointment ? 'A' : 'W';
-  
-  // 3. Scale the number back if it's in the Appointment range (1000+)
-  const displayNum = isAppointment && num >= 1000 ? num % 10000 : num;
-  
-  // 4. Return the formatted string (W01, A15, etc.)
-  return `${prefix}${String(displayNum).padStart(2, '0')}`;
+  // Walk-ins use #W prefix
+  return `#W${String(num).padStart(2, '0')}`;
 };
 
 // Matches doctor names even if the DB includes middle initials/extra punctuation.
@@ -196,7 +199,11 @@ export const PatientProvider = ({ children }) => {
     // ✅ CRITICAL: Use dbId as the primary identifier
     id: dbPatient.id,
     queueNo: dbPatient.queue_no,
-    displayQueueNo: formatQueueNumber(dbPatient.queue_no, dbPatient.patient_type),
+    displayQueueNo: formatQueueNumber(
+      dbPatient.queue_no, 
+      dbPatient.patient_type, 
+      dbPatient.appointment_datetime || dbPatient.registered_at || dbPatient.created_at
+    ),
     name: dbPatient.name,
     age: dbPatient.age,
     phoneNum: dbPatient.phone_num ? (dbPatient.phone_num.startsWith('09') ? `+63${dbPatient.phone_num.slice(1)}` : dbPatient.phone_num.startsWith('9') && dbPatient.phone_num.length === 10 ? `+63${dbPatient.phone_num}` : dbPatient.phone_num) : "",
@@ -244,8 +251,33 @@ export const PatientProvider = ({ children }) => {
     updatedAt: dbPatient.updated_at
   });
 
+  // Helper to resolve display queue numbers with latest context
+  const resolveQueueDisplays = (rawPatients) => {
+    return rawPatients.map(p => ({
+      ...p,
+      displayQueueNo: formatQueueNumber(
+        p.queueNo, 
+        p.type, 
+        p.appointmentDateTime || p.registeredAt,
+        rawPatients
+      )
+    }));
+  };
+
   // ==========================================
-  // NEW: LOAD PATIENTS FROM DATABASE ON MOUNT
+  // NEW: Sort logic for Hybrid Sequence (Interleaving)
+  // Sorts by Appointment Time OR Registration Time
+  // ==========================================
+  const sortPatientsHybrid = (a, b) => {
+    const timeA = new Date(a.appointmentDateTime || a.registeredAt).getTime();
+    const timeB = new Date(b.appointmentDateTime || b.registeredAt).getTime();
+    
+    // Primary Sort: Effective Time (Hybrid Clock)
+    if (timeA !== timeB) return timeA - timeB;
+    
+    // Tie-breaker: ID/Registration Order
+    return (a.queueNo || 0) - (b.queueNo || 0);
+  };
   // ==========================================
   // ==========================================
   // UPDATED: LOAD PATIENTS FROM DATABASE ON MOUNT
@@ -261,54 +293,28 @@ export const PatientProvider = ({ children }) => {
       if (result.success && result.data) {
         const transformedPatients = result.data.map(transformPatientData);
 
-
-        // Restore currentServing — ONLY if they were registered today
-        // Stale "in progress" patients from previous days are ignored for currentServing
-        const inProgressPatient = transformedPatients.find(p =>
-          p.status === "in progress" &&
-          !p.isInactive &&
-          isForToday(p)
-        );
-        setCurrentServing(inProgressPatient ? inProgressPatient.queueNo : null);
-
-        // SELF-HEALING: Mark any stale patients from previous days
-        transformedPatients.forEach(p => {
-          if (!isForToday(p) && !p.isInactive) {
-            // Case 1: In Progress -> Mark as Done (They were actually seen but not completed)
-            if (p.status === 'in progress') {
-              console.log(`🧹 Auto-clearing stale "in progress" patient #${p.queueNo} (${p.name}) from ${p.registeredAt}`);
-              p.status = 'done';
-              p.completedAt = new Date().toISOString();
-              if (!p.queueExitTime) p.queueExitTime = new Date().toISOString();
-
-              // Sync to database
-              syncPatientToDatabase(p).catch(err => {
-                console.error('⚠️ Failed to auto-clear stale patient:', err);
-              });
-            } 
-            // Case 2: Waiting -> Mark as Cancelled (They arrived but were never called)
-            else if (p.status === 'waiting') {
-              console.log(`🧹 Auto-cancelling stale "waiting" patient #${p.queueNo} (${p.name}) from ${p.registeredAt}`);
-              p.status = 'cancelled';
-              p.rejectionReason = "Expired Session"; // Record why it was cancelled
-              p.queueExitTime = new Date().toISOString();
-
-              // Sync to database
-              syncPatientToDatabase(p).catch(err => {
-                console.error('⚠️ Failed to auto-cancel stale patient:', err);
-              });
-            }
-          }
-        });
-
-        // ✅ CRITICAL FIX: Restore active patient synchronously BEFORE hiding loading screen
+        // ✅ Sync Active Patient: Restore from localStorage, but NEVER restore a cancelled session
         const persistedId = localStorage.getItem('activePatientId');
         if (persistedId) {
-          // Use robust String comparison for IDs to handle type mismatch on refresh
           const foundPatient = transformedPatients.find(p => String(p.id) === String(persistedId));
           if (foundPatient) {
-            console.log("⚡ Sync-restorating active patient from storage:", foundPatient.name);
-            setActivePatient(foundPatient);
+            // 🚫 GUARD: Never restore a cancelled patient — this prevents ghost sessions
+            // where an old cancelled patient overwrites a freshly submitted new appointment.
+            if (foundPatient.status === 'cancelled') {
+              console.log('🚫 [loadDB] Persisted patient is cancelled. Clearing ghost session.');
+              localStorage.removeItem('activePatientId');
+              // If the current active state IS this cancelled one, clear it immediately
+              if (activePatient?.id === foundPatient.id) {
+                setActivePatient(null);
+              }
+            } else {
+              console.log('⚡ [loadDB] Restoring active patient from storage:', foundPatient.name);
+              setActivePatient(foundPatient);
+            }
+          } else {
+            // Persisted ID not found in DB — stale reference, clear it
+            console.log('🚫 [loadDB] Persisted patient ID not found in DB. Clearing stale reference.');
+            localStorage.removeItem('activePatientId');
           }
         }
 
@@ -406,9 +412,26 @@ export const PatientProvider = ({ children }) => {
 
       // 2. Normal sync: find the freshest version of the active patient
       const freshData = patients.find(p => p.id === activePatient.id);
+      
       if (freshData) {
-        // Only update if there are actual changes to avoid infinite loops
-        // We compare relevant fields or just check reference/JSON
+        // 🚫 GUARD: If the fresh data shows the record was cancelled, and we have another active record
+        // for the same name/account in the list, auto-switch to the active one.
+        if (freshData.status === 'cancelled') {
+           const alternative = patients.find(p => 
+             p.id !== freshData.id && 
+             p.name === freshData.name && 
+             p.status !== 'cancelled' && 
+             p.status !== 'done'
+           );
+           if (alternative) {
+             console.log("🔄 Ghost Detection! Switching from cancelled record to active record for same user.");
+             setActivePatient(alternative);
+             localStorage.setItem('activePatientId', alternative.id);
+             return;
+           }
+        }
+
+        // Normal identity sync
         if (JSON.stringify(activePatient) !== JSON.stringify(freshData)) {
           console.log("🔄 Syncing activePatient with fresh data from DB/Realtime");
           setActivePatient(freshData);
@@ -636,22 +659,34 @@ export const PatientProvider = ({ children }) => {
     };
   }, []); // Run once on mount
 
-  // NEW: Persist activePatient to localStorage
+  // Persist activePatient to localStorage — but never store a cancelled session
   useEffect(() => {
     if (activePatient?.id) {
-      localStorage.setItem('activePatientId', activePatient.id);
+      if (activePatient.status === 'cancelled') {
+        // A cancelled patient should NEVER be persisted — clear it so a fresh
+        // submission on the same device won't have a ghost session restored.
+        localStorage.removeItem('activePatientId');
+      } else {
+        localStorage.setItem('activePatientId', activePatient.id);
+      }
     }
-    // REMOVED: The else if (activePatient === null) block to prevent race conditions.
-    // We now rely on explicit clearing via clearActivePatient()
   }, [activePatient]);
 
-  // NEW: Restore activePatient from localStorage on load
+  // ✅ STABILIZED: Restore activePatient from localStorage on load
   useEffect(() => {
+    // Only attempt restoration if we don't have an active memory state and we have authoritative data
     if (!isLoadingFromDB && !activePatient && patients.length > 0) {
       const persistedId = localStorage.getItem('activePatientId');
       if (persistedId) {
         const foundPatient = patients.find(p => String(p.id) === String(persistedId));
         if (foundPatient) {
+          // ✅ GUARD: Never restore a cancelled patient
+          if (foundPatient.status === 'cancelled') {
+            console.log("🚫 Persisted patient is cancelled. Clearing ghost session.");
+            localStorage.removeItem('activePatientId');
+            return;
+          }
+
           // ACCOUNT VALIDATION:
           const currentEmail = localStorage.getItem('currentPatientEmail');
           const isLoggedIn = localStorage.getItem('isPatientLoggedIn') === 'true';
@@ -660,16 +695,8 @@ export const PatientProvider = ({ children }) => {
             const normalizedFoundEmail = (foundPatient.patientEmail || '').toLowerCase().trim();
             const normalizedCurrentEmail = currentEmail.toLowerCase().trim();
 
-            // 1. If user is logged in but the restored patient is a GUEST (no email)
-            if (!normalizedFoundEmail) {
-              console.log("🚫 Restored patient is a guest session but user is logged in. Clearing.");
-              localStorage.removeItem('activePatientId');
-              return;
-            }
-
-            // 2. If user is logged in but the restored patient belongs to ANOTHER account
-            if (normalizedFoundEmail !== normalizedCurrentEmail) {
-              console.log("🚫 Restored patient belongs to another account. Clearing.");
+            if (!normalizedFoundEmail || normalizedFoundEmail !== normalizedCurrentEmail) {
+              console.log("🚫 Restored patient belongs to another account or is a guest. Clearing.");
               localStorage.removeItem('activePatientId');
               return;
             }
@@ -677,10 +704,15 @@ export const PatientProvider = ({ children }) => {
 
           console.log("🔄 Restoring active patient from storage:", foundPatient.name);
           setActivePatient(foundPatient);
+        } else {
+           // ⚠️ WAIT: If not found in this specific fetch, do NOT delete from localStorage immediately.
+           // This prevents "flickering" session loss if the DB is slightly behind a fresh submission.
+           // We only delete if it's a known stale ID (decided in loadPatientsFromDatabase).
+           console.log("⏳ Persisted patient ID not in current list — holding for sync...");
         }
       }
     }
-  }, [isLoadingFromDB, patients, activePatient]);
+  }, [isLoadingFromDB, patients, activePatient, currentPatientEmail, isPatientLoggedIn]);
 
   // NEW: Automatic session discovery for logged-in patients
   useEffect(() => {
@@ -873,7 +905,7 @@ export const PatientProvider = ({ children }) => {
   });
 
   useEffect(() => {
-    const currentServing = {};
+    const servingMap = {};
     patients.forEach(patient => {
       // Robust check: same filters as initialization
       const isAcceptedAppointment = patient.type === 'Appointment' && patient.appointmentStatus === 'accepted';
@@ -882,11 +914,34 @@ export const PatientProvider = ({ children }) => {
       if (patient.status === 'in progress' && patient.assignedDoctor && !patient.isInactive && (isAcceptedAppointment || isWalkIn)) {
         // Only count as current serving if patient is from today
         if (isForToday(patient)) {
-          currentServing[patient.assignedDoctor.id] = patient.queueNo;
+          servingMap[patient.assignedDoctor.id] = patient.queueNo;
         }
       }
     });
-    setDoctorCurrentServing(currentServing);
+    setDoctorCurrentServing(servingMap);
+
+    // ✅ NEW: Synchronize global currentServing reactive to patients list
+    // This allows the General Queue card to update automatically via Real-time
+    const inProgressToday = patients.filter(p => 
+      p.status === "in progress" && 
+      !p.isInactive && 
+      isForToday(p)
+    );
+
+    if (inProgressToday.length > 0) {
+      // Sort by calledAt (descending) to get the MOST RECENTLY called patient as the main serving focus
+      const latestCalled = [...inProgressToday].sort((a, b) => {
+        const timeA = a.calledAt ? new Date(a.calledAt).getTime() : 0;
+        const timeB = b.calledAt ? new Date(b.calledAt).getTime() : 0;
+        return timeB - timeA;
+      })[0];
+
+      if (latestCalled && latestCalled.queueNo !== currentServing) {
+        setCurrentServing(latestCalled.queueNo);
+      }
+    } else if (currentServing !== null) {
+      setCurrentServing(null);
+    }
   }, [patients]);
 
   // Sync activePatient (existing logic - keep this)
@@ -1052,35 +1107,15 @@ export const PatientProvider = ({ children }) => {
   // MODIFIED: addPatient - Now syncs to database AND persists
   // ==========================================
   const addPatient = (inputPatient) => {
-    setPatients(prev => {
-      // Handle both formats for ID check
-      const id = inputPatient.id || inputPatient.dbId;
-      // Check if patient already exists in local state to prevent duplicates
-      if (id && prev.some(p => p.id === id)) return prev;
-      const newPatientEntry = {
-        ...inputPatient,
-        // Ensure consistent app-level fields, preferring existing camelCase or falling back to snake_case
-        id: id, // Ensure id is set
-        dbId: id, // Ensure dbId is set
-        phoneNum: inputPatient.phoneNum || inputPatient.phone_num,
-        type: inputPatient.type || (inputPatient.patient_type === 'appointment' ? 'Appointment' : 'Walk-in'),
-        queueNo: inputPatient.queueNo !== undefined ? inputPatient.queueNo : inputPatient.queue_no,
-        appointmentDateTime: inputPatient.appointmentDateTime || inputPatient.appointment_datetime,
-        // Make sure we carry over other important fields
-        name: inputPatient.name,
-        age: inputPatient.age,
-        symptoms: inputPatient.symptoms || [],
-        services: inputPatient.services || [],
-        status: inputPatient.status || "waiting",
-        appointmentStatus: inputPatient.appointmentStatus || inputPatient.appointment_status,
-        inQueue: inputPatient.inQueue !== undefined ? inputPatient.inQueue : (inputPatient.patient_type === 'walk-in'),
-        isPriority: inputPatient.isPriority !== undefined ? inputPatient.isPriority : (inputPatient.is_priority || false),
-        priorityType: inputPatient.priorityType || inputPatient.priority_type || null,
-        registeredAt: inputPatient.registeredAt || inputPatient.registered_at || inputPatient.created_at || new Date().toISOString(),
-        notes: inputPatient.notes || null
-      };
+    // If the input is raw from Supabase (has snake_case keys), transform it first
+    const patientToAdd = (inputPatient.patient_type || inputPatient.queue_no) 
+      ? transformPatientData(inputPatient) 
+      : inputPatient;
 
-      return [...prev, newPatientEntry].sort((a, b) => (a.queueNo || 0) - (b.queueNo || 0));
+    setPatients(prev => {
+      // Check if patient already exists to prevent duplicates
+      if (patientToAdd.id && prev.some(p => p.id === patientToAdd.id)) return prev;
+      return [...prev, patientToAdd].sort((a, b) => (a.queueNo || 0) - (b.queueNo || 0));
     });
   };
 
@@ -1153,87 +1188,48 @@ export const PatientProvider = ({ children }) => {
   //ADDED this update
   const acceptAppointment = async (patientId) => {
     try {
-      // 1. Get the patient to check if they already have a valid queue number
+      // 1. Get the patient first
       const patient = patients.find(p => p.id === patientId);
-      if (!patient) {
-        console.error("Patient not found for acceptance");
-        return;
-      }
+      if (!patient) return;
 
-      let newQueueNo = patient.queueNo;
+      // ✅ DETERMINISTIC ASSIGNMENT:
+      // If it's a future appointment, we assign a "Sentinel" number (900,000+) 
+      // so it shows as "#A--" in the UI.
+      const isFuture = !isToday(patient.appointmentDateTime);
+      let assignedNo = patient.queueNo;
 
-      // Only generate a new number if the current one is missing or is a temporary high number
-      if (!newQueueNo || newQueueNo >= 900000) {
-
-        // 1. Calculate the next available queue number based on current patients
-
-        // filtering for only appointment range (10,001 - 19,999)
-        const realQueueNumbers = patients
-          .map(pat => pat.queueNo)
-          .filter(q => q && q >= 10001 && q <= 19999);
-
-        const maxQueueNo = realQueueNumbers.length > 0 ? Math.max(...realQueueNumbers) : 10000;
-        newQueueNo = maxQueueNo + 1;
-
-        console.log(`✅ Accepting appointment ${patientId}. Old number invalid/temp. Assigning NEW queue no: ${newQueueNo}`);
+      if (isFuture) {
+        if (!assignedNo || assignedNo < 900000) {
+          assignedNo = 900000 + Math.floor(Math.random() * 99999);
+        }
       } else {
-        console.log(`✅ Accepting appointment ${patientId}. Preserving EXISTING queue no: ${newQueueNo}`);
+        // If it's for today, assign a live number (A01, A02...)
+        const maxResult = await getMaxQueueNumber('appointment');
+        const dbMax = maxResult.maxQueueNo || 10000;
+        const localMax = Math.max(10000, ...patients
+          .filter(p => (p.type === 'Appointment') && isForToday(p))
+          .map(p => p.queueNo || 0));
+        assignedNo = Math.max(dbMax, localMax) + 1;
       }
 
-      // 2. Determine Doctor Assignment — ONLY assign if that doctor's queue is currently active.
-      // If no active match is found now, leave null; the auto-assign useEffect will handle it
-      // once the appropriate doctor starts their queue.
-      let assignedDoctor = null;
-
-      // Carry through existing assignment only if that doctor's queue is still active
-      if (patient.assignedDoctor) {
-        const dId = Number(patient.assignedDoctor.id);
-        if (activeDoctors.includes(dId)) {
-          assignedDoctor = patient.assignedDoctor;
-        } else {
-          console.log(`⏳ Previously assigned doctor #${dId} queue not active — clearing for re-assignment.`);
-        }
-      }
-
-      // If still unassigned, check preferred doctor (doctor-mode booking)
-      if (!assignedDoctor && patient.bookingMode === 'doctor' && patient.preferredDoctor) {
-        const preferredId = Number(patient.preferredDoctor.id);
-        if (activeDoctors.includes(preferredId)) {
-          assignedDoctor = doctors.find(d => d.id === preferredId) || null;
-          console.log(`✅ Preferred doctor #${preferredId} is active — assigning on acceptance.`);
-        } else {
-          console.log(`⏳ Preferred doctor #${preferredId} queue not active yet — deferring assignment.`);
-          // Leave assignedDoctor = null; the auto-assign useEffect will handle it later
-        }
-      }
-
-      // If still unassigned and booked by service, check if we should assign now
-      if (!assignedDoctor && patient.bookingMode !== 'doctor') {
-        const hasServices = patient.services && patient.services.length > 0;
-        
-        // ONLY assign immediately if they have services or if it's for today.
-        // If services are blank and it's a future date, stay unassigned.
-        if (hasServices || isForToday(patient)) {
-            console.log(`🔄 Auto-assigning doctor for accepted appointment ${patientId}...`);
-            assignedDoctor = assignDoctor(patient, patients, activeDoctors);
-        } else {
-            console.log(`⏳ Blank services for future appointment ${patientId} — defering assignment until the day.`);
-        }
+      // 2. Determine Doctor Assignment
+      let assignedDoctor = patient.assignedDoctor;
+      
+      // Auto-assign if not assigned and it's for today
+      if (!assignedDoctor && isForToday(patient)) {
+        assignedDoctor = assignDoctor(patient, patients, activeDoctors);
       }
 
       // 3. Prepare updates
-      // ✅ FIX: Carry the existing notes (e.g. follow-up reason) through the acceptance update
-      // so the doctor's remark is never wiped when the appointment status changes.
       const updates = {
-        queue_no: newQueueNo,
+        queue_no: assignedNo,
         appointment_status: "accepted",
-        in_queue: true,
+        in_queue: isForToday(patient),
         status: "waiting",
         assigned_doctor_name: assignedDoctor?.name || null,
-        ...(patient.notes ? { notes: patient.notes } : {})
       };
 
-      // 4. Sync to database via supabase directly for critical update
+      // 4. Sync to database
       const { error } = await supabase
         .from('patients')
         .update(updates)
@@ -1247,7 +1243,7 @@ export const PatientProvider = ({ children }) => {
         return {
           ...pat,
           ...updates,
-          queueNo: newQueueNo,
+          queueNo: assignedNo,
           appointmentStatus: "accepted",
           inQueue: true,
           assignedDoctor: assignedDoctor
@@ -1257,7 +1253,7 @@ export const PatientProvider = ({ children }) => {
       // 6. Send Email Notification
       const doctorName = assignedDoctor ? assignedDoctor.name : (patient.assignedDoctor?.name || 'Assigned Physician');
       sendAppointmentEmail(patient, 'accepted', {
-        queueNo: newQueueNo,
+        queueNo: assignedNo,
         doctor: doctorName,
         dateTime: patient.appointmentDateTime || patient.appointment_datetime
       });
@@ -1372,15 +1368,26 @@ export const PatientProvider = ({ children }) => {
 
       // 1. Get AUTHORITATIVE max queue number from DB first (passing type for range)
       const maxResult = await getMaxQueueNumber(cancelledPatient.type);
-      const nextQueueNo = maxResult.maxQueueNo + 1;
+      const dbMax = maxResult.maxQueueNo;
 
-      console.log(`✅ Assigned new queue number: ${nextQueueNo}`);
+      // 2. Cross-check with local state (PatientContext patients is global enough for the current session)
+      // This solves the issue where a Doctor might not see other doctors' patients in the DB query (RLS)
+      // but the Context state (if loaded by Secretary or merged) has more info.
+      const localMax = Math.max(0, ...patients
+        .filter(p => p.type === cancelledPatient.type && isToday(p.registeredAt))
+        .map(p => p.queueNo || 0));
 
-      // 2. Prepare update for the EXISTING patient (no more duplicate rows)
+      const nextQueueNo = Math.max(dbMax, localMax) + 1;
+
+      console.log(`✅ Assigned new queue number: ${nextQueueNo} (DB Max: ${dbMax}, Local Max: ${localMax})`);
+
+      // 3. Prepare update for the EXISTING patient
       const updatedPatient = {
         ...cancelledPatient,
         ...extraUpdates,
         queueNo: nextQueueNo,
+        displayQueueNo: formatQueueNumber(nextQueueNo, cancelledPatient.type),
+        originalQueueNo: cancelledPatient.queueNo, // Persist the old number for UI/History
         status: "waiting",
         registeredAt: new Date().toISOString(),
         inQueue: true,
@@ -1474,7 +1481,7 @@ export const PatientProvider = ({ children }) => {
       setPatients(prev => {
         const patientMap = new Map(prev.map(p => [p.id, p]));
         updatedPatients.forEach(upd => patientMap.set(upd.id, upd));
-        return Array.from(patientMap.values()).sort((a, b) => (a.queueNo || 0) - (b.queueNo || 0));
+        return Array.from(patientMap.values()).sort(sortPatientsHybrid);
       });
 
       return { success: true, count: updatedPatients.length };
@@ -1650,8 +1657,7 @@ export const PatientProvider = ({ children }) => {
     // ✅ Strict helper: patient must also be past their appointment time
     const isReadyForQueue = (p) => {
       if (p.type === 'Appointment' && p.appointmentDateTime) {
-        const appDate = new Date(p.appointmentDateTime);
-        return isToday(p.appointmentDateTime) && new Date() >= appDate;
+        return isToday(p.appointmentDateTime);
       }
       return isToday(p.registeredAt);
     };
@@ -1718,6 +1724,36 @@ export const PatientProvider = ({ children }) => {
   // REMOVED: reassignPatientsForDoctor - This logic is now handled by the auto-assign useEffect (lines 261-335)
   // to avoid duplication and race conditions.
 
+  // ✅ GLOBAL MORNING AUTO-ASSIGNMENT (STABALIZED)
+  // This runs as soon as ANY Staff Member (Secretary/Doctor) logs in,
+  // assigning real queue numbers and sending emails for today's visits.
+  useEffect(() => {
+    const role = localStorage.getItem('userRole');
+    const isStaff = role === 'secretary' || role === 'doctor';
+
+    if (isStaff && patients?.length > 0 && !isLoadingFromDB) {
+      const todayDate = new Date();
+      const todayString = todayDate.toDateString();
+      
+      const unfinalizedToday = patients.filter(p => 
+        (p.type === 'Appointment') && 
+        p.appointmentStatus === 'accepted' && 
+        p.appointmentDateTime && 
+        new Date(p.appointmentDateTime).toDateString() === todayString &&
+        (!p.queueNo || p.queueNo >= 900000)
+      );
+
+      if (unfinalizedToday.length > 0) {
+        console.log(`🚀 [MORNING SYNC] Found ${unfinalizedToday.length} today's appointments needing official assignments.`);
+        finalizeTomorrowQueue(todayDate);
+      }
+    }
+  }, [patients, isLoadingFromDB]); 
+
+  // ✅ DYNAMIC QUEUE RE-RESOLVER
+  // This ensures that exactly at 12 AM, "#A--" flips to real numbers.
+  const resolvedPatients = useMemo(() => resolveQueueDisplays(patients), [patients]);
+
   const isDoctorActive = (doctorId) => {
     const dId = Number(doctorId);
     return activeDoctors.includes(dId);
@@ -1727,12 +1763,12 @@ export const PatientProvider = ({ children }) => {
   // ✅ FIXED: Always provide all functions, even during loading
   return (
     <PatientContext.Provider value={{
-      patients: isLoadingFromDB ? [] : patients,
+      patients: resolvedPatients,
       setPatients,
       addPatient,
-      currentServing: isLoadingFromDB ? null : currentServing,
+      currentServing: currentServing,
       setCurrentServing,
-      activePatient: isLoadingFromDB ? null : activePatient,
+      activePatient: activePatient,
       setActivePatient,
       clearActivePatient,
       updatePatientStatus,
@@ -1741,8 +1777,8 @@ export const PatientProvider = ({ children }) => {
       manualWaitTimeAdjustment,
       addWaitTime,
       reduceWaitTime,
-      queueInfo: isLoadingFromDB ? { total: 0, waitingCount: 0, currentServing: null } : queueInfo,
-      getAvailableSlots, // ✅ Always available
+      queueInfo: queueInfo,
+      getAvailableSlots,
       cancelPatient,
       requeuePatient,
       acceptAppointment,
@@ -1752,11 +1788,11 @@ export const PatientProvider = ({ children }) => {
       setDoctorCurrentServingPatient,
       callNextPatientForDoctor,
       cancelPatientForDoctor,
-      activeDoctors: isLoadingFromDB ? [] : activeDoctors,
+      activeDoctors: activeDoctors,
       startDoctorQueue,
       stopDoctorQueue,
       isDoctorActive,
-      isLoadingFromDB, // Expose loading state
+      isLoadingFromDB,
       notifications,
       clearNotifications,
       markNotificationsRead,

@@ -57,6 +57,7 @@ const Appointment = () => {
     formatQueueNumber
   } = useContext(PatientContext);
 
+
   // Helper to get label for date filter
   const getDateFilterLabel = () => {
     switch (dateFilter) {
@@ -185,23 +186,6 @@ const Appointment = () => {
     }
   };
 
-  const handleFinalizeQueue = async () => {
-    // Only allow for tomorrow
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    if (window.confirm(`Finalize queue for tomorrow (${tomorrow.toDateString()})? This will assign numbers and notify all accepted patients.`)) {
-      setIsFinalizing(true);
-      const result = await finalizeTomorrowQueue(tomorrow);
-      setIsFinalizing(false);
-      
-      if (result.success) {
-        alert(`Successfully finalized queue! Assigned queue numbers to ${result.count} patients.`);
-      } else {
-        alert(`Error finalizing queue: ${result.error}`);
-      }
-    }
-  };
 
   const filteredAppointments = getFilteredAppointments();
 
@@ -677,21 +661,6 @@ const Appointment = () => {
               {/* Icon Group: Calendar + Notification Bell */}
               <div className="flex items-center gap-1">
 
-                {/* Finalize Tomorrow's Queue Button */}
-                <button
-                  onClick={handleFinalizeQueue}
-                  disabled={isFinalizing}
-                  className={`p-2 ${isFinalizing ? 'opacity-50 cursor-not-allowed' : 'text-gray-400 hover:text-amber-600 hover:bg-amber-50'} rounded-full transition-all duration-200 focus:outline-none relative group`}
-                  title="Finalize Tomorrow's Queue"
-                >
-                  <Sparkles className={`w-6 h-6 ${isFinalizing ? 'animate-spin' : ''}`} />
-                  {isFinalizing && (
-                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-                    </span>
-                  )}
-                </button>
 
                 {/* Calendar Icon Button */}
                 <button

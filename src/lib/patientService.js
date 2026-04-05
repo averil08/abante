@@ -72,21 +72,30 @@ export const getMaxQueueNumber = async (type = 'walk-in', date = null) => {
     const targetDate = date ? new Date(date) : new Date();
     targetDate.setHours(0, 0, 0, 0);
 
-    const nextDay = new Date(targetDate);
-    nextDay.setDate(targetDate.getDate() + 1);
+    const isAppointment = (type?.toLowerCase() === 'appointment');
+    
+    // Day-Offset Calculation (matches supabaseClient.js UTC lockdown)
+    const now = targetDate;
+    const utcNow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const start = Date.UTC(2024, 0, 1);
+    const dayOffset = Math.floor((utcNow - start) / (1000 * 60 * 60 * 24));
+    const dailyBase = dayOffset * 20000;
 
-    const isAppointment = (type === 'appointment' || type === 'Appointment');
-    const rangeStart = isAppointment ? 10001 : 1;
-    const rangeEnd = isAppointment ? 19999 : 9999;
+    // Fixed Ranges: Walk-in (1-9999), Appointment (10001-19999)
+    const rangeStart = isAppointment ? (dailyBase + 10001) : (dailyBase + 1);
+    const rangeEnd = isAppointment ? (dailyBase + 19999) : (dailyBase + 9999);
+    
     const dateColumn = isAppointment ? 'appointment_datetime' : 'registered_at';
 
+    console.log(`🔍 Looking for max queue in range ${rangeStart} to ${rangeEnd} for ${type}`);
+
+    // Fetch the absolute maximum queue number in the day's block, ignoring all other filters.
+    // This guarantees the next number is truly globally sequential (e.g. W01, W02, W03)
     const { data, error } = await supabase
       .from('patients')
       .select('queue_no')
       .gte('queue_no', rangeStart)
       .lte('queue_no', rangeEnd)
-      .gte(dateColumn, targetDate.toISOString()) 
-      .lt(dateColumn, nextDay.toISOString())
       .order('queue_no', { ascending: false })
       .limit(1);
 
@@ -95,11 +104,11 @@ export const getMaxQueueNumber = async (type = 'walk-in', date = null) => {
       return { success: false, error: error.message, maxQueueNo: rangeStart - 1 };
     }
 
-    // Return the max number found, or the base (e.g., 10000 for appointments) if none found
+    // Return the max number found, or the range base if none found
     const maxVal = data?.[0]?.queue_no || (rangeStart - 1);
     return { success: true, maxQueueNo: maxVal };
   } catch (error) {
-    const fallbackBase = (type === 'appointment' || type === 'Appointment') ? 10000 : 0;
+    const fallbackBase = (type?.toLowerCase() === 'appointment') ? 10000 : 0;
     console.error('Error fetching max queue number:', error);
     return { success: false, error: error.message, maxQueueNo: fallbackBase };
   }

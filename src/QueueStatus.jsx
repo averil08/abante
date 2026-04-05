@@ -171,31 +171,47 @@ const QueueStatus = () => {
     return false;
   }, [activePatient, isPatientLoggedIn, currentPatientEmail]);
 
-  // Always get the latest patient data from the patients array
+  // ALWAYS get the latest patient data from the patients array
   const currentPatient = React.useMemo(() => {
-    if (!patients || patients.length === 0) return null;
+    if (!patients || patients.length === 0) return activePatient || null;
 
     // 1. Try to find by activePatient.id (from context)
+    // ✅ PRIORITIZE: If the patient object in context is fresh (Pending status), trust it over any old data
     if (activePatient?.id) {
       const found = patients.find(p => String(p.id) === String(activePatient.id));
-      if (found) return found;
+      if (found) {
+        // If found but doesn't have the "Pending" metadata the current memory object has,
+        // merge them to ensure UI doesn't flicker between Pending and Stale
+        return { ...activePatient, ...found };
+      }
+      return activePatient;
     }
 
-    // 2. Fallback to localStorage ID (if context state is lost but storage exists)
+    // 2. Fallback to localStorage ID 
     const persistedId = localStorage.getItem('activePatientId');
     if (persistedId) {
       const found = patients.find(p => String(p.id) === String(persistedId));
       if (found) return found;
     }
 
-    // 3. Last resort: match by queueNo if we have it in activePatient
-    if (activePatient?.queueNo) {
-      const found = patients.find(p => p.queueNo === activePatient.queueNo);
-      if (found) return found;
+    // 3. Ghost Protection Fallback: 
+    // If the above failed, find the MOST RECENT non-cancelled appointment for this account.
+    if (isPatientLoggedIn && currentPatientEmail) {
+       const userRecords = patients.filter(p => 
+         p.patientEmail?.toLowerCase() === currentPatientEmail.toLowerCase() &&
+         p.status !== 'cancelled' && 
+         p.status !== 'done'
+       );
+       if (userRecords.length > 0) {
+         // Sort by registeredAt desc to get the latest active submission
+         const latestActive = userRecords.sort((a,b) => new Date(b.registeredAt) - new Date(a.registeredAt))[0];
+         console.log("👻 [fallback] Recovered active session for logged-in user:", latestActive.displayQueueNo);
+         return latestActive;
+       }
     }
 
-    return null;
-  }, [patients, activePatient]);
+    return activePatient || null;
+  }, [patients, activePatient, isPatientLoggedIn, currentPatientEmail]);
 
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState("");
@@ -447,8 +463,8 @@ const QueueStatus = () => {
   const calculatedAvg = avgWaitTime - manualWaitTimeAdjustment;
   const estimatedWait = (calculatedAvg * (peopleAhead + 1)) + manualWaitTimeAdjustment;
 
-  const isAppointmentPending = currentPatient?.status !== 'cancelled' && ((currentPatient?.type === 'Appointment' && currentPatient?.appointmentStatus === 'pending') ||
-    (currentPatient?.queueNo >= 900000));
+  const isAppointmentPending = currentPatient?.status !== 'cancelled' && 
+    (currentPatient?.type === 'Appointment' && currentPatient?.appointmentStatus === 'pending');
 
   const isAppointmentRejected = currentPatient?.type === 'Appointment' &&
     currentPatient?.appointmentStatus === 'rejected';
@@ -457,9 +473,21 @@ const QueueStatus = () => {
   useEffect(() => {
     if (!currentPatient) return
 
-    if (isAppointmentPending) return;
-    if (currentPatient.appointmentStatus === "cancelled") {
-      if (showNotification) setShowNotification(false);
+    // 🚫 RESET: If the patient ID has changed since the last run, clear all existing "Sticky" notifications
+    // from previous sessions (like the "You didn't show up" alert).
+    if (lastStatusRef.current === null || lastStatusRef.currentId !== currentPatient.id) {
+       setShowNotification(false);
+       setNotificationType("success");
+       setNotificationMessage("");
+       lastStatusRef.currentId = currentPatient.id;
+    }
+
+    // ✅ GHOST GUARD: If the patient is an appointment and is in the process of 
+    // waiting for approval or sync (Pending/Waiting), suppress any "Cancelled" alerts
+    // that might come from an older record still in the browser's list search.
+    if (isAppointmentPending || (currentPatient.status === 'waiting' && !currentPatient.queueNo)) {
+      if (notificationType !== 'success') setShowNotification(false);
+      lastStatusRef.current = 'pending';
       return;
     }
 
@@ -837,9 +865,13 @@ const QueueStatus = () => {
                   </div>
                 </div>
 
-                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-2">Appointment Submitted</h2>
+                <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-2">
+                  {currentPatient.type === 'Appointment' ? 'Appointment Submitted' : 'Registration Submitted'}
+                </h2>
                 <p className="text-gray-600 mb-4 sm:mb-6 text-xs sm:text-sm md:text-base px-2">
-                  Your appointment request is pending approval from our secretary.
+                  {currentPatient.type === 'Appointment' 
+                    ? "Your appointment request is pending approval from our secretary."
+                    : "Your walk-in registration was successful. You are now in the queue."}
                 </p>
 
                 <div className="space-y-2 sm:space-y-3 text-left bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 text-xs sm:text-sm md:text-base lg:text-lg">
@@ -970,9 +1002,13 @@ const QueueStatus = () => {
                 </div>
               </div>
 
-              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-2">Appointment Submitted</h2>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mb-2">
+                {currentPatient.type === 'Appointment' ? 'Appointment Submitted' : 'Registration Submitted'}
+              </h2>
               <p className="text-gray-600 mb-4 sm:mb-6 text-xs sm:text-sm md:text-base px-2">
-                Your appointment request is pending approval from our secretary.
+                {currentPatient.type === 'Appointment'
+                  ? "Your appointment request is pending approval from our secretary."
+                  : "Your walk-in registration was successful. You are now in the queue."}
               </p>
 
               <div className="space-y-2 sm:space-y-3 text-left bg-gray-50 rounded-lg sm:rounded-xl p-3 sm:p-4 text-xs sm:text-sm md:text-base lg:text-lg">
@@ -1403,7 +1439,7 @@ const QueueStatus = () => {
                       const doctorServing = currentPatient?.assignedDoctor?.id
                         ? getDoctorCurrentServing(currentPatient.assignedDoctor.id)
                         : currentServing;
-                      return doctorServing ? `#${String(doctorServing).padStart(3, "0")}` : "---";
+                      return doctorServing ? `#${String(doctorServing % 10000).padStart(2, "0")}` : "---";
                     })()}
                   </span>
                 </div>

@@ -512,15 +512,8 @@ const Dashboard = () => {
       // First check for priority patients from the FILTERED list
       // Sort by queueNo to ensure FIFO (Lowest queue number first)
       const sortedPriority = [...filteredPriorityPatients]
-        .filter(p => {
-          if (p.status !== "waiting") return false;
-          if (p.type === "Appointment") {
-            // Only auto-call if appointment time has arrived
-            return new Date() >= new Date(p.appointmentDateTime);
-          }
-          return true;
-        })
-        .sort((a, b) => a.queueNo - b.queueNo);
+        .filter(p => p.status === "waiting")
+        .sort((a, b) => new Date(a.appointmentDateTime || a.registeredAt) - new Date(b.appointmentDateTime || b.registeredAt));
 
       const firstPriorityPatient = sortedPriority[0];
 
@@ -533,14 +526,8 @@ const Dashboard = () => {
       // Then check for regular waiting patients from the FILTERED list
       // Sort by queueNo to ensure FIFO (Lowest queue number first)
       const sortedWaiting = [...filteredQueuePatients]
-        .filter(p => {
-          if (p.status !== "waiting") return false;
-          if (p.type === "Appointment") {
-            return new Date() >= new Date(p.appointmentDateTime);
-          }
-          return true;
-        })
-        .sort((a, b) => a.queueNo - b.queueNo);
+        .filter(p => p.status === "waiting")
+        .sort((a, b) => new Date(a.appointmentDateTime || a.registeredAt) - new Date(b.appointmentDateTime || b.registeredAt));
 
       const firstWaitingPatient = sortedWaiting[0];
 
@@ -554,70 +541,80 @@ const Dashboard = () => {
       return;
     }
 
-    // ✅ EXISTING LOGIC: Mark current patient as done and call next
-    // 1. Check if there is ALREADY a patient in progress and mark them as done
-    const currentPatient = patients.find(p => p.queueNo === currentServing);
-
-    if (currentPatient && currentPatient.status === 'in progress') {
-      updatePatientStatus(currentPatient.queueNo, 'done');
-    }
-
-    // 2. Find the NEXT patient to call (Priority -> Regular)
+    // ✅ IMPROVED LOGIC: Doctor-Aware Finalization
+    // 1. Identify who is NEXT to be called
+    let nextPatient = null;
 
     // Check filtered priority patients first
     const sortedPriority = [...filteredPriorityPatients]
-      .filter(p => {
-        if (p.status !== "waiting") return false;
-        if (p.type === "Appointment") {
-          return new Date() >= new Date(p.appointmentDateTime);
-        }
-        return true;
-      })
-      .sort((a, b) => a.queueNo - b.queueNo);
+      .filter(p => p.status === "waiting")
+      .sort((a, b) => new Date(a.appointmentDateTime || a.registeredAt) - new Date(b.appointmentDateTime || b.registeredAt));
 
-    const nextPriorityPatient = sortedPriority[0];
+    nextPatient = sortedPriority[0];
 
-    if (nextPriorityPatient) {
-      updatePatientStatus(nextPriorityPatient.queueNo, 'in progress');
-      setCurrentServing(nextPriorityPatient.queueNo);
-      return;
+    // If no priority, check regular
+    if (!nextPatient) {
+      const sortedWaiting = [...filteredQueuePatients]
+        .filter(p => p.status === "waiting")
+        .sort((a, b) => new Date(a.appointmentDateTime || a.registeredAt) - new Date(b.appointmentDateTime || b.registeredAt));
+      nextPatient = sortedWaiting[0];
     }
 
-    // If no priority patients, find the next regular waiting patient
-    const sortedWaiting = [...filteredQueuePatients]
-      .filter(p => {
-        if (p.status !== "waiting") return false;
-        if (p.type === "Appointment") {
-          return new Date() >= new Date(p.appointmentDateTime);
+    if (nextPatient) {
+      // 2. CHECK FOR DOCTOR-SPECIFIC IN-PROGRESS PATIENTS
+      // Find if this specific doctor already has someone 'in progress'
+      const doctorId = nextPatient.assignedDoctor?.id;
+      if (doctorId) {
+        const previousPatient = patients.find(p => 
+          p.assignedDoctor?.id === doctorId && 
+          p.status === 'in progress'
+        );
+        if (previousPatient) {
+          console.log(`✅ Finalizing ${previousPatient.name} for Doctor ${nextPatient.assignedDoctor.name} before calling ${nextPatient.name}`);
+          updatePatientStatus(previousPatient.queueNo, 'done');
         }
-        return true;
-      })
-      .sort((a, b) => a.queueNo - b.queueNo);
+      }
 
-    const nextWaitingPatient = sortedWaiting[0];
-
-    if (nextWaitingPatient) {
-      // Mark the next waiting patient as in progress and sync the queue number
-      updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
-      setCurrentServing(nextWaitingPatient.queueNo);
+      // 3. Mark the next patient as in progress
+      updatePatientStatus(nextPatient.queueNo, 'in progress');
+      setCurrentServing(nextPatient.queueNo);
     } else {
-      // No more waiting patients, reset to null
-      setCurrentServing(null);
+      // 4. FALLBACK: If no one is next, just finalize the global currentServing if it exists
+      if (currentServing) {
+        const currentPatient = patients.find(p => p.queueNo === currentServing);
+        if (currentPatient && currentPatient.status === 'in progress') {
+          updatePatientStatus(currentServing, 'done');
+        }
+        setCurrentServing(null);
+      }
     }
   };
 
   const handleCallSpecificPatient = (queueNo) => {
-    // Mark current serving patient as done if there is one
-    if (currentServing) {
+    // 1. Identify targeted doctor
+    const targetPatient = patients.find(p => p.queueNo === queueNo);
+    const doctorId = targetPatient?.assignedDoctor?.id;
+
+    // 2. Finalize previous patient for THIS doctor specifically
+    if (doctorId) {
+      const prevForDoctor = patients.find(p => 
+        p.assignedDoctor?.id === doctorId && 
+        p.status === 'in progress'
+      );
+      if (prevForDoctor) {
+        updatePatientStatus(prevForDoctor.queueNo, 'done');
+      }
+    } else if (currentServing) {
+      // Fallback if no doctor assigned to new patient yet
       const currentPatient = patients.find(p => p.queueNo === currentServing);
       if (currentPatient && currentPatient.status === 'in progress') {
         updatePatientStatus(currentServing, 'done');
       }
     }
 
-    // Mark the selected patient as in progress
+    // 3. Mark the selected patient as in progress
     updatePatientStatus(queueNo, 'in progress');
-    // Set them as the one currently being served
+    // 4. Set them as the one currently being served
     setCurrentServing(queueNo);
   };
 
@@ -637,9 +634,14 @@ const Dashboard = () => {
     // First, check if there are any ready priority patients
     const nextPriorityPatient = filteredPriorityPatients
       .filter(p => p.status === "waiting")
-      .sort((a, b) => a.queueNo - b.queueNo)[0];
+      .sort((a, b) => new Date(a.appointmentDateTime || a.registeredAt) - new Date(b.appointmentDateTime || b.registeredAt))[0];
 
     if (nextPriorityPatient) {
+      const doctorId = nextPriorityPatient.assignedDoctor?.id;
+      if (doctorId) {
+        const prevForDoctor = patients.find(p => p.assignedDoctor?.id === doctorId && p.status === 'in progress');
+        if (prevForDoctor) updatePatientStatus(prevForDoctor.queueNo, 'done');
+      }
       updatePatientStatus(nextPriorityPatient.queueNo, 'in progress');
       setCurrentServing(nextPriorityPatient.queueNo);
       return;
@@ -648,9 +650,14 @@ const Dashboard = () => {
     // Find the next ready regular patient
     const nextWaitingPatient = filteredQueuePatients
       .filter(p => p.status === "waiting")
-      .sort((a, b) => a.queueNo - b.queueNo)[0];
+      .sort((a, b) => new Date(a.appointmentDateTime || a.registeredAt) - new Date(b.appointmentDateTime || b.registeredAt))[0];
 
     if (nextWaitingPatient) {
+      const doctorId = nextWaitingPatient.assignedDoctor?.id;
+      if (doctorId) {
+        const prevForDoctor = patients.find(p => p.assignedDoctor?.id === doctorId && p.status === 'in progress');
+        if (prevForDoctor) updatePatientStatus(prevForDoctor.queueNo, 'done');
+      }
       updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
       setCurrentServing(nextWaitingPatient.queueNo);
     } else {

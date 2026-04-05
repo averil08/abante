@@ -29,8 +29,9 @@ export const formatQueueNumber = (num, type, appointmentStatus, appointmentDateT
       const isApptToday = isToday(appointmentDateTime);
       
       if (num && isApptToday) {
-        // num should be the sequential position (1, 2, 3...) from resolveQueueDisplays
-        return `#A${String(num).padStart(2, '0')}`;
+        // num is a database integer or local sequence; extract the last 4 digits
+        const displayNum = num % 10000;
+        return `#A${String(displayNum).padStart(2, '0')}`;
       }
       // If accepted but for a future date, or if number hasn't arrived yet
       return `#A--`;
@@ -40,8 +41,9 @@ export const formatQueueNumber = (num, type, appointmentStatus, appointmentDateT
     return `#A--`;
   }
   
-  // Walk-ins use #W prefix
-  return `#W${String(num).padStart(2, '0')}`;
+  // Walk-ins use #W prefix (calculated by extracting the daily sequence from the database integer)
+  const displayNum = num % 10000;
+  return `#W${String(displayNum).padStart(2, '0')}`;
 };
 
 // Matches doctor names even if the DB includes middle initials/extra punctuation.
@@ -201,8 +203,9 @@ export const PatientProvider = ({ children }) => {
     queueNo: dbPatient.queue_no,
     displayQueueNo: formatQueueNumber(
       dbPatient.queue_no, 
-      dbPatient.patient_type, 
-      dbPatient.appointment_datetime || dbPatient.registered_at || dbPatient.created_at
+      dbPatient.patient_type === 'appointment' ? 'Appointment' : 'Walk-in',
+      dbPatient.appointment_status,
+      dbPatient.appointment_datetime || dbPatient.registered_at
     ),
     name: dbPatient.name,
     age: dbPatient.age,
@@ -258,8 +261,8 @@ export const PatientProvider = ({ children }) => {
       displayQueueNo: formatQueueNumber(
         p.queueNo, 
         p.type, 
-        p.appointmentDateTime || p.registeredAt,
-        rawPatients
+        p.appointmentStatus,
+        p.appointmentDateTime || p.registeredAt
       )
     }));
   };
@@ -1386,7 +1389,7 @@ export const PatientProvider = ({ children }) => {
         ...cancelledPatient,
         ...extraUpdates,
         queueNo: nextQueueNo,
-        displayQueueNo: formatQueueNumber(nextQueueNo, cancelledPatient.type),
+        displayQueueNo: formatQueueNumber(nextQueueNo, cancelledPatient.type, cancelledPatient.appointmentStatus, cancelledPatient.appointmentDateTime),
         originalQueueNo: cancelledPatient.queueNo, // Persist the old number for UI/History
         status: "waiting",
         registeredAt: new Date().toISOString(),
@@ -1450,7 +1453,7 @@ export const PatientProvider = ({ children }) => {
 
       const updatePromises = candidates.map(async (patient) => {
         const assignedNo = nextNum++;
-        const displayNo = formatQueueNumber(assignedNo, 'appointment');
+        const displayNo = formatQueueNumber(assignedNo, 'appointment', 'accepted', dateToProcess);
 
         const updated = {
           ...patient,

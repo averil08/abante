@@ -1401,10 +1401,11 @@ const QueueStatus = () => {
                   <span className="text-gray-600 font-normal">Currently Serving</span>
                   <span className="font-medium text-gray-900">
                     {(() => {
-                      const doctorServing = currentPatient?.assignedDoctor?.id
+                      const drServingId = currentPatient?.assignedDoctor?.id
                         ? getDoctorCurrentServing(currentPatient.assignedDoctor.id)
                         : currentServing;
-                      return doctorServing ? `#${String(doctorServing % 10000).padStart(2, "0")}` : "---";
+                      const servingPatient = patients?.find(p => p.queueNo === drServingId);
+                      return servingPatient ? servingPatient.displayQueueNo : (drServingId ? `#${String(drServingId % 10000).padStart(2, "0")}` : "---");
                     })()}
                   </span>
                 </div>
@@ -1553,10 +1554,11 @@ const QueueStatus = () => {
                 <span className="text-gray-600 font-normal">Currently Serving</span>
                 <span className="font-medium text-gray-900">
                   {(() => {
-                    const doctorServing = currentPatient?.assignedDoctor?.id
+                    const drServingId = currentPatient?.assignedDoctor?.id
                       ? getDoctorCurrentServing(currentPatient.assignedDoctor.id)
                       : currentServing;
-                    return doctorServing ? `#${String(doctorServing).padStart(3, "0")}` : "---";
+                    const servingPatient = patients?.find(p => p.queueNo === drServingId);
+                    return servingPatient ? servingPatient.displayQueueNo : (drServingId ? `#${String(drServingId % 10000).padStart(2, "0")}` : "---");
                   })()}
                 </span>
               </div>

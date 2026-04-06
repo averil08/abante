@@ -37,7 +37,18 @@ export const sendAppointmentEmail = async (patient, status, details) => {
         <p><strong>📅 Date:</strong> ${appointmentDate}</p>
         <p><strong>⏰ Time:</strong> ${appointmentTime}</p>
         <p><strong>👨‍⚕️ Doctor:</strong> ${details.doctor || 'Assigned Physician'}</p>
-        ${status === 'accepted' ? `<p><strong>🎫 Queue No:</strong> ${details.queueNo}</p>` : ''}
+        ${status === 'accepted' 
+          ? `<p><strong>🎫 Queue No:</strong> ${
+              (() => {
+                const apptDate = new Date(details.dateTime || patient.appointmentDateTime);
+                const today = new Date();
+                const isToday = apptDate.toDateString() === today.toDateString();
+                if (!isToday) return '#A--';
+                const num = details.queueNo || patient.queueNo;
+                return `#A${String(num % 10000).padStart(2, '0')}`;
+              })()
+            }</p>` 
+          : ''}
         ${status === 'rejected' ? `<p style="color: #e11d48;"><strong>❌ Reason:</strong> ${details.reason || 'Not specified'}</p>` : ''}
         ${status === 'cancelled' ? `<p style="color: #64748b;"><strong>ℹ️ Note:</strong> This appointment was cancelled by the patient.</p>` : ''}
       </div>
@@ -60,7 +71,16 @@ export const sendAppointmentEmail = async (patient, status, details) => {
     Date: ${appointmentDate}
     Time: ${appointmentTime}
     Doctor: ${details.doctor || 'Assigned Physician'}
-    ${status === 'accepted' ? `Queue No: ${details.queueNo}` : ''}
+    ${status === 'accepted' ? `Queue No: ${
+      (() => {
+        const apptDate = new Date(details.dateTime || patient.appointmentDateTime);
+        const today = new Date();
+        const isToday = apptDate.toDateString() === today.toDateString();
+        if (!isToday) return '#A--';
+        const num = details.queueNo || patient.queueNo;
+        return `#A${String(num % 10000).padStart(2, '0')}`;
+      })()
+    }` : ''}
     ${status === 'rejected' ? `Reason: ${details.reason || 'Not specified'}` : ''}
     ${status === 'cancelled' ? `Note: This appointment was cancelled by the patient.` : ''}
   `;
@@ -114,7 +134,16 @@ export const sendReminderEmail = async (patient, details) => {
         <p><strong>📅 Date:</strong> ${appointmentDate}</p>
         <p><strong>⏰ Time:</strong> ${appointmentTime}</p>
         <p><strong>👨‍⚕️ Doctor:</strong> ${details.doctor || patient.assignedDoctor?.name || 'Assigned Physician'}</p>
-        <p><strong>🎫 Queue No:</strong> ${((details.queueNo || patient.queueNo) >= 900000) ? '#A--' : (details.queueNo || patient.queueNo)}</p>
+        <p><strong>🎫 Queue No:</strong> ${
+          (() => {
+            const apptDate = new Date(details.dateTime || patient.appointmentDateTime);
+            const today = new Date();
+            const isToday = apptDate.toDateString() === today.toDateString();
+            if (!isToday) return '#A--';
+            const num = details.queueNo || patient.queueNo;
+            return `#A${String(num % 10000).padStart(2, '0')}`;
+          })()
+        }</p>
       </div>
       <p style="margin-top: 20px; font-size: 12px; color: #64748b;">Please arrive 15 minutes early. If you need to reschedule or cancel, please contact the clinic.</p>
     </div>
@@ -126,7 +155,16 @@ export const sendReminderEmail = async (patient, details) => {
     Date: ${appointmentDate}
     Time: ${appointmentTime}
     Doctor: ${details.doctor || patient.assignedDoctor?.name || 'Assigned Physician'}
-    Queue No: ${((details.queueNo || patient.queueNo) >= 900000) ? '#A--' : (details.queueNo || patient.queueNo)}
+    Queue No: ${
+      (() => {
+        const apptDate = new Date(details.dateTime || patient.appointmentDateTime);
+        const today = new Date();
+        const isToday = apptDate.toDateString() === today.toDateString();
+        if (!isToday) return '#A--';
+        const num = details.queueNo || patient.queueNo;
+        return `#A${String(num % 10000).padStart(2, '0')}`;
+      })()
+    }
   `;
 
   try {

@@ -639,7 +639,12 @@ const Dashboard = () => {
     if (nextPriorityPatient) {
       const doctorId = nextPriorityPatient.assignedDoctor?.id;
       if (doctorId) {
-        const prevForDoctor = patients.find(p => p.assignedDoctor?.id === doctorId && p.status === 'in progress');
+        // ✅ NEW: Exclude the JUST-CANCELLED patient from being marked as "done"
+        const prevForDoctor = patients.find(p => 
+          p.assignedDoctor?.id === doctorId && 
+          p.status === 'in progress' &&
+          (!currentPatient || p.queueNo !== currentPatient.queueNo)
+        );
         if (prevForDoctor) updatePatientStatus(prevForDoctor.queueNo, 'done');
       }
       updatePatientStatus(nextPriorityPatient.queueNo, 'in progress');
@@ -655,7 +660,12 @@ const Dashboard = () => {
     if (nextWaitingPatient) {
       const doctorId = nextWaitingPatient.assignedDoctor?.id;
       if (doctorId) {
-        const prevForDoctor = patients.find(p => p.assignedDoctor?.id === doctorId && p.status === 'in progress');
+        // ✅ NEW: Exclude the JUST-CANCELLED patient from being marked as "done"
+        const prevForDoctor = patients.find(p => 
+          p.assignedDoctor?.id === doctorId && 
+          p.status === 'in progress' &&
+          (!currentPatient || p.queueNo !== currentPatient.queueNo)
+        );
         if (prevForDoctor) updatePatientStatus(prevForDoctor.queueNo, 'done');
       }
       updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');

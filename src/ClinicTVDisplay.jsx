@@ -56,9 +56,17 @@ const ClinicTVDisplay = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [syncedPatients, setSyncedPatients] = useState(patients);
   const [syncedActiveDoctors, setSyncedActiveDoctors] = useState(activeDoctors || []);
-  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+  const [isSoundEnabled, setIsSoundEnabled] = useState(() => {
+    const saved = localStorage.getItem('clinicTV_soundEnabled');
+    return saved === 'true'; // Restore from storage
+  });
   const lastCalledNumbersRef = useRef({});
   const isFirstLoadRef = useRef(true);
+
+  // ✅ Save sound preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('clinicTV_soundEnabled', isSoundEnabled);
+  }, [isSoundEnabled]);
 
   // Update time every second
   useEffect(() => {
@@ -209,7 +217,11 @@ const ClinicTVDisplay = () => {
           isForToday(p) &&
           (!p.appointmentDateTime || isToday(p.appointmentDateTime))
         )
-        .sort((a, b) => a.queueNo - b.queueNo);
+        .sort((a, b) => {
+          const timeA = new Date(a.appointmentDateTime || a.registeredAt).getTime();
+          const timeB = new Date(b.appointmentDateTime || b.registeredAt).getTime();
+          return timeA - timeB || (a.queueNo || 0) - (b.queueNo || 0);
+        });
 
       const info = {
         doctorId: doctor.id,

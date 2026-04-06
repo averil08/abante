@@ -1,7 +1,7 @@
 import React, { createContext, useState, useMemo, useEffect, useRef } from "react";
 import { assignDoctor, doctors } from './doctorData';
 import { syncPatientToDatabase, getAllPatientProfiles, getMaxQueueNumber } from './lib/patientService';
-import { supabase } from './lib/supabaseClient'; // Import Supabase client
+import { supabase, getBrandedBase } from './lib/supabaseClient'; // Import Supabase client and base helper
 import { sendAppointmentEmail, sendReminderEmail } from './lib/emailService';
 
 export const PatientContext = createContext();
@@ -72,6 +72,8 @@ export const PatientProvider = ({ children }) => {
   });
   const patientsRef = useRef([]); // NEW: Ref to track latest patients without re-subscribing
   const settingsIdRef = useRef(null); // NEW: Cache for settings record ID
+  const finalizingRef = useRef(false); // NEW: Guard for concurrent finalization
+  const autoAssignTimeoutRef = useRef(null); // ✅ NEW: Debounce timer for auto-assignment
 
   // NEW: Secretary Notification Check Timestamp
   const [lastSecretaryNotificationCheck, setLastSecretaryNotificationCheck] = useState(() => {
@@ -377,7 +379,7 @@ export const PatientProvider = ({ children }) => {
         setPatients(() => {
           const uniqueMap = new Map();
           publicPatients.forEach(p => uniqueMap.set(p.id, p));
-          return Array.from(uniqueMap.values()).sort((a, b) => (a.queueNo || 0) - (b.queueNo || 0));
+          return Array.from(uniqueMap.values()).sort(sortPatientsHybrid);
         });
       }
     } catch (error) {
@@ -979,9 +981,16 @@ export const PatientProvider = ({ children }) => {
   }, [patients, activePatient]);
   */
 
-  // ADDED THIS: Auto-assign patients when activeDoctors or patients change
+  // ✅ AUTO-ASSIGNMENT DEBOUNCED:
+  // This prevents all patients from being dumped into the first doctor started 
+  // when the secretary is starting multiple doctors (as requested by user).
   useEffect(() => {
-    // Prevent running if no active doctors
+    // 🧹 Cleanup previous timer
+    if (autoAssignTimeoutRef.current) {
+        clearTimeout(autoAssignTimeoutRef.current);
+    }
+
+    // Early exit if no active doctors
     if (activeDoctors.length === 0) return;
 
     const unassignedPatients = patients.filter(p =>
@@ -996,71 +1005,86 @@ export const PatientProvider = ({ children }) => {
 
     if (unassignedPatients.length === 0) return;
 
-    // Check if any patient CAN be assigned to avoid useless updates
-    const patientsToUpdate = [];
+    // ⏳ Set new timer (5 seconds) to allow the secretary to finish starting doctors
+    autoAssignTimeoutRef.current = setTimeout(() => {
+        console.log("🚀 Starting debounced auto-assignment...");
+        
+        const patientsToUpdate = [];
 
-    unassignedPatients.forEach(patient => {
-      // Skip if pending/rejected
-      if (patient.type === 'Appointment' && patient.appointmentStatus !== 'accepted') return;
+        unassignedPatients.forEach(patient => {
+          // Skip if pending/rejected
+          if (patient.type === 'Appointment' && patient.appointmentStatus !== 'accepted') return;
 
-      let doctor = null;
+          let doctor = null;
 
-      // Preferred doctor check — ONLY assign if that doctor's queue is currently active
-      if (patient.preferredDoctor) {
-        // Robust lookup by ID or Name
-        const matchedDoctor = doctors.find(d =>
-          (patient.preferredDoctor.id && d.id === Number(patient.preferredDoctor.id)) ||
-          (d.name.toLowerCase().trim() === (patient.preferredDoctor.name || "").toLowerCase().trim())
-        );
+          // Preferred doctor check — ONLY assign if that doctor's queue is currently active
+          if (patient.preferredDoctor) {
+            // Robust lookup by ID or Name
+            const matchedDoctor = doctors.find(d =>
+              (patient.preferredDoctor.id && d.id === Number(patient.preferredDoctor.id)) ||
+              (d.name.toLowerCase().trim() === (patient.preferredDoctor.name || "").toLowerCase().trim())
+            );
 
-        if (matchedDoctor) {
-          if (activeDoctors.includes(matchedDoctor.id)) {
-            doctor = matchedDoctor;
-          } else {
-            // Preferred doctor's queue not started yet — skip assignment for now.
-            console.log(`⏳ Preferred doctor ${matchedDoctor.name} queue not active yet — deferring assignment for patient ${patient.name}`);
-            return;
+            if (matchedDoctor) {
+              if (activeDoctors.includes(matchedDoctor.id)) {
+                doctor = matchedDoctor;
+              } else {
+                // Preferred doctor's queue not started yet — skip assignment for now.
+                console.log(`⏳ Preferred doctor ${matchedDoctor.name} queue not active yet — deferring assignment for patient ${patient.name}`);
+                return;
+              }
+            }
           }
-        }
-      }
 
-      // Auto-assignment (only if no preferred doctor was chosen)
-      if (!doctor) {
-        doctor = assignDoctor(patient, patients, activeDoctors);
-      }
+          // Auto-assignment (only if no preferred doctor was chosen)
+          if (!doctor) {
+            // ✅ IMPROVED: Provide a virtual copy that includes patients already assigned in this loop.
+            // This ensures true distribution (A, B, C, A, B...) instead of everyone going to one doctor
+            // because the state hasn't updated yet.
+            const virtualPatients = [...patients, ...patientsToUpdate.map(item => ({
+                ...item.patient,
+                assignedDoctor: item.doctor
+            }))];
+            doctor = assignDoctor(patient, virtualPatients, activeDoctors);
+          }
 
-      if (doctor) {
-        console.log(`✅ Auto-assigned ${patient.name} (Queue #${patient.queueNo}) to ${doctor.name}`);
-        patientsToUpdate.push({ patient, doctor });
-      }
-    });
-
-    // ONLY update state if we actually have changes
-    if (patientsToUpdate.length > 0) {
-      setPatients(prev => {
-        const nextPatients = [...prev];
-        let hasChanges = false;
-
-        patientsToUpdate.forEach(({ patient, doctor }) => {
-          const index = nextPatients.findIndex(p => p.id === patient.id || (p.queueNo === patient.queueNo && p.tempId === patient.tempId));
-          if (index !== -1) {
-            const updatedPatient = {
-              ...nextPatients[index],
-              assignedDoctor: doctor
-            };
-            nextPatients[index] = updatedPatient;
-            hasChanges = true;
-
-            // Sync to DB
-            syncPatientToDatabase(updatedPatient).catch(err => {
-              console.error('⚠️ Database sync failed:', err);
-            });
+          if (doctor) {
+            console.log(`✅ Auto-assigned ${patient.name} (Queue #${patient.queueNo}) to ${doctor.name}`);
+            patientsToUpdate.push({ patient, doctor });
           }
         });
 
-        return hasChanges ? nextPatients : prev;
-      });
-    }
+        // ONLY update state if we actually have changes
+        if (patientsToUpdate.length > 0) {
+          setPatients(prev => {
+            const nextPatients = [...prev];
+            let hasChanges = false;
+
+            patientsToUpdate.forEach(({ patient, doctor }) => {
+              const index = nextPatients.findIndex(p => p.id === patient.id || (p.queueNo === patient.queueNo && p.tempId === patient.tempId));
+              if (index !== -1) {
+                const updatedPatient = {
+                  ...nextPatients[index],
+                  assignedDoctor: doctor
+                };
+                nextPatients[index] = updatedPatient;
+                hasChanges = true;
+
+                // Sync to DB
+                syncPatientToDatabase(updatedPatient).catch(err => {
+                  console.error('⚠️ Database sync failed:', err);
+                });
+              }
+            });
+
+            return hasChanges ? nextPatients : prev;
+          });
+        }
+    }, 5000); // 5 second window for starting multiple doctors
+
+    return () => {
+      if (autoAssignTimeoutRef.current) clearTimeout(autoAssignTimeoutRef.current);
+    };
   }, [patients, activeDoctors]); // Runs whenever patients or activeDoctors change
 
   const getAvailableSlots = (dateTimeString) => {
@@ -1118,7 +1142,7 @@ export const PatientProvider = ({ children }) => {
     setPatients(prev => {
       // Check if patient already exists to prevent duplicates
       if (patientToAdd.id && prev.some(p => p.id === patientToAdd.id)) return prev;
-      return [...prev, patientToAdd].sort((a, b) => (a.queueNo || 0) - (b.queueNo || 0));
+      return [...prev, patientToAdd].sort(sortPatientsHybrid);
     });
   };
 
@@ -1404,7 +1428,7 @@ export const PatientProvider = ({ children }) => {
 
       // 3. Update Local State
       setPatients(prev => prev.map(p => p.id === cancelledPatient.id ? updatedPatient : p)
-        .sort((a, b) => (a.queueNo || 0) - (b.queueNo || 0)));
+        .sort(sortPatientsHybrid));
 
       // 4. Sync to database (Updates existing ID because id is preserved in updatedPatient)
       const syncResult = await syncPatientToDatabase(updatedPatient);
@@ -1424,7 +1448,13 @@ export const PatientProvider = ({ children }) => {
 
 
   const finalizeTomorrowQueue = async (targetDate) => {
+    if (finalizingRef.current) {
+        console.log("⏳ Queue finalization already in progress. Skipping redundant call.");
+        return { success: true, count: 0 };
+    }
+
     try {
+      finalizingRef.current = true;
       // 1. Determine the target date (default tomorrow)
       const dateToProcess = targetDate || new Date(new Date().setDate(new Date().getDate() + 1));
       dateToProcess.setHours(0, 0, 0, 0);
@@ -1433,17 +1463,21 @@ export const PatientProvider = ({ children }) => {
       console.log(`📅 Finalizing queue for: ${dateString}`);
 
       // 2. Filter local patient state for "Accepted" appointments on that date
+      // ✅ CRITICAL FIX: Only finalize those with NO number or a true SENTINEL ID (900k-999k).
+      // Branded integers for active days (e.g. 16M+) should be ignored.
       const candidates = patients.filter(p =>
         p.type === 'Appointment' &&
         p.appointmentStatus === 'accepted' &&
         p.appointmentDateTime &&
         new Date(p.appointmentDateTime).toDateString() === dateString &&
-        (!p.queueNo || p.queueNo >= 900000)
+        (!p.queueNo || (p.queueNo >= 900000 && p.queueNo < 1000000))
       ).sort((a, b) => new Date(a.appointmentDateTime) - new Date(b.appointmentDateTime));
 
       if (candidates.length === 0) {
         return { success: true, count: 0 };
       }
+
+      console.log(`🚀 Found ${candidates.length} candidates for finalization.`);
 
       // 3. Get AUTHORITATIVE starting number from DB for that specific day
       const maxResult = await getMaxQueueNumber('appointment', dateToProcess);
@@ -1451,36 +1485,38 @@ export const PatientProvider = ({ children }) => {
 
       console.log(`🚀 Starting batch assignment from #${nextNum}`);
 
-      const updatePromises = candidates.map(async (patient) => {
-        const assignedNo = nextNum++;
-        const displayNo = formatQueueNumber(assignedNo, 'appointment', 'accepted', dateToProcess);
+      const updatedPatients = [];
+      
+      // ✅ SEQUENTIAL SYNC: Processing sequentially is safer for database state
+      // than parallel map to avoid race conditions.
+      for (const patient of candidates) {
+          const assignedNo = nextNum++;
+          const displayNo = formatQueueNumber(assignedNo, 'appointment', 'accepted', dateToProcess);
 
-        const updated = {
-          ...patient,
-          queueNo: assignedNo,
-          displayQueueNo: displayNo,
-          status: 'waiting',
-          inQueue: true
-        };
+          const updated = {
+            ...patient,
+            queueNo: assignedNo,
+            displayQueueNo: displayNo,
+            status: 'waiting',
+            inQueue: true
+          };
 
-        // Sync to DB
-        await syncPatientToDatabase(updated);
+          // Sync to DB
+          await syncPatientToDatabase(updated);
 
-        // Send Email — details.queueNo is our formatted string e.g. A01
-        if (patient.patientEmail) {
-          await sendAppointmentEmail(patient, 'accepted', {
-            dateTime: patient.appointmentDateTime,
-            doctor: patient.assignedDoctor?.name || 'Assigned Physician',
-            queueNo: displayNo
-          });
-        }
+          // Send Email
+          if (patient.patientEmail) {
+            await sendAppointmentEmail(patient, 'accepted', {
+              dateTime: patient.appointmentDateTime,
+              doctor: patient.assignedDoctor?.name || 'Assigned Physician',
+              queueNo: displayNo
+            });
+          }
+          
+          updatedPatients.push(updated);
+      }
 
-        return updated;
-      });
-
-      const updatedPatients = await Promise.all(updatePromises);
-
-      // 4. Update Local State
+      // 4. Update Local State (Single Batch Update)
       setPatients(prev => {
         const patientMap = new Map(prev.map(p => [p.id, p]));
         updatedPatients.forEach(upd => patientMap.set(upd.id, upd));
@@ -1492,6 +1528,79 @@ export const PatientProvider = ({ children }) => {
     } catch (error) {
       console.error("❌ Finalize Queue Error:", error);
       return { success: false, error: error.message };
+    } finally {
+        finalizingRef.current = false;
+    }
+  };
+
+
+  // 🛠️ EMERGENCY REPAIR: Cleanup corrupted high numbers for Today
+  const repairTodaysQueue = async () => {
+    if (finalizingRef.current) return;
+    try {
+      finalizingRef.current = true;
+      const todayDate = new Date();
+      const todayString = todayDate.toDateString();
+      console.log(`🛠️ Repairing Queue for: ${todayString}`);
+
+      // 1. Separate target groups (ACTIVE ONLY for today)
+      const appts = patients.filter(p => 
+        p.type === 'Appointment' && 
+        p.appointmentStatus === 'accepted' && 
+        (p.status === 'waiting' || p.status === 'in progress') &&
+        p.appointmentDateTime && 
+        new Date(p.appointmentDateTime).toDateString() === todayString
+      ).sort((a, b) => new Date(a.appointmentDateTime) - new Date(b.appointmentDateTime));
+
+      const walks = patients.filter(p => 
+        p.type === 'Walk-in' && 
+        (p.status === 'waiting' || p.status === 'in progress') &&
+        new Date(p.registeredAt).toDateString() === todayString &&
+        p.inQueue
+      ).sort((a, b) => new Date(a.registeredAt) - new Date(b.registeredAt));
+
+      // 2. Get Autoritative Base (Now using MANILA Time fix)
+      const brandedBase = getBrandedBase(); // This should now be correct for Manila
+      
+      const updates = [];
+      
+      // Repair Appointments
+      let apptSeq = 10001; 
+      for (const p of appts) {
+        const newNo = brandedBase + apptSeq++;
+        const newDisplay = formatQueueNumber(newNo, 'Appointment', 'accepted', p.appointmentDateTime);
+        updates.push({ ...p, queueNo: newNo, displayQueueNo: newDisplay });
+      }
+
+      // Repair Walk-ins
+      let walkSeq = 1;
+      for (const p of walks) {
+        const newNo = brandedBase + walkSeq++;
+        const newDisplay = formatQueueNumber(newNo, 'Walk-in', null, p.registeredAt);
+        updates.push({ ...p, queueNo: newNo, displayQueueNo: newDisplay });
+      }
+
+      console.log(`🚀 Syncing ${updates.length} repaired records to DB...`);
+
+      // 3. Sequential Sync
+      for (const upd of updates) {
+        await syncPatientToDatabase(upd);
+      }
+
+      // 4. Update Local State
+      setPatients(prev => {
+        const patientMap = new Map(prev.map(p => [p.id, p]));
+        updates.forEach(upd => patientMap.set(upd.id, upd));
+        return Array.from(patientMap.values()).sort(sortPatientsHybrid);
+      });
+
+      console.log("✅ Queue Repair Complete! Today's sequence has been clean-reset.");
+      return { success: true, count: updates.length };
+    } catch (e) {
+      console.error("❌ Repair Error:", e);
+      return { success: false, error: e.message };
+    } finally {
+      finalizingRef.current = false;
     }
   };
 
@@ -1623,7 +1732,7 @@ export const PatientProvider = ({ children }) => {
         !p.isInactive &&
         isReadyForQueue(p)
       )
-      .sort((a, b) => a.queueNo - b.queueNo)[0];
+      .sort(sortPatientsHybrid)[0];
 
     if (nextPriorityPatient) {
       console.log(`Debug: Calling Priority Patient ${nextPriorityPatient.queueNo}`);
@@ -1641,7 +1750,7 @@ export const PatientProvider = ({ children }) => {
         !p.isInactive &&
         isReadyForQueue(p)
       )
-      .sort((a, b) => a.queueNo - b.queueNo)[0];
+      .sort(sortPatientsHybrid)[0];
 
     if (nextWaitingPatient) {
       console.log(`Debug: Calling Waiting Patient ${nextWaitingPatient.queueNo}`);
@@ -1674,7 +1783,7 @@ export const PatientProvider = ({ children }) => {
         !p.isInactive &&
         isReadyForQueue(p)
       )
-      .sort((a, b) => a.queueNo - b.queueNo)[0];
+      .sort(sortPatientsHybrid)[0];
 
     if (nextPriorityPatient) {
       updatePatientStatus(nextPriorityPatient.queueNo, 'in progress');
@@ -1690,7 +1799,7 @@ export const PatientProvider = ({ children }) => {
         !p.isInactive &&
         isReadyForQueue(p)
       )
-      .sort((a, b) => a.queueNo - b.queueNo)[0];
+      .sort(sortPatientsHybrid)[0];
 
     if (nextWaitingPatient) {
       updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
@@ -1743,12 +1852,21 @@ export const PatientProvider = ({ children }) => {
         p.appointmentStatus === 'accepted' && 
         p.appointmentDateTime && 
         new Date(p.appointmentDateTime).toDateString() === todayString &&
-        (!p.queueNo || p.queueNo >= 900000)
+        (!p.queueNo || (p.queueNo >= 900000 && p.queueNo < 1000000))
       );
 
       if (unfinalizedToday.length > 0) {
         console.log(`🚀 [MORNING SYNC] Found ${unfinalizedToday.length} today's appointments needing official assignments.`);
         finalizeTomorrowQueue(todayDate);
+      }
+
+      // ✅ ONE-TIME REPAIR TRIGGER (v3)
+      const lastRepaired = localStorage.getItem('queueRepaired_v3_Date');
+      if (lastRepaired !== todayString) {
+        console.log("🛠️ Detected first run of the day (v3). Initiating sequence cleanup...");
+        repairTodaysQueue().then(res => {
+          if (res?.success) localStorage.setItem('queueRepaired_v3_Date', todayString);
+        });
       }
     }
   }, [patients, isLoadingFromDB]); 

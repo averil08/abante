@@ -114,7 +114,7 @@ export const sendReminderEmail = async (patient, details) => {
         <p><strong>📅 Date:</strong> ${appointmentDate}</p>
         <p><strong>⏰ Time:</strong> ${appointmentTime}</p>
         <p><strong>👨‍⚕️ Doctor:</strong> ${details.doctor || patient.assignedDoctor?.name || 'Assigned Physician'}</p>
-        <p><strong>🎫 Queue No:</strong> ${details.queueNo || patient.queueNo}</p>
+        <p><strong>🎫 Queue No:</strong> ${((details.queueNo || patient.queueNo) >= 900000) ? '#A--' : (details.queueNo || patient.queueNo)}</p>
       </div>
       <p style="margin-top: 20px; font-size: 12px; color: #64748b;">Please arrive 15 minutes early. If you need to reschedule or cancel, please contact the clinic.</p>
     </div>
@@ -126,7 +126,7 @@ export const sendReminderEmail = async (patient, details) => {
     Date: ${appointmentDate}
     Time: ${appointmentTime}
     Doctor: ${details.doctor || patient.assignedDoctor?.name || 'Assigned Physician'}
-    Queue No: ${details.queueNo || patient.queueNo}
+    Queue No: ${((details.queueNo || patient.queueNo) >= 900000) ? '#A--' : (details.queueNo || patient.queueNo)}
   `;
 
   try {

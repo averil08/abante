@@ -7,9 +7,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // SHARED QUEUE HELPERS
 const APPT_OFFSET = 10000;
-const getBrandedBase = () => {
+export const getBrandedBase = () => {
   const now = new Date();
-  const utcNow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const utcNow = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   const start = Date.UTC(2024, 0, 1);
   const dayOffset = Math.floor((utcNow - start) / (1000 * 60 * 60 * 24));
   return dayOffset * 20000;

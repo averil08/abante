@@ -76,7 +76,7 @@ export const getMaxQueueNumber = async (type = 'walk-in', date = null) => {
     
     // Day-Offset Calculation (matches supabaseClient.js UTC lockdown)
     const now = targetDate;
-    const utcNow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const utcNow = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
     const start = Date.UTC(2024, 0, 1);
     const dayOffset = Math.floor((utcNow - start) / (1000 * 60 * 60 * 24));
     const dailyBase = dayOffset * 20000;

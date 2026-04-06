@@ -277,7 +277,7 @@ const AppointmentHistory = () => {
                 <h4 className="font-bold text-gray-900">Visit #{myAppointments.length - idx}</h4>
                 {getStatusBadge(appointment)}
               </div>
-              <p className="text-sm text-gray-600">Queue #{String(appointment.queueNo).padStart(3, '0')}</p>
+              <p className="text-sm text-gray-600">Queue {appointment.displayQueueNo || `#${String(appointment.queueNo).padStart(3, '0')}`}</p>
             </div>
             {getVisitTypeBadge(appointment)}
           </div>
@@ -541,7 +541,7 @@ const AppointmentHistory = () => {
                   Visit #{myAppointments.length - idx} Details
                 </CardTitle>
                 <CardDescription>
-                  Queue #{String(appointment.queueNo).padStart(3, '0')} • {appointment.type}
+                  Queue {appointment.displayQueueNo || `#${String(appointment.queueNo).padStart(3, '0')}`} • {appointment.type}
                 </CardDescription>
               </div>
               <Button
@@ -1042,7 +1042,7 @@ const AppointmentHistory = () => {
 
                                 <TableCell className="font-medium">
                                   <Badge variant="outline" className="font-mono">
-                                    #{String(appointment.queueNo).padStart(3, '0')}
+                                    {appointment.displayQueueNo || `#${String(appointment.queueNo).padStart(3, '0')}`}
                                   </Badge>
                                 </TableCell>
 

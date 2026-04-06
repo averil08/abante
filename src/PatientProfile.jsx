@@ -1133,7 +1133,7 @@ const PatientProfile = () => {
 
                                 <TableCell className="font-medium">
                                   <Badge variant="outline" className="font-mono">
-                                    #{visit.displayQueueNo}
+                                    {visit.displayQueueNo}
                                   </Badge>
                                 </TableCell>
 
@@ -1238,7 +1238,7 @@ const PatientProfile = () => {
               Visit #{selectedVisit?.visitNumber} Details
             </DialogTitle>
             <DialogDescription>
-              Queue #{selectedVisit?.displayQueueNo || '---'} • {selectedVisit?.type}
+              Queue {selectedVisit?.displayQueueNo || '---'} • {selectedVisit?.type}
             </DialogDescription>
           </DialogHeader>
 

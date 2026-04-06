@@ -340,7 +340,7 @@ const Appointment = () => {
         {/* Header with Queue Number and Status */}
         <div className="flex items-center justify-between mb-3">
           <Badge variant="outline" className="font-mono">
-            #{appointment.displayQueueNo}
+            {appointment.displayQueueNo}
           </Badge>
           {appointment.appointmentStatus === 'accepted' ? (
             <Badge className="bg-green-600">Accepted</Badge>
@@ -501,7 +501,7 @@ const Appointment = () => {
               >
                 <TableCell className="py-3">
                   <Badge variant="outline" className="font-mono text-xs">
-                    #{appointment.displayQueueNo}
+                    {appointment.displayQueueNo}
                   </Badge>
                 </TableCell>
 

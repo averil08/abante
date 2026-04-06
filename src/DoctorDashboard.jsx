@@ -2352,7 +2352,7 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                     </Badge>
                                 )}
                                 <Badge variant="outline" className="font-mono text-xs">
-                                    #{selectedVisit.displayQueueNo || '---'}
+                                    {selectedVisit.displayQueueNo || '---'}
                                 </Badge>
                             </div>
 

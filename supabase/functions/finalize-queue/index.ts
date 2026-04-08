@@ -12,8 +12,9 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const supabaseUrl = (Deno.env.get('SUPABASE_URL') ?? '').trim().replace(/^["']|["']$/g, '')
+  const supabaseServiceKey = (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim().replace(/^["']|["']$/g, '')
+  const supabaseAnonKey = (Deno.env.get('SUPABASE_ANON_KEY') ?? '').trim().replace(/^["']|["']$/g, '')
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   try {
@@ -124,13 +125,8 @@ serve(async (req) => {
           hour: '2-digit', minute: '2-digit'
         });
 
-        await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseServiceKey}`
-          },
-          body: JSON.stringify({
+        const { data: emailData, error: emailErrObj } = await supabase.functions.invoke('send-email', {
+          body: {
             to: patient.patient_email,
             subject: "Your Official Queue Number for Today - Valley Care Clinic",
             html: `
@@ -147,10 +143,17 @@ serve(async (req) => {
                 <p style="margin-top: 20px; font-size: 12px; color: #64748b;">Please arrive 15 minutes before your scheduled time. No further action is needed from your side.</p>
               </div>
             `
-          })
+          }
         });
+
+        if (emailErrObj) {
+          console.error(`⚠️ Email API rejected the request for ${patient.name}:`, emailErrObj);
+        } else {
+          console.log(`✉️ Email successfully triggered for ${patient.name}`);
+        }
+
       } catch (emailErr) {
-        console.error(`⚠️ Patient ${patient.name} updated but email failed:`, emailErr.message);
+        console.error(`⚠️ Patient ${patient.name} updated but trigger failed:`, emailErr.message);
       }
 
       processedCount++;

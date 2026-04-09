@@ -13,6 +13,25 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: Manual Authorization Check (Replaces --verify-jwt)
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error('Unauthorized: Missing Authorization header')
+    }
+
+    const token = authHeader.replace('Bearer ', '').trim()
+    const anonKey = (Deno.env.get('SUPABASE_ANON_KEY') ?? '').trim().replace(/^["']|["']$/g, '')
+    const serviceKey = (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim().replace(/^["']|["']$/g, '')
+
+    // For Edge-to-Edge invokes, or front-end invokes
+    if (token !== anonKey && token !== serviceKey) {
+      console.warn('❌ Blocked request: Invalid token provided')
+      return new Response(JSON.stringify({ error: 'Unauthorized: Invalid token' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      })
+    }
+
     const { to, subject, html, text } = await req.json()
 
     if (!to || !subject) {

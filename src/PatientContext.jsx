@@ -329,46 +329,6 @@ export const PatientProvider = ({ children }) => {
           setManualWaitTimeAdjustment(cloudAdjustment);
         }
 
-        // ✅ AUTO-REMINDER SYSTEM (Only run if user is a clinic staff)
-        const userRole = localStorage.getItem('userRole');
-        if (userRole === 'admin' || userRole === 'staff' || userRole === 'secretary') {
-          transformedPatients.forEach(p => {
-             // Only target future accepted appointments that haven't received a reminder
-             // and aren't already completed/cancelled
-             if (p.type === 'Appointment' && p.appointmentStatus === 'accepted' && 
-                 p.status !== 'cancelled' && p.status !== 'done' &&
-                 p.appointmentDateTime && p.rejectionReason !== 'REMINDER_SENT') {
-                 
-                 const appointmentDate = new Date(p.appointmentDateTime);
-                 const tomorrow = new Date();
-                 tomorrow.setDate(tomorrow.getDate() + 1);
-                 
-                 // Check if the appointment is EXACTLY tomorrow (matching year, month, day)
-                 if (
-                   appointmentDate.getDate() === tomorrow.getDate() &&
-                   appointmentDate.getMonth() === tomorrow.getMonth() &&
-                   appointmentDate.getFullYear() === tomorrow.getFullYear()
-                 ) {
-                    console.log(`⏰ [CRON] Sending 24h reminder to ${p.name}`);
-                    // 1. Optimistically mark as sent to avoid duplicates
-                    p.rejectionReason = 'REMINDER_SENT';
-                    
-                    // 2. Persist the marked status to the database right away
-                    syncPatientToDatabase(p).then(() => {
-                        // 3. Dispatch the actual email
-                        sendReminderEmail(p, {
-                           dateTime: p.appointmentDateTime,
-                           doctor: p.assignedDoctor?.name,
-                           queueNo: p.queueNo
-                        });
-                    }).catch(err => {
-                        console.error('⚠️ Failed to sync reminder status:', err);
-                    });
-                 }
-             }
-          });
-        }
-
         // Filter out the system settings record from the public list
         const publicPatients = transformedPatients.filter(p => p.patientEmail !== 'clinic_settings@abante.com');
 

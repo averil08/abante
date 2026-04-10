@@ -3,7 +3,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-// Import the real login function
 import { loginUser, forgotPassword } from "./lib/supabaseClient";
 import Logo from "./assets/logo-valley.png";
 import { useNavigate } from "react-router-dom";
@@ -11,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 function Login() {
   const navigate = useNavigate();
 
-  // Determine if this is patient or staff login based on URL
+  // Determine if patient/staff login based on URL
   const urlParams = new URLSearchParams(window.location.search);
   const isPatientLogin = urlParams.get('type') === 'patient';
 
@@ -114,7 +113,7 @@ function Login() {
           return;
         }
 
-        // 3. Store in localStorage for your existing filtering logic
+        // 3. Store in localStorage for existing filtering logic
         const userRole = (result.role || "").toLowerCase();
         localStorage.setItem('userRole', userRole);
 
@@ -126,7 +125,7 @@ function Login() {
           localStorage.removeItem('isPatientLoggedIn');
         }
 
-        // Ensure no stale guest/previous patient session exists
+        // Ensure no stale patients
         localStorage.removeItem('activePatientId');
 
         showMessage(
@@ -136,23 +135,19 @@ function Login() {
         );
         resetForm();
 
-        // 4. Redirect
         setTimeout(() => {
           if (isPatientLogin) {
             navigate("/homepage");
           } else {
-            // Redirect based on role (case-insensitive check)
             const userRole = (result.role || "").toLowerCase();
             if (userRole === 'doctor') {
               navigate("/doctor-selection");
             } else {
-              // Both 'staff' and 'secretary' go to the main dashboard
               navigate("/dashboard");
             }
           }
         }, 1500);
       } else {
-        // This catches "Invalid login credentials" or "Email not confirmed"
         showMessage("Login Failed", result.error, false);
       }
     } catch (error) {
@@ -192,7 +187,6 @@ function Login() {
     }
   };
 
-  // Re-using your existing UI structure
   const loginTitle = isPatientLogin ? "Patient Login" : "Clinic Staff Login";
   const loginDesc = isPatientLogin ? "Sign in to access your patient dashboard." : "Sign in to access the clinic dashboard.";
   const emailPlaceholder = isPatientLogin ? "patient@example.com" : "staff@example.com";
@@ -241,7 +235,6 @@ function Login() {
             </form>
           ) : (
             <form onSubmit={handleLoginSubmit} className="space-y-4">
-              {/* Existing login form content ... */}
               <div className="space-y-2">
                 <Label htmlFor="email">Email <span className="text-red-600">*</span></Label>
                 <Input

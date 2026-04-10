@@ -1,12 +1,11 @@
 import React, { createContext, useState, useMemo, useEffect, useRef } from "react";
 import { assignDoctor, doctors } from './doctorData';
 import { syncPatientToDatabase, getAllPatientProfiles, getMaxQueueNumber } from './lib/patientService';
-import { supabase, getBrandedBase } from './lib/supabaseClient'; // Import Supabase client and base helper
+import { supabase, getBrandedBase } from './lib/supabaseClient';
 import { sendAppointmentEmail, sendReminderEmail } from './lib/emailService';
 
 export const PatientContext = createContext();
 
-// SHARED UTILITIES
 const isToday = (dateString) => {
   if (!dateString) return false;
   const date = new Date(dateString);
@@ -24,11 +23,8 @@ const isForToday = (p) => {
 export const formatQueueNumber = (num, type, appointmentStatus, appointmentDateTime) => {
   if (type === 'Appointment') {
     if (appointmentStatus === 'accepted') {
-      // ✅ DETERMINISTIC FIX:
-      // Valid numbers are either < 900,000 (Legacy) OR > 1,000,000 (Branded Today).
-      // ONLY the range 900,000 - 999,999 is reserved for "Future Placeholder" (#A---).
       const isPlaceholder = num >= 900000 && num < 1000000;
-      
+
       if (num && !isPlaceholder) {
         const displayNum = num % 10000;
         return `#A${String(displayNum).padStart(3, '0')}`;
@@ -37,61 +33,53 @@ export const formatQueueNumber = (num, type, appointmentStatus, appointmentDateT
     }
     return `#A---`;
   }
-  
-  // Walk-ins use #W prefix
+
+  // Walk-ins: #W prefix
   const displayNum = num % 10000;
   return `#W${String(displayNum).padStart(3, '0')}`;
 };
 
-// Matches doctor names even if the DB includes middle initials/extra punctuation.
-// Example: "Dr. Rajiv D. Laoagan" should match "Dr. Rajiv Laoagan".
+// Automatic dr name match even if DB has extra M.I 
 const normalizeDoctorNameForMatch = (name) => {
   if (!name) return '';
   return name
-    .replace(/\bdr\.?\b/gi, ' ') // remove "Dr" token
+    .replace(/\bdr\.?\b/gi, ' ')
     .replace(/[.,]/g, ' ')
     .replace(/[^a-zA-Z0-9\s-]/g, ' ')
     .split(/\s+/)
     .map(s => s.trim())
     .filter(Boolean)
-    .filter(token => token.length > 1) // drop middle initials (single-letter tokens)
+    .filter(token => token.length > 1) // drop middle initials 
     .join(' ')
     .toLowerCase();
 };
 
 export const PatientProvider = ({ children }) => {
   const [activePatient, setActivePatient] = useState(null);
-  const [isLoadingFromDB, setIsLoadingFromDB] = useState(true); // NEW: Loading state
+  const [isLoadingFromDB, setIsLoadingFromDB] = useState(true);
   const [patients, setPatients] = useState([]);
   const [notifications, setNotifications] = useState(() => {
     const saved = localStorage.getItem('patientNotifications');
     return saved ? JSON.parse(saved) : [];
   });
-  const patientsRef = useRef([]); // NEW: Ref to track latest patients without re-subscribing
-  const settingsIdRef = useRef(null); // NEW: Cache for settings record ID
-  const finalizingRef = useRef(false); // NEW: Guard for concurrent finalization
-  const autoAssignTimeoutRef = useRef(null); // ✅ NEW: Debounce timer for auto-assignment
+  const patientsRef = useRef([]);
+  const settingsIdRef = useRef(null);
+  const finalizingRef = useRef(false);
+  const autoAssignTimeoutRef = useRef(null);
 
-  // NEW: Secretary Notification Check Timestamp
   const [lastSecretaryNotificationCheck, setLastSecretaryNotificationCheck] = useState(() => {
     return localStorage.getItem('lastSecretaryNotificationCheck') || new Date().toISOString();
   });
-
-  // NEW: Doctor Notification Check Timestamp (Object keyed by doctorId)
   const [lastDoctorNotificationCheck, setLastDoctorNotificationCheck] = useState(() => {
     const saved = localStorage.getItem('lastDoctorNotificationCheck');
     return saved ? JSON.parse(saved) : {};
   });
-
-  // NEW: Auth State
   const [isPatientLoggedIn, setIsPatientLoggedIn] = useState(() => localStorage.getItem('isPatientLoggedIn') === 'true');
   const [currentPatientEmail, setCurrentPatientEmail] = useState(() => localStorage.getItem('currentPatientEmail'));
 
-  // NEW: Modal Notification state (for REAL-TIME triggers)
   const [modalNotification, setModalNotification] = useState(null);
   const clearModalNotification = () => setModalNotification(null);
 
-  // NEW: Robust Supabase Auth sync
   useEffect(() => {
     const syncAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -99,13 +87,12 @@ export const PatientProvider = ({ children }) => {
         const role = session.user.user_metadata?.role;
         if (role === 'patient') {
           const email = session.user.email.toLowerCase().trim();
-          // Always sync both localStorage AND React state to guarantee UI reflects the session
+          // sync localStorage & React state to ensure UI reflects session
           localStorage.setItem('currentPatientEmail', email);
           localStorage.setItem('isPatientLoggedIn', 'true');
           setCurrentPatientEmail(email);
           setIsPatientLoggedIn(true);
 
-          // Central Profile Sync: Ensure localStorage has profile data from metadata
           const profileKey = `userProfile_${email}`;
           const metadata = session.user.user_metadata || {};
           const nameParts = (metadata.full_name || '').trim().split(/\s+/);
@@ -132,7 +119,7 @@ export const PatientProvider = ({ children }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log(`🔐 Supabase Auth Event: ${event}`);
-      
+
       if (session?.user) {
         const metadata = session.user.user_metadata || {};
         const role = (metadata.role || "").toLowerCase().trim();
@@ -147,7 +134,6 @@ export const PatientProvider = ({ children }) => {
           setCurrentPatientEmail(email);
           setIsPatientLoggedIn(true);
         } else if (role === 'doctor' || role === 'secretary' || role === 'staff' || role === 'admin') {
-          // Explicitly clear ONLY if identified as a different role to prevent mixed sessions
           console.log("👨‍⚕️ Authenticated as Staff/Doctor. Clearing patient session...");
           localStorage.removeItem('currentPatientEmail');
           localStorage.removeItem('isPatientLoggedIn');
@@ -155,14 +141,12 @@ export const PatientProvider = ({ children }) => {
           setIsPatientLoggedIn(false);
           clearActivePatient();
         } else {
-            // Unknown role but has session - maybe metadata is still loading
-            // We'll trust localStorage if it's already there to prevent "session flickering"
-            console.log("❓ Unknown role in metadata. Maintaining existing state if any.");
-            const savedEmail = localStorage.getItem('currentPatientEmail');
-            if (savedEmail && !currentPatientEmail) {
-                setCurrentPatientEmail(savedEmail);
-                setIsPatientLoggedIn(true);
-            }
+          console.log("❓ Unknown role in metadata. Maintaining existing state if any.");
+          const savedEmail = localStorage.getItem('currentPatientEmail');
+          if (savedEmail && !currentPatientEmail) {
+            setCurrentPatientEmail(savedEmail);
+            setIsPatientLoggedIn(true);
+          }
         }
       } else if (event === 'SIGNED_OUT') {
         console.log("👋 Signed out. Clearing all session data.");
@@ -180,7 +164,6 @@ export const PatientProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Sync state when localStorage changes (for cross-tab)
   useEffect(() => {
     const handleStorageChange = (e) => {
       if (e.key === 'currentPatientEmail') setCurrentPatientEmail(e.newValue);
@@ -190,18 +173,14 @@ export const PatientProvider = ({ children }) => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Persist notifications to localStorage
   useEffect(() => {
     localStorage.setItem('patientNotifications', JSON.stringify(notifications));
   }, [notifications]);
-
-  // Helper to transform DB data to App format
   const transformPatientData = (dbPatient) => ({
-    // ✅ CRITICAL: Use dbId as the primary identifier
     id: dbPatient.id,
     queueNo: dbPatient.queue_no,
     displayQueueNo: formatQueueNumber(
-      dbPatient.queue_no, 
+      dbPatient.queue_no,
       dbPatient.patient_type === 'appointment' ? 'Appointment' : 'Walk-in',
       dbPatient.appointment_status,
       dbPatient.appointment_datetime || dbPatient.registered_at
@@ -242,51 +221,38 @@ export const PatientProvider = ({ children }) => {
     calledAt: dbPatient.called_at,
     completedAt: dbPatient.completed_at,
     queueExitTime: dbPatient.queue_exit_time,
-    // Keep raw DB ID for reference/updates
     dbId: dbPatient.id,
-    patientEmail: dbPatient.patient_email, // NEW: Add patient email for access control
+    patientEmail: dbPatient.patient_email,
     isPriority: dbPatient.is_priority || false,
     priorityType: dbPatient.priority_type || null,
     daysSinceOnset: dbPatient.days_since_onset || null,
-    // Extract notes from joined appointments table if present
     notes: dbPatient.notes || (dbPatient.appointments?.[0]?.notes) || null,
     updatedAt: dbPatient.updated_at
   });
 
-  // Helper to resolve display queue numbers with latest context
   const resolveQueueDisplays = (rawPatients) => {
     return rawPatients.map(p => ({
       ...p,
       displayQueueNo: formatQueueNumber(
-        p.queueNo, 
-        p.type, 
+        p.queueNo,
+        p.type,
         p.appointmentStatus,
         p.appointmentDateTime || p.registeredAt
       )
     }));
   };
 
-  // ==========================================
-  // NEW: Sort logic for Hybrid Sequence (Interleaving)
-  // Sorts by Appointment Time OR Registration Time
-  // ==========================================
+  // logic for Hybrid Sequence 
+  // Sorts by Appointment Time/Registration Time
   const sortPatientsHybrid = (a, b) => {
     const timeA = new Date(a.appointmentDateTime || a.registeredAt).getTime();
     const timeB = new Date(b.appointmentDateTime || b.registeredAt).getTime();
-    
-    // Primary Sort: Effective Time (Hybrid Clock)
+
     if (timeA !== timeB) return timeA - timeB;
-    
-    // Tie-breaker: ID/Registration Order
+
     return (a.queueNo || 0) - (b.queueNo || 0);
   };
-  // ==========================================
-  // ==========================================
-  // UPDATED: LOAD PATIENTS FROM DATABASE ON MOUNT
-  // ==========================================
-  // ==========================================
-  // UPDATED: LOAD PATIENTS FROM DATABASE 
-  // ==========================================
+
   const loadPatientsFromDatabase = async () => {
     try {
       console.log('📥 Loading patients from database...');
@@ -295,17 +261,13 @@ export const PatientProvider = ({ children }) => {
       if (result.success && result.data) {
         const transformedPatients = result.data.map(transformPatientData);
 
-        // ✅ Sync Active Patient: Restore from localStorage, but NEVER restore a cancelled session
         const persistedId = localStorage.getItem('activePatientId');
         if (persistedId) {
           const foundPatient = transformedPatients.find(p => String(p.id) === String(persistedId));
           if (foundPatient) {
-            // 🚫 GUARD: Never restore a cancelled patient — this prevents ghost sessions
-            // where an old cancelled patient overwrites a freshly submitted new appointment.
             if (foundPatient.status === 'cancelled') {
               console.log('🚫 [loadDB] Persisted patient is cancelled. Clearing ghost session.');
               localStorage.removeItem('activePatientId');
-              // If the current active state IS this cancelled one, clear it immediately
               if (activePatient?.id === foundPatient.id) {
                 setActivePatient(null);
               }
@@ -314,13 +276,11 @@ export const PatientProvider = ({ children }) => {
               setActivePatient(foundPatient);
             }
           } else {
-            // Persisted ID not found in DB — stale reference, clear it
             console.log('🚫 [loadDB] Persisted patient ID not found in DB. Clearing stale reference.');
             localStorage.removeItem('activePatientId');
           }
         }
 
-        // ✅ NEW: Restore clinic-wide wait time adjustment from system record
         const settingsRecord = transformedPatients.find(p => p.patientEmail === 'clinic_settings@abante.com');
         if (settingsRecord) {
           settingsIdRef.current = settingsRecord.id; // Cache the ID
@@ -329,10 +289,8 @@ export const PatientProvider = ({ children }) => {
           setManualWaitTimeAdjustment(cloudAdjustment);
         }
 
-        // Filter out the system settings record from the public list
         const publicPatients = transformedPatients.filter(p => p.patientEmail !== 'clinic_settings@abante.com');
 
-        // Set the patients state with the updated (and possibly healed) list
         setPatients(() => {
           const uniqueMap = new Map();
           publicPatients.forEach(p => uniqueMap.set(p.id, p));
@@ -347,18 +305,13 @@ export const PatientProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    // Cleanup: Remove stale activeDoctors persistence from previous versions
     localStorage.removeItem('activeDoctors');
     loadPatientsFromDatabase();
-  }, [isPatientLoggedIn]); // Re-fetch data if login status changes (critical for RLS sync)
+  }, [isPatientLoggedIn]);
 
-  // ✅ NEW: Sync activePatient with patients list updates
-  // This ensures that if the patients list is updated via Real-time (e.g. status change to 'accepted'),
-  // the activePatient object also gets updated immediately.
   useEffect(() => {
-    patientsRef.current = patients; // Sync ref with state
+    patientsRef.current = patients;
     if (activePatient && patients.length > 0) {
-      // 1. If active patient is inactive (e.g. requeued/cancelled), try to find their new ticket
       if (activePatient.isInactive) {
         const newTicket = patients.find(p =>
           p.requeued &&
@@ -372,28 +325,24 @@ export const PatientProvider = ({ children }) => {
         }
       }
 
-      // 2. Normal sync: find the freshest version of the active patient
       const freshData = patients.find(p => p.id === activePatient.id);
-      
+
       if (freshData) {
-        // 🚫 GUARD: If the fresh data shows the record was cancelled, and we have another active record
-        // for the same name/account in the list, auto-switch to the active one.
         if (freshData.status === 'cancelled') {
-           const alternative = patients.find(p => 
-             p.id !== freshData.id && 
-             p.name === freshData.name && 
-             p.status !== 'cancelled' && 
-             p.status !== 'done'
-           );
-           if (alternative) {
-             console.log("🔄 Ghost Detection! Switching from cancelled record to active record for same user.");
-             setActivePatient(alternative);
-             localStorage.setItem('activePatientId', alternative.id);
-             return;
-           }
+          const alternative = patients.find(p =>
+            p.id !== freshData.id &&
+            p.name === freshData.name &&
+            p.status !== 'cancelled' &&
+            p.status !== 'done'
+          );
+          if (alternative) {
+            console.log("🔄 Ghost Detection! Switching from cancelled record to active record for same user.");
+            setActivePatient(alternative);
+            localStorage.setItem('activePatientId', alternative.id);
+            return;
+          }
         }
 
-        // Normal identity sync
         if (JSON.stringify(activePatient) !== JSON.stringify(freshData)) {
           console.log("🔄 Syncing activePatient with fresh data from DB/Realtime");
           setActivePatient(freshData);
@@ -402,9 +351,6 @@ export const PatientProvider = ({ children }) => {
     }
   }, [patients, activePatient]);
 
-  // ==========================================
-  // REAL-TIME SUBSCRIPTION
-  // ==========================================
   useEffect(() => {
     console.log("🔌 Setting up Supabase Realtime subscription...");
 
@@ -416,7 +362,6 @@ export const PatientProvider = ({ children }) => {
         (payload) => {
           console.log('⚡ Realtime event received:', payload.eventType);
 
-          // NEW: Notification Logic for Patients
           if (payload.eventType === 'UPDATE') {
             const oldData = payload.old;
             const newData = payload.new;
@@ -429,7 +374,7 @@ export const PatientProvider = ({ children }) => {
               const oldServices = oldPatient?.services || [];
               const newServices = newData.services || [];
 
-              // 1. Check if appointment status changed from pending to accepted/rejected
+              // 1. Check if appointment changed from pending to accepted/rejected
               if (oldStatus === 'pending' && (newStatus === 'accepted' || newStatus === 'rejected')) {
                 const message = newStatus === 'accepted'
                   ? `Your appointment for ${new Date(newData.appointment_datetime).toLocaleDateString()} has been ACCEPTED.`
@@ -465,7 +410,7 @@ export const PatientProvider = ({ children }) => {
                 const message = followUpReason
                   ? `${doctorName} has requested a follow-up consultation. Reason: ${followUpReason}`
                   : `${doctorName} has requested a follow-up consultation for you.`;
-                
+
                 setNotifications(prev => [{
                   id: Date.now(),
                   message,
@@ -488,7 +433,6 @@ export const PatientProvider = ({ children }) => {
               }
             }
 
-            // Notification logic for SECRETARY (on cancellation or follow-up)
             const userRole = localStorage.getItem('userRole');
             if (userRole === 'secretary' || userRole === 'staff' || userRole === 'admin') {
               const oldPatient = patientsRef.current.find(p => p.id === newData.id);
@@ -510,7 +454,7 @@ export const PatientProvider = ({ children }) => {
                 });
               }
 
-              // New Follow-up from Doctor
+              // Follow-up from Doctor
               if (!oldServices.includes('follow-up-doctor') && newServices.includes('follow-up-doctor')) {
                 setModalNotification({
                   type: 'appointment',
@@ -526,13 +470,13 @@ export const PatientProvider = ({ children }) => {
             }
           }
 
-          // NEW: Notification logic for SECRETARY (on new submission)
+          // Notification logic for SECRETARY (on new submission)
           if (payload.eventType === 'INSERT') {
             const newData = payload.new;
             const userRole = localStorage.getItem('userRole');
             const currentUserEmail = localStorage.getItem('currentPatientEmail')?.toLowerCase();
 
-            // 1. Notification logic for PATIENT (on new follow-up from doctor)
+            // 1. Notification logic for PATIENT (new follow-up from doctor)
             if (currentUserEmail && newData.patient_email?.toLowerCase() === currentUserEmail) {
               const isFollowUp = newData.services?.includes('follow-up-doctor');
               if (isFollowUp) {
@@ -544,7 +488,7 @@ export const PatientProvider = ({ children }) => {
                 const message = followUpReason
                   ? `${doctorName} has requested a follow-up consultation. Reason: ${followUpReason}`
                   : `${doctorName} has requested a follow-up consultation for you.`;
-                
+
                 setNotifications(prev => [{
                   id: Date.now(),
                   message,
@@ -566,15 +510,15 @@ export const PatientProvider = ({ children }) => {
                 });
               }
             }
-            
-            // 2. Notification logic for SECRETARY (on new submission)
+
+            // 2. Notification logic for SECRETARY (new submission)
             if ((userRole === 'secretary' || userRole === 'staff' || userRole === 'admin') && newData.patient_type === 'appointment') {
               const isDoctorFollowUp = newData.services?.includes('follow-up-doctor');
-              
+
               setModalNotification({
                 type: 'appointment',
                 title: isDoctorFollowUp ? 'New Doctor Follow-up' : 'New Appointment Request',
-                description: isDoctorFollowUp 
+                description: isDoctorFollowUp
                   ? `${newData.assigned_doctor_name || 'The doctor'} has scheduled a follow-up for ${newData.name}.`
                   : `A new appointment request has been submitted by ${newData.name}.`,
                 data: {
@@ -586,16 +530,13 @@ export const PatientProvider = ({ children }) => {
             }
           }
 
-
-          // SURGICAL UPDATE: If it's the settings record, update adjustment immediately
           if (payload.new && payload.new.patient_email === 'clinic_settings@abante.com') {
             const newAdj = parseInt(payload.new.age) || 0;
             console.log("🕒 Realtime sync: Updating global wait time adjustment:", newAdj);
             setManualWaitTimeAdjustment(newAdj);
-            return; // Skip full re-fetch for settings updates
+            return;
           }
 
-          // OPTIMIZED: Update local state directly for other updates
           if (payload.eventType === 'UPDATE' && payload.new) {
             const transformed = transformPatientData(payload.new);
             setPatients(prev => {
@@ -606,7 +547,6 @@ export const PatientProvider = ({ children }) => {
               return next;
             });
           } else {
-            // Full refresh for INSERT/DELETE or complex changes
             loadPatientsFromDatabase();
           }
         }
@@ -619,14 +559,12 @@ export const PatientProvider = ({ children }) => {
       console.log("🔌 Cleaning up Supabase subscription...");
       supabase.removeChannel(channel);
     };
-  }, []); // Run once on mount
+  }, []);
 
-  // Persist activePatient to localStorage — but never store a cancelled session
   useEffect(() => {
     if (activePatient?.id) {
       if (activePatient.status === 'cancelled') {
-        // A cancelled patient should NEVER be persisted — clear it so a fresh
-        // submission on the same device won't have a ghost session restored.
+
         localStorage.removeItem('activePatientId');
       } else {
         localStorage.setItem('activePatientId', activePatient.id);
@@ -634,15 +572,12 @@ export const PatientProvider = ({ children }) => {
     }
   }, [activePatient]);
 
-  // ✅ STABILIZED: Restore activePatient from localStorage on load
   useEffect(() => {
-    // Only attempt restoration if we don't have an active memory state and we have authoritative data
     if (!isLoadingFromDB && !activePatient && patients.length > 0) {
       const persistedId = localStorage.getItem('activePatientId');
       if (persistedId) {
         const foundPatient = patients.find(p => String(p.id) === String(persistedId));
         if (foundPatient) {
-          // ✅ GUARD: Never restore a cancelled patient
           if (foundPatient.status === 'cancelled') {
             console.log("🚫 Persisted patient is cancelled. Clearing ghost session.");
             localStorage.removeItem('activePatientId');
@@ -667,21 +602,15 @@ export const PatientProvider = ({ children }) => {
           console.log("🔄 Restoring active patient from storage:", foundPatient.name);
           setActivePatient(foundPatient);
         } else {
-           // ⚠️ WAIT: If not found in this specific fetch, do NOT delete from localStorage immediately.
-           // This prevents "flickering" session loss if the DB is slightly behind a fresh submission.
-           // We only delete if it's a known stale ID (decided in loadPatientsFromDatabase).
-           console.log("⏳ Persisted patient ID not in current list — holding for sync...");
+          console.log("⏳ Persisted patient ID not in current list — holding for sync...");
         }
       }
     }
   }, [isLoadingFromDB, patients, activePatient, currentPatientEmail, isPatientLoggedIn]);
 
-  // NEW: Automatic session discovery for logged-in patients
   useEffect(() => {
     let currentEmail = localStorage.getItem('currentPatientEmail');
     let isLoggedIn = localStorage.getItem('isPatientLoggedIn') === 'true';
-
-    // Fallback: If localStorage keys are missing but Supabase session exists, restore them
     if (!currentEmail && !isLoadingFromDB) {
       const restoreSession = async () => {
         const { data: { session } } = await supabase.auth.getSession();
@@ -690,7 +619,6 @@ export const PatientProvider = ({ children }) => {
           console.log("🔐 Restoring missing localStorage from Supabase session:", email);
           localStorage.setItem('currentPatientEmail', email);
           localStorage.setItem('isPatientLoggedIn', 'true');
-          // Re-trigger the logic with restored email
         }
       };
       restoreSession();
@@ -735,9 +663,9 @@ export const PatientProvider = ({ children }) => {
           pDate.setHours(0, 0, 0, 0);
 
           if (p.type === 'Appointment') {
-            return pDate >= today; // Appointments can be today or future
+            return pDate >= today;
           } else {
-            return pDate.getTime() === today.getTime(); // Walk-ins strictly today
+            return pDate.getTime() === today.getTime();
           }
         });
 
@@ -749,30 +677,25 @@ export const PatientProvider = ({ children }) => {
     }
   }, [isLoadingFromDB, patients, activePatient]);
 
-  // Existing localStorage sync (keep this for cross-tab communication)
   useEffect(() => {
-    if (!isLoadingFromDB) { // Only sync after initial load
+    if (!isLoadingFromDB) {
       localStorage.setItem('patients-sync', JSON.stringify(patients));
       console.log('📤 Broadcasting patients to other tabs:', patients.length);
     }
   }, [patients, isLoadingFromDB]);
 
-  const [currentServing, setCurrentServing] = useState(null); // Start at null when loading from DB
-  const [manualWaitTimeAdjustment, setManualWaitTimeAdjustment] = useState(0); // NEW: Manual adjustment state
+  const [currentServing, setCurrentServing] = useState(null);
+  const [manualWaitTimeAdjustment, setManualWaitTimeAdjustment] = useState(0);
 
-  // ✅ NEW: Dynamic Average Wait Time calculation
   const avgWaitTime = useMemo(() => {
     if (isLoadingFromDB) return '...';
 
     const queueTimeData = [];
     patients.forEach(p => {
-      // Only look at patients who have been called (have both registeredAt and calledAt)
       if (p.registeredAt && p.calledAt) {
         const registeredTime = new Date(p.registeredAt);
         const calledTime = new Date(p.calledAt);
         const queueTimeMinutes = Math.round((calledTime - registeredTime) / 60000);
-
-        // Only count reasonable times (1-240 minutes)
         if (queueTimeMinutes > 0 && queueTimeMinutes <= 240) {
           queueTimeData.push(queueTimeMinutes);
         }
@@ -781,28 +704,25 @@ export const PatientProvider = ({ children }) => {
 
     const calculatedAvg = queueTimeData.length > 0
       ? Math.round(queueTimeData.reduce((sum, time) => sum + time, 0) / queueTimeData.length)
-      : 15; // Default to 15 if no data
+      : 15;
 
-    // Return calculated average + manual adjustment (ensure it doesn't go below 0)
     return Math.max(0, calculatedAvg + manualWaitTimeAdjustment);
   }, [patients, manualWaitTimeAdjustment, isLoadingFromDB]);
 
-  // NEW: Calculate unread cancellations for secretary
   const unreadSecretaryNotificationsCount = useMemo(() => {
     const userRole = localStorage.getItem('userRole');
-    // Only show for secretary/staff/admin
     if (userRole !== 'secretary' && userRole !== 'staff' && userRole !== 'admin') return 0;
 
     return patients.filter(p => {
       if (p.type !== 'Appointment' || p.status === 'done') return false;
-      
+
       const isNewSubmission = !p.appointmentStatus || p.appointmentStatus === 'pending';
       const isCancellation = p.appointmentStatus === 'cancelled';
       const isDoctorFollowUp = p.services?.includes('follow-up-doctor');
-      
+
       const notificationTime = new Date(p.updatedAt || p.registeredAt || p.created_at);
       const lastCheck = new Date(lastSecretaryNotificationCheck);
-      
+
       return (isNewSubmission || isCancellation || isDoctorFollowUp) && notificationTime > lastCheck;
     }).length;
   }, [patients, lastSecretaryNotificationCheck]);
@@ -823,14 +743,11 @@ export const PatientProvider = ({ children }) => {
     });
   };
 
-  // ✅ UPDATED: activeDoctors is now persisted to localStorage for refresh retention.
-  // It includes a daily reset safeguard to prevent stale assignments from previous days.
   const [activeDoctors, setActiveDoctors] = useState(() => {
     const saved = localStorage.getItem('active-doctors-sync');
     if (saved) {
       try {
         const { date, ids } = JSON.parse(saved);
-        // Only restore if it was saved today
         if (date === new Date().toDateString()) {
           return ids;
         }
@@ -841,7 +758,6 @@ export const PatientProvider = ({ children }) => {
     return [];
   });
 
-  // Keep localStorage in sync with activeDoctors state
   useEffect(() => {
     localStorage.setItem('active-doctors-sync', JSON.stringify({
       date: new Date().toDateString(),
@@ -852,12 +768,10 @@ export const PatientProvider = ({ children }) => {
   const [doctorCurrentServing, setDoctorCurrentServing] = useState(() => {
     const initialServing = {};
     patients.forEach(patient => {
-      // Robust check: must be in progress, have a doctor, not inactive, AND if appointment, must be accepted
       const isAcceptedAppointment = patient.type === 'Appointment' && patient.appointmentStatus === 'accepted';
       const isWalkIn = patient.type !== 'Appointment';
 
       if (patient.status === 'in progress' && patient.assignedDoctor && !patient.isInactive && (isAcceptedAppointment || isWalkIn)) {
-        // Only count as current serving if patient is from today
         if (isForToday(patient)) {
           initialServing[patient.assignedDoctor.id] = patient.queueNo;
         }
@@ -869,12 +783,10 @@ export const PatientProvider = ({ children }) => {
   useEffect(() => {
     const servingMap = {};
     patients.forEach(patient => {
-      // Robust check: same filters as initialization
       const isAcceptedAppointment = patient.type === 'Appointment' && patient.appointmentStatus === 'accepted';
       const isWalkIn = patient.type !== 'Appointment';
 
       if (patient.status === 'in progress' && patient.assignedDoctor && !patient.isInactive && (isAcceptedAppointment || isWalkIn)) {
-        // Only count as current serving if patient is from today
         if (isForToday(patient)) {
           servingMap[patient.assignedDoctor.id] = patient.queueNo;
         }
@@ -882,16 +794,14 @@ export const PatientProvider = ({ children }) => {
     });
     setDoctorCurrentServing(servingMap);
 
-    // ✅ NEW: Synchronize global currentServing reactive to patients list
-    // This allows the General Queue card to update automatically via Real-time
-    const inProgressToday = patients.filter(p => 
-      p.status === "in progress" && 
-      !p.isInactive && 
+    // allows General Queue card to update automatically via Real-time
+    const inProgressToday = patients.filter(p =>
+      p.status === "in progress" &&
+      !p.isInactive &&
       isForToday(p)
     );
 
     if (inProgressToday.length > 0) {
-      // Sort by calledAt (descending) to get the MOST RECENTLY called patient as the main serving focus
       const latestCalled = [...inProgressToday].sort((a, b) => {
         const timeA = a.calledAt ? new Date(a.calledAt).getTime() : 0;
         const timeB = b.calledAt ? new Date(b.calledAt).getTime() : 0;
@@ -906,143 +816,94 @@ export const PatientProvider = ({ children }) => {
     }
   }, [patients]);
 
-  // Sync activePatient (existing logic - keep this)
-  /*
-  // ⚠️ DISABLED: This useEffect causes infinite loops and conflicts with the main sync effect at line 87.
-  // The 'requeued' logic (switching to new ticket) is now better handled by the main sync or manual switching if needed.
-  // Ideally, when a patient is requeued, the old ticket becomes inactive, and the patient logic should naturally 
-  // pickup the new active ticket if we handle it correctly in the main sync.
   useEffect(() => {
-    if (activePatient) {
-      if (activePatient.isInactive) {
-        const newTicket = patients.find(p =>
-          p.requeued &&
-          p.originalQueueNo === activePatient.queueNo &&
-          !p.isInactive
-        );
-        if (newTicket) {
-          setActivePatient(newTicket);
-          return;
-        }
-      }
-
-      const updatedPatient = patients.find(p => {
-        if (activePatient.id && p.id === activePatient.id) return true;
-        if (activePatient.queueNo !== null && activePatient.queueNo !== undefined && p.queueNo === activePatient.queueNo) return true;
-        return false;
-      });
-      if (updatedPatient && JSON.stringify(updatedPatient) !== JSON.stringify(activePatient)) {
-        setActivePatient(updatedPatient);
-      }
-    }
-  }, [patients, activePatient]);
-  */
-
-  // ✅ AUTO-ASSIGNMENT DEBOUNCED:
-  // This prevents all patients from being dumped into the first doctor started 
-  // when the secretary is starting multiple doctors (as requested by user).
-  useEffect(() => {
-    // 🧹 Cleanup previous timer
     if (autoAssignTimeoutRef.current) {
-        clearTimeout(autoAssignTimeoutRef.current);
+      clearTimeout(autoAssignTimeoutRef.current);
     }
-
-    // Early exit if no active doctors
     if (activeDoctors.length === 0) return;
 
     const unassignedPatients = patients.filter(p =>
       !p.assignedDoctor &&
       !p.isInactive &&
-      !p.tempId && // ✅ FIX: Ignore optimistic updates (requeued patients being created)
+      !p.tempId &&
       p.status !== 'done' &&
       p.status !== 'cancelled' &&
       (p.type !== 'Appointment' || p.appointmentStatus === 'accepted') &&
-      isForToday(p) // ✅ NEW: Only auto-assign today's unassigned patients (blank services/deferred)
+      isForToday(p)
     );
 
     if (unassignedPatients.length === 0) return;
-
-    // ⏳ Set new timer (5 seconds) to allow the secretary to finish starting doctors
     autoAssignTimeoutRef.current = setTimeout(() => {
-        console.log("🚀 Starting debounced auto-assignment...");
-        
-        const patientsToUpdate = [];
+      console.log("🚀 Starting debounced auto-assignment...");
 
-        unassignedPatients.forEach(patient => {
-          // Skip if pending/rejected
-          if (patient.type === 'Appointment' && patient.appointmentStatus !== 'accepted') return;
+      const patientsToUpdate = [];
 
-          let doctor = null;
+      unassignedPatients.forEach(patient => {
+        if (patient.type === 'Appointment' && patient.appointmentStatus !== 'accepted') return;
 
-          // Preferred doctor check — ONLY assign if that doctor's queue is currently active
-          if (patient.preferredDoctor) {
-            // Robust lookup by ID or Name
-            const matchedDoctor = doctors.find(d =>
-              (patient.preferredDoctor.id && d.id === Number(patient.preferredDoctor.id)) ||
-              (d.name.toLowerCase().trim() === (patient.preferredDoctor.name || "").toLowerCase().trim())
-            );
+        let doctor = null;
+        if (patient.preferredDoctor) {
+          const matchedDoctor = doctors.find(d =>
+            (patient.preferredDoctor.id && d.id === Number(patient.preferredDoctor.id)) ||
+            (d.name.toLowerCase().trim() === (patient.preferredDoctor.name || "").toLowerCase().trim())
+          );
 
-            if (matchedDoctor) {
-              if (activeDoctors.includes(matchedDoctor.id)) {
-                doctor = matchedDoctor;
-              } else {
-                // Preferred doctor's queue not started yet — skip assignment for now.
-                console.log(`⏳ Preferred doctor ${matchedDoctor.name} queue not active yet — deferring assignment for patient ${patient.name}`);
-                return;
-              }
+          if (matchedDoctor) {
+            if (activeDoctors.includes(matchedDoctor.id)) {
+              doctor = matchedDoctor;
+            } else {
+              // Preferred doctor's queue not started yet — skip assignment for now.
+              console.log(`⏳ Preferred doctor ${matchedDoctor.name} queue not active yet — deferring assignment for patient ${patient.name}`);
+              return;
             }
           }
-
-          // Auto-assignment (only if no preferred doctor was chosen)
-          if (!doctor) {
-            // ✅ IMPROVED: Provide a virtual copy that includes patients already assigned in this loop.
-            // This ensures true distribution (A, B, C, A, B...) instead of everyone going to one doctor
-            // because the state hasn't updated yet.
-            const virtualPatients = [...patients, ...patientsToUpdate.map(item => ({
-                ...item.patient,
-                assignedDoctor: item.doctor
-            }))];
-            doctor = assignDoctor(patient, virtualPatients, activeDoctors);
-          }
-
-          if (doctor) {
-            console.log(`✅ Auto-assigned ${patient.name} (Queue #${patient.queueNo}) to ${doctor.name}`);
-            patientsToUpdate.push({ patient, doctor });
-          }
-        });
-
-        // ONLY update state if we actually have changes
-        if (patientsToUpdate.length > 0) {
-          setPatients(prev => {
-            const nextPatients = [...prev];
-            let hasChanges = false;
-
-            patientsToUpdate.forEach(({ patient, doctor }) => {
-              const index = nextPatients.findIndex(p => p.id === patient.id || (p.queueNo === patient.queueNo && p.tempId === patient.tempId));
-              if (index !== -1) {
-                const updatedPatient = {
-                  ...nextPatients[index],
-                  assignedDoctor: doctor
-                };
-                nextPatients[index] = updatedPatient;
-                hasChanges = true;
-
-                // Sync to DB
-                syncPatientToDatabase(updatedPatient).catch(err => {
-                  console.error('⚠️ Database sync failed:', err);
-                });
-              }
-            });
-
-            return hasChanges ? nextPatients : prev;
-          });
         }
-    }, 5000); // 5 second window for starting multiple doctors
+
+        // Auto-assignment (only if no preferred doctor was chosen)
+        if (!doctor) {
+          const virtualPatients = [...patients, ...patientsToUpdate.map(item => ({
+            ...item.patient,
+            assignedDoctor: item.doctor
+          }))];
+          doctor = assignDoctor(patient, virtualPatients, activeDoctors);
+        }
+
+        if (doctor) {
+          console.log(`✅ Auto-assigned ${patient.name} (Queue #${patient.queueNo}) to ${doctor.name}`);
+          patientsToUpdate.push({ patient, doctor });
+        }
+      });
+
+      if (patientsToUpdate.length > 0) {
+        setPatients(prev => {
+          const nextPatients = [...prev];
+          let hasChanges = false;
+
+          patientsToUpdate.forEach(({ patient, doctor }) => {
+            const index = nextPatients.findIndex(p => p.id === patient.id || (p.queueNo === patient.queueNo && p.tempId === patient.tempId));
+            if (index !== -1) {
+              const updatedPatient = {
+                ...nextPatients[index],
+                assignedDoctor: doctor
+              };
+              nextPatients[index] = updatedPatient;
+              hasChanges = true;
+
+              syncPatientToDatabase(updatedPatient).catch(err => {
+                console.error('⚠️ Database sync failed:', err);
+              });
+            }
+          });
+
+          return hasChanges ? nextPatients : prev;
+        });
+      }
+    }, 5000);
 
     return () => {
       if (autoAssignTimeoutRef.current) clearTimeout(autoAssignTimeoutRef.current);
     };
-  }, [patients, activeDoctors]); // Runs whenever patients or activeDoctors change
+  }, [patients, activeDoctors]);
 
   const getAvailableSlots = (dateTimeString) => {
     if (!dateTimeString) return 1;
@@ -1087,34 +948,23 @@ export const PatientProvider = ({ children }) => {
     return null;
   };
 
-  // ==========================================
-  // MODIFIED: addPatient - Now syncs to database AND persists
-  // ==========================================
   const addPatient = (inputPatient) => {
-    // If the input is raw from Supabase (has snake_case keys), transform it first
-    const patientToAdd = (inputPatient.patient_type || inputPatient.queue_no) 
-      ? transformPatientData(inputPatient) 
+    const patientToAdd = (inputPatient.patient_type || inputPatient.queue_no)
+      ? transformPatientData(inputPatient)
       : inputPatient;
 
     setPatients(prev => {
-      // Check if patient already exists to prevent duplicates
       if (patientToAdd.id && prev.some(p => p.id === patientToAdd.id)) return prev;
       return [...prev, patientToAdd].sort(sortPatientsHybrid);
     });
   };
 
-  // ==========================================
-  // NEW: Explicitly clear active patient
-  // ==========================================
   const clearActivePatient = () => {
     console.log('🧹 Clearing active patient session...');
     setActivePatient(null);
     localStorage.removeItem('activePatientId');
   };
 
-  // ==========================================
-  // MODIFIED: updatePatientStatus - Updates both memory and database
-  // ==========================================
   const updatePatientStatus = async (queueNo, newStatus) => {
     // 1. Find the patient first
     const patient = patients.find(p => p.queueNo === queueNo);
@@ -1137,7 +987,7 @@ export const PatientProvider = ({ children }) => {
 
     const updatedPatient = { ...patient, ...updates };
 
-    // 3. Update Local State (Optimistic)
+    // 3. Update Local State
     setPatients(prev => prev.map(p => p.queueNo === queueNo ? updatedPatient : p));
 
     // 4. Sync status update to database
@@ -1145,11 +995,9 @@ export const PatientProvider = ({ children }) => {
       await syncPatientToDatabase(updatedPatient);
     } catch (err) {
       console.error('⚠️ Database sync failed:', err);
-      // Optional: Revert local state if sync fails
     }
   };
 
-  // All other functions remain EXACTLY the same
   const cancelPatient = (queueNo) => {
     const patient = patients.find(p => p.queueNo === queueNo);
     if (!patient) return;
@@ -1161,24 +1009,18 @@ export const PatientProvider = ({ children }) => {
       cancelledAt: new Date().toISOString()
     };
 
-    // Update local state
     setPatients(prev => prev.map(p => p.queueNo === queueNo ? cancelled : p));
 
-    // Sync to database
     syncPatientToDatabase(cancelled).catch(err => {
       console.error('⚠️ Database sync failed:', err);
     });
   };
-  //ADDED this update
   const acceptAppointment = async (patientId) => {
     try {
       // 1. Get the patient first
       const patient = patients.find(p => p.id === patientId);
       if (!patient) return;
 
-      // ✅ DETERMINISTIC ASSIGNMENT:
-      // If it's a future appointment, we assign a "Sentinel" number (900,000+) 
-      // so it shows as "#A--" in the UI.
       const isFuture = !isToday(patient.appointmentDateTime);
       let assignedNo = patient.queueNo;
 
@@ -1187,7 +1029,6 @@ export const PatientProvider = ({ children }) => {
           assignedNo = 900000 + Math.floor(Math.random() * 99999);
         }
       } else {
-        // If it's for today, assign a live number (A01, A02...)
         const maxResult = await getMaxQueueNumber('appointment');
         const dbMax = maxResult.maxQueueNo || 10000;
         const localMax = Math.max(10000, ...patients
@@ -1198,7 +1039,7 @@ export const PatientProvider = ({ children }) => {
 
       // 2. Determine Doctor Assignment
       let assignedDoctor = patient.assignedDoctor;
-      
+
       // Auto-assign if not assigned and it's for today
       if (!assignedDoctor && isForToday(patient)) {
         assignedDoctor = assignDoctor(patient, patients, activeDoctors);
@@ -1260,7 +1101,6 @@ export const PatientProvider = ({ children }) => {
         queue_exit_time: rejectedAt
       };
 
-      // 1. Sync to database via supabase directly for critical update
       const { error } = await supabase
         .from('patients')
         .update(updates)
@@ -1268,7 +1108,6 @@ export const PatientProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // 2. Update local state
       setPatients(prev => prev.map(p => {
         if (p.id !== patientId) return p;
         return {
@@ -1281,7 +1120,6 @@ export const PatientProvider = ({ children }) => {
         };
       }));
 
-      // 3. Send Email Notification
       const patientData = patients.find(p => p.id === patientId);
       if (patientData) {
         sendAppointmentEmail(patientData, 'rejected', {
@@ -1308,7 +1146,6 @@ export const PatientProvider = ({ children }) => {
         queue_exit_time: cancelledAt
       };
 
-      // 1. Sync to database via supabase directly
       const { error } = await supabase
         .from('patients')
         .update(updates)
@@ -1316,7 +1153,6 @@ export const PatientProvider = ({ children }) => {
 
       if (error) throw error;
 
-      // 2. Update local state
       setPatients(prev => prev.map(p => {
         if (p.id !== patientId) return p;
         return {
@@ -1328,7 +1164,6 @@ export const PatientProvider = ({ children }) => {
         };
       }));
 
-      // 3. Send Email Notification
       const patientData = patients.find(p => p.id === patientId);
       if (patientData) {
         sendAppointmentEmail(patientData, 'cancelled', {
@@ -1350,13 +1185,9 @@ export const PatientProvider = ({ children }) => {
 
       console.log(`🔄 Requeueing patient #${queueNo}...`);
 
-      // 1. Get AUTHORITATIVE max queue number from DB first (passing type for range)
       const maxResult = await getMaxQueueNumber(cancelledPatient.type);
       const dbMax = maxResult.maxQueueNo;
 
-      // 2. Cross-check with local state (PatientContext patients is global enough for the current session)
-      // This solves the issue where a Doctor might not see other doctors' patients in the DB query (RLS)
-      // but the Context state (if loaded by Secretary or merged) has more info.
       const localMax = Math.max(0, ...patients
         .filter(p => p.type === cancelledPatient.type && isToday(p.registeredAt))
         .map(p => p.queueNo || 0));
@@ -1365,29 +1196,26 @@ export const PatientProvider = ({ children }) => {
 
       console.log(`✅ Assigned new queue number: ${nextQueueNo} (DB Max: ${dbMax}, Local Max: ${localMax})`);
 
-      // 3. Prepare update for the EXISTING patient
       const updatedPatient = {
         ...cancelledPatient,
         ...extraUpdates,
         queueNo: nextQueueNo,
         displayQueueNo: formatQueueNumber(nextQueueNo, cancelledPatient.type, cancelledPatient.appointmentStatus, cancelledPatient.appointmentDateTime),
-        originalQueueNo: cancelledPatient.queueNo, // Persist the old number for UI/History
+        originalQueueNo: cancelledPatient.queueNo,
         status: "waiting",
         registeredAt: new Date().toISOString(),
         inQueue: true,
-        calledAt: null, // Reset timing
+        calledAt: null,
         queueExitTime: null,
         completedAt: null,
         cancelledAt: null,
-        isInactive: false, // Ensure it's active
+        isInactive: false,
         requeued: true,
       };
 
-      // 3. Update Local State
       setPatients(prev => prev.map(p => p.id === cancelledPatient.id ? updatedPatient : p)
         .sort(sortPatientsHybrid));
 
-      // 4. Sync to database (Updates existing ID because id is preserved in updatedPatient)
       const syncResult = await syncPatientToDatabase(updatedPatient);
 
       if (syncResult.success) {
@@ -1406,22 +1234,18 @@ export const PatientProvider = ({ children }) => {
 
   const finalizeTomorrowQueue = async (targetDate) => {
     if (finalizingRef.current) {
-        console.log("⏳ Queue finalization already in progress. Skipping redundant call.");
-        return { success: true, count: 0 };
+      console.log("⏳ Queue finalization already in progress. Skipping redundant call.");
+      return { success: true, count: 0 };
     }
 
     try {
       finalizingRef.current = true;
-      // 1. Determine the target date (default tomorrow)
       const dateToProcess = targetDate || new Date(new Date().setDate(new Date().getDate() + 1));
       dateToProcess.setHours(0, 0, 0, 0);
       const dateString = dateToProcess.toDateString();
 
       console.log(`📅 Finalizing queue for: ${dateString}`);
 
-      // 2. Filter local patient state for "Accepted" appointments on that date
-      // ✅ CRITICAL FIX: Only finalize those with NO number or a true SENTINEL ID (900k-999k).
-      // Branded integers for active days (e.g. 16M+) should be ignored.
       const candidates = patients.filter(p =>
         p.type === 'Appointment' &&
         p.appointmentStatus === 'accepted' &&
@@ -1437,44 +1261,40 @@ export const PatientProvider = ({ children }) => {
 
       console.log(`🚀 Found ${candidates.length} candidates for finalization.`);
 
-      // 3. Get AUTHORITATIVE starting number from DB for that specific day
       const maxResult = await getMaxQueueNumber('appointment', dateToProcess);
       let nextNum = (maxResult.maxQueueNo || 10000) + 1;
 
       console.log(`🚀 Starting batch assignment from #${nextNum}`);
 
       const updatedPatients = [];
-      
-      // ✅ SEQUENTIAL SYNC: Processing sequentially is safer for database state
-      // than parallel map to avoid race conditions.
+
       for (const patient of candidates) {
-          const assignedNo = nextNum++;
-          const displayNo = formatQueueNumber(assignedNo, 'appointment', 'accepted', dateToProcess);
+        const assignedNo = nextNum++;
+        const displayNo = formatQueueNumber(assignedNo, 'appointment', 'accepted', dateToProcess);
 
-          const updated = {
-            ...patient,
-            queueNo: assignedNo,
-            displayQueueNo: displayNo,
-            status: 'waiting',
-            inQueue: true
-          };
+        const updated = {
+          ...patient,
+          queueNo: assignedNo,
+          displayQueueNo: displayNo,
+          status: 'waiting',
+          inQueue: true
+        };
 
-          // Sync to DB
-          await syncPatientToDatabase(updated);
+        // Sync to DB
+        await syncPatientToDatabase(updated);
 
-          // Send Email
-          if (patient.patientEmail) {
-            await sendAppointmentEmail(patient, 'queue-assigned', {
-              dateTime: patient.appointmentDateTime,
-              doctor: patient.assignedDoctor?.name || 'Assigned Physician',
-              queueNo: assignedNo // Pass the raw integer to avoid #ANaN
-            });
-          }
-          
-          updatedPatients.push(updated);
+        // Send Email
+        if (patient.patientEmail) {
+          await sendAppointmentEmail(patient, 'queue-assigned', {
+            dateTime: patient.appointmentDateTime,
+            doctor: patient.assignedDoctor?.name || 'Assigned Physician',
+            queueNo: assignedNo
+          });
+        }
+
+        updatedPatients.push(updated);
       }
 
-      // 4. Update Local State (Single Batch Update)
       setPatients(prev => {
         const patientMap = new Map(prev.map(p => [p.id, p]));
         updatedPatients.forEach(upd => patientMap.set(upd.id, upd));
@@ -1487,12 +1307,10 @@ export const PatientProvider = ({ children }) => {
       console.error("❌ Finalize Queue Error:", error);
       return { success: false, error: error.message };
     } finally {
-        finalizingRef.current = false;
+      finalizingRef.current = false;
     }
   };
 
-
-  // 🛠️ EMERGENCY REPAIR: Cleanup corrupted high numbers for Today
   const repairTodaysQueue = async () => {
     if (finalizingRef.current) return;
     try {
@@ -1501,36 +1319,32 @@ export const PatientProvider = ({ children }) => {
       const todayString = todayDate.toDateString();
       console.log(`🛠️ Repairing Queue for: ${todayString}`);
 
-      // 1. Separate target groups (ACTIVE ONLY for today)
-      const appts = patients.filter(p => 
-        p.type === 'Appointment' && 
-        p.appointmentStatus === 'accepted' && 
+      const appts = patients.filter(p =>
+        p.type === 'Appointment' &&
+        p.appointmentStatus === 'accepted' &&
         (p.status === 'waiting' || p.status === 'in progress') &&
-        p.appointmentDateTime && 
+        p.appointmentDateTime &&
         new Date(p.appointmentDateTime).toDateString() === todayString
       ).sort((a, b) => new Date(a.appointmentDateTime) - new Date(b.appointmentDateTime));
 
-      const walks = patients.filter(p => 
-        p.type === 'Walk-in' && 
+      const walks = patients.filter(p =>
+        p.type === 'Walk-in' &&
         (p.status === 'waiting' || p.status === 'in progress') &&
         new Date(p.registeredAt).toDateString() === todayString &&
         p.inQueue
       ).sort((a, b) => new Date(a.registeredAt) - new Date(b.registeredAt));
 
-      // 2. Get Autoritative Base (Now using MANILA Time fix)
-      const brandedBase = getBrandedBase(); // This should now be correct for Manila
-      
+      const brandedBase = getBrandedBase();
+
       const updates = [];
-      
-      // Repair Appointments
-      let apptSeq = 10001; 
+
+      let apptSeq = 10001;
       for (const p of appts) {
         const newNo = brandedBase + apptSeq++;
         const newDisplay = formatQueueNumber(newNo, 'Appointment', 'accepted', p.appointmentDateTime);
         updates.push({ ...p, queueNo: newNo, displayQueueNo: newDisplay });
       }
 
-      // Repair Walk-ins
       let walkSeq = 1;
       for (const p of walks) {
         const newNo = brandedBase + walkSeq++;
@@ -1540,12 +1354,9 @@ export const PatientProvider = ({ children }) => {
 
       console.log(`🚀 Syncing ${updates.length} repaired records to DB...`);
 
-      // 3. Sequential Sync
       for (const upd of updates) {
         await syncPatientToDatabase(upd);
       }
-
-      // 4. Update Local State
       setPatients(prev => {
         const patientMap = new Map(prev.map(p => [p.id, p]));
         updates.forEach(upd => patientMap.set(upd.id, upd));
@@ -1570,7 +1381,6 @@ export const PatientProvider = ({ children }) => {
     }
 
     // 2. Find next patient
-    // Interleaving Strategy: Find all patients waiting TODAY and pick the one with earliest registeredAt
     const eligiblePatients = patients.filter(p =>
       p.status === "waiting" &&
       p.inQueue &&
@@ -1590,23 +1400,20 @@ export const PatientProvider = ({ children }) => {
     }
   };
 
-  // ✅ NEW: Persist clinic-wide wait time adjustment
   const syncClinicSettings = async (adjustment) => {
     try {
       const settingsData = {
         name: 'System Settings',
         patient_email: 'clinic_settings@abante.com',
-        phone_num: '00000000000', // Mandatory field placeholder
-        age: adjustment, // Store adjustment here
+        phone_num: '00000000000',
+        age: adjustment,
         patient_type: 'walk-in',
-        queue_no: 999999, // Mandatory field
-        is_inactive: true, // Keep it hidden from most queries
-        in_queue: false, // Ensure it doesn't show in counts
+        queue_no: 999999,
+        is_inactive: true,
+        in_queue: false,
         status: 'waiting',
         assigned_doctor_name: 'System'
       };
-
-      // Use cached ID if we have it, otherwise look it up once
       let targetId = settingsIdRef.current;
 
       if (!targetId) {
@@ -1645,7 +1452,7 @@ export const PatientProvider = ({ children }) => {
 
   const reduceWaitTime = () => {
     setManualWaitTimeAdjustment(prev => {
-      const newVal = Math.max(-60, prev - 5); // Allow some reduction but cap it
+      const newVal = Math.max(-60, prev - 5);
       syncClinicSettings(newVal);
       return newVal;
     });
@@ -1669,18 +1476,14 @@ export const PatientProvider = ({ children }) => {
     if (currentPatientQueueNo) {
       updatePatientStatus(currentPatientQueueNo, 'done');
     }
-
-    // ✅ Strict helper: patient must also be past their appointment time
     const isReadyForQueue = (p) => {
       if (p.type === 'Appointment' && p.appointmentDateTime) {
         const appDate = new Date(p.appointmentDateTime);
-        // Must be for today AND the appointment time must have passed
         return isToday(p.appointmentDateTime) && new Date() >= appDate;
       }
       return isToday(p.registeredAt);
     };
 
-    // Find next priority patient (waiting, assigned to this doctor, READY)
     const nextPriorityPatient = patients
       .filter(p =>
         p.status === "waiting" &&
@@ -1698,7 +1501,6 @@ export const PatientProvider = ({ children }) => {
       return;
     }
 
-    // Find next normal patient (waiting, assigned to this doctor, READY)
     const nextWaitingPatient = patients
       .filter(p =>
         p.status === "waiting" &&
@@ -1724,7 +1526,6 @@ export const PatientProvider = ({ children }) => {
 
     cancelPatient(currentPatientQueueNo);
 
-    // ✅ Strict helper: patient must also be past their appointment time
     const isReadyForQueue = (p) => {
       if (p.type === 'Appointment' && p.appointmentDateTime) {
         return isToday(p.appointmentDateTime);
@@ -1791,12 +1592,6 @@ export const PatientProvider = ({ children }) => {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  // REMOVED: reassignPatientsForDoctor - This logic is now handled by the auto-assign useEffect (lines 261-335)
-  // to avoid duplication and race conditions.
-
-  // ✅ GLOBAL MORNING AUTO-ASSIGNMENT (STABALIZED)
-  // This runs as soon as ANY Staff Member (Secretary/Doctor) logs in,
-  // assigning real queue numbers and sending emails for today's visits.
   useEffect(() => {
     const role = localStorage.getItem('userRole');
     const isStaff = role === 'secretary' || role === 'doctor';
@@ -1804,11 +1599,11 @@ export const PatientProvider = ({ children }) => {
     if (isStaff && patients?.length > 0 && !isLoadingFromDB) {
       const todayDate = new Date();
       const todayString = todayDate.toDateString();
-      
-      const unfinalizedToday = patients.filter(p => 
-        (p.type === 'Appointment') && 
-        p.appointmentStatus === 'accepted' && 
-        p.appointmentDateTime && 
+
+      const unfinalizedToday = patients.filter(p =>
+        (p.type === 'Appointment') &&
+        p.appointmentStatus === 'accepted' &&
+        p.appointmentDateTime &&
         new Date(p.appointmentDateTime).toDateString() === todayString &&
         (!p.queueNo || (p.queueNo >= 900000 && p.queueNo < 1000000))
       );
@@ -1818,7 +1613,6 @@ export const PatientProvider = ({ children }) => {
         finalizeTomorrowQueue(todayDate);
       }
 
-      // ✅ ONE-TIME REPAIR TRIGGER (v3)
       const lastRepaired = localStorage.getItem('queueRepaired_v3_Date');
       if (lastRepaired !== todayString) {
         console.log("🛠️ Detected first run of the day (v3). Initiating sequence cleanup...");
@@ -1827,10 +1621,8 @@ export const PatientProvider = ({ children }) => {
         });
       }
     }
-  }, [isLoadingFromDB]); 
+  }, [isLoadingFromDB]);
 
-  // ✅ DYNAMIC QUEUE RE-RESOLVER
-  // This ensures that exactly at 12 AM, "#A--" flips to real numbers.
   const resolvedPatients = useMemo(() => resolveQueueDisplays(patients), [patients]);
 
   const isDoctorActive = (doctorId) => {
@@ -1838,8 +1630,7 @@ export const PatientProvider = ({ children }) => {
     return activeDoctors.includes(dId);
   };
 
-  // NEW: Show loading state while fetching from database
-  // ✅ FIXED: Always provide all functions, even during loading
+
   return (
     <PatientContext.Provider value={{
       patients: resolvedPatients,

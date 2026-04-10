@@ -44,7 +44,6 @@ const DoctorSelection = () => {
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col p-4 sm:p-8">
             <div className="max-w-7xl mx-auto w-full">
-                {/* Header */}
                 <div className="flex flex-col items-center mb-10 relative">
                     <div className="w-full flex justify-start sm:block sm:absolute sm:left-0 sm:top-0 mb-6 sm:mb-0">
                         <Button

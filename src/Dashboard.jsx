@@ -16,10 +16,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check if we have a pre-selected doctor from the selection page
   const defaultDoctorId = location.state?.defaultDoctorId;
 
-  // Role detection
   const userRole = localStorage.getItem('userRole') || 'staff';
   const isDoctor = userRole === 'doctor';
 
@@ -34,33 +32,25 @@ const Dashboard = () => {
     }
     localStorage.removeItem('userRole');
     localStorage.removeItem('selectedDoctorId');
-    // Redirect doctors to landing page, staff to doctor-selection
     navigate(isDoctor ? "/" : "/doctor-selection");
   };
 
-  // Patient Profile Modal State
   const [selectedPatientForProfile, setSelectedPatientForProfile] = useState(null);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // NEW: State for doctor selection
   const storedDoctorId = localStorage.getItem('selectedDoctorId');
   const [selectedDoctor, setSelectedDoctor] = useState(defaultDoctorId ? Number(defaultDoctorId) : (storedDoctorId ? Number(storedDoctorId) : null));
   const [viewMode, setViewMode] = useState(
     isDoctor && (defaultDoctorId || storedDoctorId) ? 'doctor' : 'general'
   );
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
-  const [queueError, setQueueError] = useState(null); // NEW: Error state
+  const [queueError, setQueueError] = useState(null);
 
-  // NEW: Filter Tabs State
-  const [activeTab, setActiveTab] = useState('active'); // 'active', 'done', 'cancelled'
-
-  // NEW: Date Filtering States
-  const [dateFilter, setDateFilter] = useState('today'); // 'today', 'thisWeek', 'lastWeek', 'custom'
+  const [activeTab, setActiveTab] = useState('active');
+  const [dateFilter, setDateFilter] = useState('today');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [showDateDropdown, setShowDateDropdown] = useState(false);
-
-  // Add to the destructured context (around line 32)
   const {
     patients,
     currentServing,
@@ -73,7 +63,6 @@ const Dashboard = () => {
     getDoctorCurrentServing,
     callNextPatientForDoctor,
     cancelPatientForDoctor,
-    // NEW: Add these
     activeDoctors,
     startDoctorQueue,
     stopDoctorQueue,
@@ -565,8 +554,8 @@ const Dashboard = () => {
       // Find if this specific doctor already has someone 'in progress'
       const doctorId = nextPatient.assignedDoctor?.id;
       if (doctorId) {
-        const previousPatient = patients.find(p => 
-          p.assignedDoctor?.id === doctorId && 
+        const previousPatient = patients.find(p =>
+          p.assignedDoctor?.id === doctorId &&
           p.status === 'in progress'
         );
         if (previousPatient) {
@@ -597,8 +586,8 @@ const Dashboard = () => {
 
     // 2. Finalize previous patient for THIS doctor specifically
     if (doctorId) {
-      const prevForDoctor = patients.find(p => 
-        p.assignedDoctor?.id === doctorId && 
+      const prevForDoctor = patients.find(p =>
+        p.assignedDoctor?.id === doctorId &&
         p.status === 'in progress'
       );
       if (prevForDoctor) {
@@ -640,8 +629,8 @@ const Dashboard = () => {
       const doctorId = nextPriorityPatient.assignedDoctor?.id;
       if (doctorId) {
         // ✅ NEW: Exclude the JUST-CANCELLED patient from being marked as "done"
-        const prevForDoctor = patients.find(p => 
-          p.assignedDoctor?.id === doctorId && 
+        const prevForDoctor = patients.find(p =>
+          p.assignedDoctor?.id === doctorId &&
           p.status === 'in progress' &&
           (!currentPatient || p.queueNo !== currentPatient.queueNo)
         );
@@ -661,8 +650,8 @@ const Dashboard = () => {
       const doctorId = nextWaitingPatient.assignedDoctor?.id;
       if (doctorId) {
         // ✅ NEW: Exclude the JUST-CANCELLED patient from being marked as "done"
-        const prevForDoctor = patients.find(p => 
-          p.assignedDoctor?.id === doctorId && 
+        const prevForDoctor = patients.find(p =>
+          p.assignedDoctor?.id === doctorId &&
           p.status === 'in progress' &&
           (!currentPatient || p.queueNo !== currentPatient.queueNo)
         );
@@ -1749,9 +1738,9 @@ const Dashboard = () => {
                             <span>•</span>
                             <span>{(p.assignedDoctor || p.preferredDoctor)?.name || 'Not assigned'}</span>
                           </div>
-                          <Button 
-                            variant="secondary" 
-                            size="sm" 
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             className="w-full bg-amber-600 hover:bg-amber-700 text-white h-7 text-[10px] font-bold uppercase tracking-wider"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1768,7 +1757,7 @@ const Dashboard = () => {
               </Card>
             </div>
           )}
-          
+
           {/* Patient Queue Table */}
           {activeTab === 'active' && (
             <>

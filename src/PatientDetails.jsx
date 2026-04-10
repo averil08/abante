@@ -21,11 +21,9 @@ const PatientDetails = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { patients } = useContext(PatientContext);
-
-    // Get patient info from state
     const patientData = location.state?.patient;
 
-    // Find the latest patient data from context
+    // Find latest patient data from context
     const patient = (patients || []).find(p => p.queueNo === patientData?.queueNo) || patientData;
 
     useEffect(() => {
@@ -54,10 +52,8 @@ const PatientDetails = () => {
 
     return (
         <div className="min-h-screen bg-[#F8FAFC] font-sans pb-12">
-            {/* Smooth Gradient Header Background */}
             <div className="h-48 bg-gradient-to-br from-emerald-600 to-emerald-800 w-full absolute top-0 left-0 z-0" />
 
-            {/* Header Content */}
             <header className="relative z-10 px-4 h-20 flex items-center justify-between">
                 <Button
                     variant="ghost"
@@ -73,7 +69,6 @@ const PatientDetails = () => {
             </header>
 
             <div className="px-4 relative z-10 -mt-2">
-                {/* Patient Profile Brief Case */}
                 <Card className="border-none shadow-2xl shadow-emerald-900/10 bg-white overflow-hidden rounded-[32px] mb-6">
                     <CardHeader className="flex flex-col items-center p-8 pb-4 text-center">
                         <div className="w-24 h-24 rounded-[32px] bg-emerald-50 flex items-center justify-center text-3xl font-black text-emerald-600 border-4 border-white shadow-xl mb-4 transform -rotate-3">
@@ -103,7 +98,6 @@ const PatientDetails = () => {
                             </div>
                         </div>
 
-                        {/* Additional Info Snippets */}
                         <div className="mt-6 space-y-4">
                             <div className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
                                 <div className="p-2.5 bg-blue-50 rounded-xl text-blue-600">
@@ -127,7 +121,6 @@ const PatientDetails = () => {
                     </CardContent>
                 </Card>
 
-                {/* Medical History Section */}
                 <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[32px] overflow-hidden bg-white mb-6">
                     <CardHeader className="border-b border-slate-50 p-6 pb-4">
                         <CardTitle className="text-lg font-black flex items-center gap-3 text-slate-800 tracking-tight">
@@ -164,7 +157,6 @@ const PatientDetails = () => {
                     </CardContent>
                 </Card>
 
-                {/* Consultation Area Placeholder */}
                 <Card className="border-none shadow-xl shadow-slate-200/50 rounded-[32px] overflow-hidden bg-white border-2 border-dashed border-slate-200">
                     <CardContent className="flex flex-col items-center justify-center p-12 text-center">
                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">

@@ -25,7 +25,6 @@ import logoValley from '@/assets/logo-valley.png';
 import AppointmentPicker from './components/AppointmentPicker';
 import './calendar.css';
 
-/* ─── Static Helpers ─── */
 function getApptDateFilterLabel(filter) {
     switch (filter) {
         case 'all': return 'All Dates';
@@ -90,15 +89,14 @@ const DoctorDashboard = () => {
 
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [activeTab, setActiveTab] = useState('queue');
-    // ── Separate date filter state per tab ───────────────────────────────
-    const [apptDateFilter, setApptDateFilter] = useState('all');   // Schedule tab: monday | … | all | custom
+    const [apptDateFilter, setApptDateFilter] = useState('all');
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [apptCustomRange, setApptCustomRange] = useState({ start: '', end: '' });
-    const [mobileView, setMobileView] = useState('list'); // 'list' | 'detail'
+    const [mobileView, setMobileView] = useState('list');
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [queueStatusFilter, setQueueStatusFilter] = useState('active'); // 'active' | 'done' | 'cancelled'
-    const [scheduledStatusFilter, setScheduledStatusFilter] = useState('all'); // 'all' | 'pending' | 'accepted' | 'rejected'
+    const [queueStatusFilter, setQueueStatusFilter] = useState('active');
+    const [scheduledStatusFilter, setScheduledStatusFilter] = useState('all');
     const [showLogoutModal, setShowLogoutModal] = useState(false);
     const [showDeclineAllModal, setShowDeclineAllModal] = useState(false);
     const [isDecliningAll, setIsDecliningAll] = useState(false);
@@ -106,7 +104,6 @@ const DoctorDashboard = () => {
     const [rejectionReason, setRejectionReason] = useState("");
     const [showIndividualDeclineModal, setShowIndividualDeclineModal] = useState(false);
 
-    // ── Follow-Up Modal state ─────────────────────────────────────────────
     const [showFollowUpModal, setShowFollowUpModal] = useState(false);
     const [followUpPatient, setFollowUpPatient] = useState(null);
     const [followUpReason, setFollowUpReason] = useState('');
@@ -121,14 +118,12 @@ const DoctorDashboard = () => {
     const workspaceRef = useRef(null);
     const [showNotifications, setShowNotifications] = useState(false);
 
-    // Calendar Modal state
     const todayDate = new Date();
     const [showApptCalendarModal, setShowApptCalendarModal] = useState(false);
     const [apptCalYear, setApptCalYear] = useState(todayDate.getFullYear());
-    const [apptCalMonth, setApptCalMonth] = useState(todayDate.getMonth()); // 0-indexed
+    const [apptCalMonth, setApptCalMonth] = useState(todayDate.getMonth());
     const [apptCalSelectedDay, setApptCalSelectedDay] = useState(null);
 
-    // Option lists
     const apptDateFilters = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'thisWeek', 'custom', 'all'];
 
 
@@ -157,13 +152,11 @@ const DoctorDashboard = () => {
             const isCancelled = p.appointmentStatus === 'cancelled' || p.appointmentStatus === 'withdrawn';
             const isActioned = p.appointmentStatus === 'accepted' || p.appointmentStatus === 'rejected';
 
-            // Exclude follow-ups requested by the doctor while they are still PENDING. 
-            // We want to see when they are ACTIONED (Accepted/Rejected) or CANCELLED.
             if (p.services?.includes('follow-up-doctor') && p.appointmentStatus === 'pending') return false;
 
             return isNew || isCancelled || isActioned;
         }).sort((a, b) => new Date(b.updatedAt || b.registeredAt || b.created_at) - new Date(a.updatedAt || a.registeredAt || a.created_at))
-            .slice(0, 30); // Keep fresh history
+            .slice(0, 30);
     }, [patients, doctorId]);
 
     const unreadDoctorNotificationsCount = useMemo(() => {
@@ -179,7 +172,6 @@ const DoctorDashboard = () => {
         if (selectedPatient && workspaceRef.current) workspaceRef.current.scrollTo(0, 0);
     }, [selectedPatient]);
 
-    // ✅ Sync selectedPatient with global patients array to reflect status changes
     useEffect(() => {
         if (selectedPatient) {
             const fresh = patients.find(p => p.id === selectedPatient.id || (p.dbId && p.dbId === selectedPatient.dbId));
@@ -190,7 +182,6 @@ const DoctorDashboard = () => {
         }
     }, [patients, selectedPatient]);
 
-    // ── Follow-Up handlers ────────────────────────────────────────────────
     const handleOpenFollowUp = (patient, e) => {
         e.stopPropagation();
         setFollowUpPatient(patient);
@@ -221,12 +212,9 @@ const DoctorDashboard = () => {
                 notes: `Follow-up reason: ${followUpReason}`,
             };
 
-            // ✅ OPTIMIZATION: If the follow-up is for TODAY and this patient record already exists for today, 
-            // just update the existing one (requeue) instead of creating a new row in visit logs.
             const isToday = new Date(followUpDateTime).toDateString() === new Date().toDateString();
             const wasFromTodayOrVeryRecent = new Date(p.registeredAt || p.created_at).toDateString() === new Date().toDateString();
 
-            // Only update existing if it's the same day registration (prevent cross-day updates)
             if (isToday && wasFromTodayOrVeryRecent && p.id) {
                 console.log("🔄 Requeueing existing today's patient record instead of new entry");
                 const extraUpdates = {
@@ -339,7 +327,6 @@ const DoctorDashboard = () => {
         if (isDecliningAll) return;
         setIsDecliningAll(true);
         try {
-            // Get the pending appointments currently visible under the active date filter
             const pendingToDecline = allAppointmentPatients.filter(p =>
                 !p.appointmentStatus || p.appointmentStatus === 'pending'
             );
@@ -358,7 +345,6 @@ const DoctorDashboard = () => {
         if (!patientId) return;
         try {
             await acceptAppointment(patientId);
-            // Re-sync local state if possible or the effect above will handle it
         } catch (err) {
             console.error('Accept appointment failed:', err);
         }
@@ -380,9 +366,7 @@ const DoctorDashboard = () => {
         }
     };
 
-    // ── Date-in-filter helpers ────────────────────────────────────────────
-
-    // Queue tab: Simplified to auto-show Today's Patients ONLY
+    // Queue tab: show Today's Patients ONLY
     const isQueueDateInFilter = (dateStr) => {
         if (!dateStr) return false;
         const date = new Date(dateStr);
@@ -392,7 +376,6 @@ const DoctorDashboard = () => {
         return date >= s && date <= e;
     };
 
-    // Schedule tab: mirrors Appointment.jsx (day-of-week / All Dates / Custom Range)
     const isApptDateInFilter = (dateStr) => {
         if (!dateStr || apptDateFilter === 'all') return true;
         const date = new Date(dateStr);
@@ -437,9 +420,6 @@ const DoctorDashboard = () => {
         return false;
     };
 
-
-
-    // Matches doctor names even if the DB includes middle initials/extra punctuation.
     const normalizeDoctorNameForMatch = (name) => {
         if (!name) return '';
         return name.toLowerCase()
@@ -455,7 +435,6 @@ const DoctorDashboard = () => {
         const patientAssignedName = normalizeDoctorNameForMatch(p.assignedDoctor?.name);
         const patientPreferredName = normalizeDoctorNameForMatch(p.preferredDoctor?.name);
 
-        // Check by ID (preferred) or by robustly normalized name (fallback)
         const isAssigned = (p.assignedDoctor?.id != null && Number(p.assignedDoctor.id) === doctorId) ||
             (patientAssignedName && patientAssignedName === myName);
 
@@ -465,8 +444,6 @@ const DoctorDashboard = () => {
 
         return isAssigned || isPreferred;
     });
-
-    // ── Queue patients — mirrors Dashboard.jsx rules ──────────────────────
 
     const activeQueuePatients = myPatients.filter(p => {
         if (p.isInactive) return false;
@@ -505,7 +482,6 @@ const DoctorDashboard = () => {
         return allQueuePatients;
     })();
 
-    // ── Appointment patients — mirrors Appointment.jsx rules ─────────────
     const allAppointmentPatients = myPatients.filter(p =>
         p.type === 'Appointment' &&
         p.status !== 'done' &&
@@ -513,7 +489,6 @@ const DoctorDashboard = () => {
         isApptDateInFilter(p.appointmentDateTime)
     );
 
-    // Status-filtered appointment patients
     const appointmentPatients = allAppointmentPatients.filter(p => {
         if (scheduledStatusFilter === 'all') return true;
         if (scheduledStatusFilter === 'pending') return !p.appointmentStatus || p.appointmentStatus === 'pending';
@@ -525,14 +500,12 @@ const DoctorDashboard = () => {
         index === self.findIndex((t) => (t.name || '').toLowerCase().trim() === (p.name || '').toLowerCase().trim())
     ).sort((a, b) => {
         const getTimestamp = (p) => {
-            // Priority: Rejected/Cancelled time > Registration time
             const actionTime = p.rejectedAt || p.queueExitTime || p.registeredAt;
             return new Date(actionTime).getTime();
         };
         return getTimestamp(b) - getTimestamp(a);
     });
 
-    // Appointment badge counts
     const apptAllCount = allAppointmentPatients.length;
     const apptPendingCount = allAppointmentPatients.filter(p => !p.appointmentStatus || p.appointmentStatus === 'pending').length;
     const apptAcceptedCount = allAppointmentPatients.filter(p => p.appointmentStatus === 'accepted').length;
@@ -544,7 +517,6 @@ const DoctorDashboard = () => {
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.queueNo.toString().includes(searchQuery)
     );
 
-    // ── Stats header label ────────────────────────────────────────────────
     const activeCount = activeQueuePatients.length;
     const doneCount = doneQueuePatients.length;
     const cancelledCount = cancelledQueuePatients.length;
@@ -570,15 +542,6 @@ const DoctorDashboard = () => {
 
     const getInitials = (name) => name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
-    /* ─── Patient Card (shared) ─── */
-
-
-
-
-
-
-
-    /* ─── Queue Status Filter Pills ─── */
     const statusFilterOptions = [
         { key: 'active', label: 'Active', count: activeCount, pill: 'bg-emerald-600 hover:bg-emerald-700 text-white', inactive: 'hover:bg-gray-100' },
         { key: 'done', label: 'Completed', count: doneCount, pill: 'bg-emerald-600 hover:bg-emerald-700 text-white', inactive: 'hover:bg-gray-100' },
@@ -603,7 +566,6 @@ const DoctorDashboard = () => {
         </div>
     );
 
-    /* ─── Scheduled (Appointment) Status Filter Pills ─── */
     const scheduledFilterOptions = [
         { key: 'all', label: 'All', count: apptAllCount, pill: 'bg-green-600 hover:bg-green-700 text-white', inactive: 'hover:bg-gray-100' },
         { key: 'pending', label: 'Pending', count: apptPendingCount, pill: 'bg-amber-600 hover:bg-amber-700 text-white', inactive: 'hover:bg-gray-100' },
@@ -612,7 +574,6 @@ const DoctorDashboard = () => {
         { key: 'cancelled', label: 'Cancelled', count: apptCancelledCount, pill: 'bg-gray-600 hover:bg-gray-700 text-white', inactive: 'hover:bg-gray-100' },
     ];
 
-    // Pending appointments currently visible (for Decline All)
     const visiblePendingCount = allAppointmentPatients.filter(p =>
         !p.appointmentStatus || p.appointmentStatus === 'pending'
     ).length;
@@ -634,7 +595,6 @@ const DoctorDashboard = () => {
                     </Button>
                 ))}
             </div>
-            {/* Decline All — only for appointment-only doctors, when viewing Pending */}
             {isAppointmentOnlyDoctor && scheduledStatusFilter === 'pending' && visiblePendingCount > 0 && (
                 <button
                     onClick={() => setShowDeclineAllModal(true)}
@@ -647,10 +607,8 @@ const DoctorDashboard = () => {
         </div>
     );
 
-    /* ─── Patient List Panel ─── */
     const PatientList = () => (
         <div className="flex flex-col h-full">
-            {/* Search + Tabs */}
             <div className="px-3 sm:px-5 pt-3 pb-2 bg-white border-b border-slate-100 space-y-2">
                 <div className="relative group">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />
@@ -677,12 +635,9 @@ const DoctorDashboard = () => {
                         </button>
                     </div>
                 </div>
-                {/* Status filter pills — Queue tab / Schedule tab */}
                 {activeTab === 'queue' && <QueueStatusFilter />}
                 {activeTab === 'appointments' && <ScheduledStatusFilter />}
             </div>
-
-            {/* Count label */}
             <div className="flex items-center justify-between px-4 py-2 bg-slate-50/60">
                 <span className="text-[11px] font-bold text-black-300">
                     {activeTab === 'queue'
@@ -694,7 +649,6 @@ const DoctorDashboard = () => {
                 </span>
             </div>
 
-            {/* List */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-2 sm:p-3 space-y-2">
                 {doctorPatients.length > 0 ? (
                     doctorPatients.map(p => (
@@ -810,10 +764,8 @@ const DoctorDashboard = () => {
 
             {/* ─── MOBILE LAYOUT ─── */}
             <div className="flex flex-col h-full md:hidden overflow-hidden">
-                {/* Mobile Header */}
                 <header className="bg-white border-b border-slate-100 shrink-0 z-30 shadow-sm">
                     {mobileView === 'detail' ? (
-                        /* Detail view — slim back bar */
                         <div className="flex items-center justify-between px-4 pt-10 h-20">
                             <button onClick={handleBackToList} className="flex items-center gap-2 text-emerald-700 font-bold text-xs uppercase tracking-widest">
                                 <ArrowLeft className="w-4 h-4" /> Queue
@@ -841,7 +793,6 @@ const DoctorDashboard = () => {
                             </div>
                         </div>
                     ) : (
-                        /* List view — full doctor card header */
                         <div className="px-4 pt-10 pb-3">
                             <div className="mb-6 flex justify-center">
                                 <img src={logoValley} alt="Valley Logo" className="h-14 w-auto object-contain" />
@@ -857,7 +808,6 @@ const DoctorDashboard = () => {
                                         <p className="text-[11px] font-medium text-emerald-600 uppercase tracking-wider truncate">{currentDoctor.specialization || "Physician"}</p>
                                     </div>
                                 </div>
-                                {/* Actions */}
                                 <div className="flex items-center gap-1 shrink-0">
                                     <Button variant="ghost" size="icon" onClick={handleLogoutClick} className="text-green-600 hover:text-white hover:bg-green-600 h-8 w-8 rounded-full [&_svg]:size-5">
                                         <DoorOpen />
@@ -882,7 +832,6 @@ const DoctorDashboard = () => {
                                     </div>
                                 </div>
                             </div>
-                            {/* Stats row */}
                             <div className="flex items-center gap-2">
                                 {stats.map((s, i) => {
                                     const Icon = s.icon;
@@ -899,11 +848,9 @@ const DoctorDashboard = () => {
                     )}
                 </header>
 
-                {/* ── Context-sensitive Date Filter strip (mobile) ── */}
                 {mobileView === 'list' && activeTab !== 'queue' && (
                     <div className="bg-white border-b border-slate-100 px-3 py-2">
                         <div className="flex items-center gap-2">
-                            {/* Calendar icon — mobile */}
                             <button
                                 onClick={() => {
                                     setShowApptCalendarModal(true);
@@ -941,7 +888,6 @@ const DoctorDashboard = () => {
                                 )}
                             </div>
                         </div>
-                        {/* Appointments custom range */}
                         {apptDateFilter === 'custom' && (
                             <div className="flex items-center gap-2 mt-2 p-2 bg-gray-50 rounded-md border border-gray-100">
                                 <Input type="date" className="h-8 rounded-md text-xs flex-1 border-gray-300 bg-white" value={apptCustomRange.start} onChange={e => setApptCustomRange({ ...apptCustomRange, start: e.target.value })} />
@@ -953,7 +899,6 @@ const DoctorDashboard = () => {
                     </div>
                 )}
 
-                {/* Mobile Content */}
                 <div className="flex-1 flex flex-col overflow-hidden">
                     {mobileView === 'list' ? (
                         <PatientList />
@@ -973,17 +918,12 @@ const DoctorDashboard = () => {
 
             {/* ─── DESKTOP LAYOUT ─── */}
             <div className="hidden md:flex flex-row h-full">
-
-                {/* Left Panel */}
                 <aside className="w-72 lg:w-80 xl:w-[360px] flex flex-col bg-white border-r border-slate-200 shadow-sm shrink-0">
-                    {/* Doctor Card at Top */}
                     <div className="px-5 pt-8 pb-3 border-b border-slate-100">
                         <div className="mb-8 flex justify-center">
                             <img src={logoValley} alt="Valley Logo" className="h-16 w-auto object-contain" />
                         </div>
-                        {/* Doctor Identity & Actions - Matching Mobile Layout Design */}
                         <div className="flex items-start justify-between mb-4 gap-2">
-                            {/* Identity */}
                             <div className="flex items-center gap-3 flex-1 min-w-0">
                                 <div className="w-11 h-11 rounded-2xl bg-emerald-600 flex items-center justify-center text-white font-bold text-sm shadow-lg shrink-0">
                                     {getInitials(currentDoctor.name)}
@@ -993,8 +933,6 @@ const DoctorDashboard = () => {
                                     <p className="text-[10px] font-medium text-emerald-600 uppercase tracking-wider truncate">{currentDoctor.specialization || "Physician"}</p>
                                 </div>
                             </div>
-
-                            {/* Actions Group */}
                             <div className="flex items-center gap-1 shrink-0">
                                 <Button
                                     variant="ghost"
@@ -1039,13 +977,10 @@ const DoctorDashboard = () => {
                             <button onClick={() => setActiveTab('queue')} className={`w-full rounded-lg py-1.5 text-xs font-medium leading-5 focus:outline-none focus:ring-2 ring-white ring-opacity-60 ring-offset-2 ring-offset-emerald-400 transition-all ${activeTab === 'queue' ? 'bg-white text-emerald-700 shadow' : 'text-gray-500 hover:bg-white/[0.12] hover:text-gray-700'}`}>Queue</button>
                             <button onClick={() => setActiveTab('appointments')} className={`w-full rounded-lg py-1.5 text-xs font-medium leading-5 focus:outline-none focus:ring-2 ring-white ring-opacity-60 ring-offset-2 ring-offset-emerald-400 transition-all ${activeTab === 'appointments' ? 'bg-white text-emerald-700 shadow' : 'text-gray-500 hover:bg-white/[0.12] hover:text-gray-700'}`}>Appointments</button>
                         </div>
-                        {/* Status filter pills — Queue tab only */}
                         {activeTab === 'queue' && <QueueStatusFilter />}
-                        {/* Appointment status filter pills — Schedule tab only */}
                         {activeTab === 'appointments' && <ScheduledStatusFilter />}
                     </div>
 
-                    {/* Count */}
                     <div className="flex items-center justify-between px-4 py-2 bg-slate-50/60">
                         <span className="text-[12px] font-bold text-black-300">
                             {activeTab === 'queue'
@@ -1055,7 +990,6 @@ const DoctorDashboard = () => {
                         <span className="text-[10px] font-bold bg-white text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded-full shadow-sm">{doctorPatients.length} Shown</span>
                     </div>
 
-                    {/* List */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
                         {doctorPatients.length > 0 ? (
                             doctorPatients.map(p => (
@@ -1078,9 +1012,7 @@ const DoctorDashboard = () => {
 
                 </aside>
 
-                {/* Right Panel */}
                 <main className="flex-1 flex flex-col overflow-hidden">
-                    {/* Top Stats + Date Filter */}
                     <header className="bg-white border-b border-slate-100 px-5 lg:px-8 py-4 shrink-0 shadow-sm">
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-4 lg:gap-8 overflow-x-auto no-scrollbar">
@@ -1100,10 +1032,8 @@ const DoctorDashboard = () => {
                                 })}
                             </div>
 
-                            {/* ── Context-sensitive date filter dropdown + Calendar icon (desktop) ── */}
                             {activeTab !== 'queue' && (
                                 <div className="flex items-center gap-2 shrink-0">
-                                    {/* Calendar Icon — Accepted Appointments View */}
                                     <button
                                         onClick={() => {
                                             setShowApptCalendarModal(true);
@@ -1144,7 +1074,6 @@ const DoctorDashboard = () => {
                             )}
                         </div>
 
-                        {/* Appointments custom range inputs (desktop) */}
                         {activeTab === 'appointments' && apptDateFilter === 'custom' && (
                             <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
                                 <div className="flex items-center gap-3 bg-gray-50 p-2.5 rounded-md border border-gray-200">
@@ -1164,7 +1093,6 @@ const DoctorDashboard = () => {
                         )}
                     </header>
 
-                    {/* Workspace */}
                     {selectedPatient ? (
                         <PatientDetail
                             patient={selectedPatient}
@@ -1287,7 +1215,6 @@ const DoctorDashboard = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* DECLINE ALL CONFIRMATION MODAL */}
             <Dialog open={showDeclineAllModal} onOpenChange={setShowDeclineAllModal}>
                 <DialogContent className="sm:max-w-md rounded-xl border-none shadow-2xl [&>button]:hidden">
                     <DialogHeader className="items-center text-center gap-0">
@@ -1352,10 +1279,8 @@ const DoctorDashboard = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* ===== Accepted Appointments Calendar Modal ===== */}
             <Dialog open={showApptCalendarModal} onOpenChange={setShowApptCalendarModal}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
-                    {/* Modal Header */}
                     <div className="bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-4 rounded-t-lg">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2 text-white text-xl">
@@ -1369,7 +1294,6 @@ const DoctorDashboard = () => {
                         </DialogHeader>
                     </div>
 
-                    {/* Month Navigation */}
                     <div className="flex items-center justify-between px-6 py-3 border-b bg-gray-50">
                         <button
                             onClick={() => {
@@ -1396,9 +1320,7 @@ const DoctorDashboard = () => {
                         </button>
                     </div>
 
-                    {/* Calendar Grid */}
                     {(() => {
-                        // Only accepted appointments for this doctor
                         const acceptedAppts = (patients || []).filter(
                             p => p.type === 'Appointment' &&
                                 p.appointmentStatus === 'accepted' &&
@@ -1412,7 +1334,6 @@ const DoctorDashboard = () => {
                                 })()
                         );
 
-                        // Map: YYYY-MM-DD -> [appointments]
                         const apptsByDay = {};
                         acceptedAppts.forEach(a => {
                             const raw = a.appointmentDateTime || a.appointment_datetime;
@@ -1424,7 +1345,6 @@ const DoctorDashboard = () => {
                             apptsByDay[key].push(a);
                         });
 
-                        // Calendar math
                         const firstDay = new Date(apptCalYear, apptCalMonth, 1).getDay();
                         const daysInMonth = new Date(apptCalYear, apptCalMonth + 1, 0).getDate();
                         const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
@@ -1500,16 +1420,13 @@ const DoctorDashboard = () => {
 
                         return (
                             <div className="px-6 pt-4 pb-2">
-                                {/* Day Headers */}
                                 <div className="grid grid-cols-7 mb-2">
                                     {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
                                         <div key={d} className="text-center text-xs font-bold text-gray-500 py-1 uppercase tracking-wider">{d}</div>
                                     ))}
                                 </div>
-                                {/* Day Cells */}
                                 <div className="grid grid-cols-7 gap-1">{cells}</div>
 
-                                {/* Selected Day Detail Panel */}
                                 {apptCalSelectedDay && selectedAppts.length > 0 && (
                                     <div className="mt-5 border-t pt-4">
                                         <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
@@ -1562,7 +1479,6 @@ const DoctorDashboard = () => {
                                     </div>
                                 )}
 
-                                {/* Legend */}
                                 <div className="mt-4 pb-3 flex items-center gap-3 text-xs text-gray-500">
                                     <span className="flex items-center gap-1">
                                         <span className="w-3 h-3 rounded-full bg-emerald-600 inline-block"></span> Today
@@ -1578,7 +1494,7 @@ const DoctorDashboard = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* ===== FOLLOW-UP MODAL ===== */}
+            {/* FOLLOW-UP MODAL*/}
             <Dialog open={showFollowUpModal} onOpenChange={(open) => {
                 if (!open) { setShowFollowUpModal(false); setFollowUpSuccess(false); }
             }}>
@@ -1586,7 +1502,6 @@ const DoctorDashboard = () => {
                     className="sm:max-w-xl w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] rounded-2xl border-none shadow-2xl p-0 overflow-hidden flex flex-col"
                     style={{ fontFamily: "'Poppins', sans-serif", maxHeight: 'min(90dvh, 720px)' }}
                 >
-                    {/* ── Sticky Header gradient ── */}
                     <div className="bg-gradient-to-r from-emerald-600 to-teal-500 px-6 py-5 shrink-0">
                         <DialogHeader>
                             <DialogTitle className="flex items-center gap-2 text-white text-lg font-semibold">
@@ -1609,10 +1524,8 @@ const DoctorDashboard = () => {
                         </div>
                     ) : (
                         <>
-                            {/* ── Scrollable body ── */}
                             <div className="flex-1 overflow-y-auto custom-scrollbar px-6 pt-5 pb-4 space-y-5 min-h-0">
 
-                                {/* Previously Recorded Symptoms (read-only) — with Visit # badge */}
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
                                         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest">Previously Recorded Symptoms</label>
@@ -1654,7 +1567,6 @@ const DoctorDashboard = () => {
                                     <p className="text-right text-[11px] text-slate-400 mt-1">{followUpReason.length}/500</p>
                                 </div>
 
-                                {/* Date & Time — doctor-aware AppointmentPicker */}
                                 <div>
                                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">
                                         Date and Time of Follow-Up <span className="text-red-500">*</span>
@@ -1678,7 +1590,7 @@ const DoctorDashboard = () => {
                                                         if (slot.weeksOfMonth && !slot.weeksOfMonth.includes(weekOfMonth)) return false;
                                                         return true;
                                                     });
-                                                if (!isOnDuty) return -1; // 'Not on Duty'
+                                                if (!isOnDuty) return -1;
                                             }
                                             const MAX_SLOTS = 1;
                                             const targetDate = new Date(dateTimeString);
@@ -1711,7 +1623,6 @@ const DoctorDashboard = () => {
                                 </div>
                             </div>
 
-                            {/* ── Sticky Footer ── */}
                             <div className="flex gap-3 px-6 py-4 border-t border-slate-100 bg-white shrink-0">
                                 <Button
                                     variant="outline"
@@ -1752,7 +1663,6 @@ const DoctorDashboard = () => {
     );
 };
 
-/* ─── Status color helpers ─── */
 const statusStyle = (status) => {
     switch ((status || '').toLowerCase()) {
         case 'in progress':
@@ -1799,7 +1709,6 @@ const getPatientBadge = (p) => {
             const apptDate = p.appointmentDateTime ? new Date(new Date(p.appointmentDateTime).setHours(0, 0, 0, 0)) : null;
             const today = new Date(new Date().setHours(0, 0, 0, 0));
 
-            // PRIORITY: Future accepted appointments are "Upcoming" even if status is 'done' or 'waiting'
             if (apptDate && apptDate > today) {
                 return { text: 'Upcoming', style: 'bg-blue-600 text-white border-none' };
             }
@@ -1813,7 +1722,6 @@ const getPatientBadge = (p) => {
 
     }
 
-    // Walk-ins or fallback
     const status = p.status ? p.status.toLowerCase() : 'waiting';
     if (status === 'done' || status === 'completed') return { text: 'Completed', style: 'bg-emerald-100 text-emerald-700 border-emerald-300 border' };
     if (status === 'in progress' || status === 'in-progress') return { text: 'In Progress', style: 'bg-blue-100 text-blue-700 border-blue-300 border' };
@@ -1823,7 +1731,6 @@ const getPatientBadge = (p) => {
     return { text: status.charAt(0).toUpperCase() + status.slice(1), style: 'bg-amber-100 text-amber-700 border-none' };
 };
 
-/* ─── Patient Card (shared) ─── */
 const PatientCard = ({ patient, selectedPatient, onClick, onFollowUp }) => {
     const isSelected = selectedPatient?.queueNo === patient.queueNo;
     const badge = getPatientBadge(patient);
@@ -1875,7 +1782,6 @@ const PatientCard = ({ patient, selectedPatient, onClick, onFollowUp }) => {
                             {formatDateShort(patient.type === 'Appointment' ? patient.appointmentDateTime : patient.registeredAt)}
                         </span>
                     </div>
-                    {/* Follow-Up button */}
                     {onFollowUp && (
                         <button
                             onClick={(e) => onFollowUp(patient, e)}
@@ -1895,7 +1801,6 @@ const PatientCard = ({ patient, selectedPatient, onClick, onFollowUp }) => {
     );
 };
 
-/* ─── Patient Detail Panel (shared) ─── */
 const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, handleAcceptIndividual, setShowIndividualDeclineModal, setRejectionReason }) => {
     const [showVisitModal, setShowVisitModal] = useState(false);
     const [selectedVisit, setSelectedVisit] = useState(null);
@@ -1905,33 +1810,27 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
         setShowVisitModal(true);
     };
 
-    // Find all visits for this patient using Email or Phone
     const targetEmail = (patient.patientEmail || '').toLowerCase().trim();
     const targetPhone = (patient.phoneNum || '').trim();
     const targetName = (patient.name || '').toLowerCase().trim();
 
     let patientVisits = (patients || [])
         .filter(p => {
-            // Exclude invalid/non-clinical appointments
             if (p.type === 'Appointment' && (['rejected', 'cancelled', 'withdrawn', 'pending'].includes(p.appointmentStatus))) return false;
 
-            // ✅ Hide inactive tickets (orphaned by old requeue method) to combine them into the latest active visit
             if (p.isInactive) return false;
 
             const pEmail = (p.patientEmail || '').toLowerCase().trim();
             const pPhone = (p.phoneNum || '').trim();
             const pName = (p.name || '').toLowerCase().trim();
 
-            // 1. Primary Match: Email (Most unique)
             if (targetEmail && pEmail) {
                 if (pEmail === targetEmail) {
-                    // Check name to prevent edge cases with shared emails (though rare)
                     return pName === targetName;
                 }
                 return false;
             }
 
-            // 2. Secondary Match: Phone + Name (Household support - shared phone but different person)
             if (targetPhone && pPhone) {
                 if (pPhone === targetPhone) {
                     return pName === targetName;
@@ -1939,7 +1838,6 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                 return false;
             }
 
-            // 3. Fallback: Name only (Only if no contact info at all is available)
             if (!targetEmail && !targetPhone && !pEmail && !pPhone) {
                 return pName === targetName && pName !== "";
             }
@@ -2317,7 +2215,7 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                 </div>
             </div>
 
-            {/* ===== Visit Detail Modal ===== */}
+            {/* Visit Detail Modal */}
             <Dialog open={showVisitModal} onOpenChange={setShowVisitModal}>
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
@@ -2332,7 +2230,6 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
 
                     {selectedVisit && (
                         <div className="space-y-4 mt-4">
-                            {/* Status Badge */}
                             <div className="flex items-center gap-2">
                                 {selectedVisit.type === 'Appointment' ? (
                                     selectedVisit.appointmentStatus === 'accepted' ? (
@@ -2356,7 +2253,6 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                 </Badge>
                             </div>
 
-                            {/* Info Grid */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                                     <Clock className="w-5 h-5 text-green-600 flex-shrink-0" />
@@ -2397,7 +2293,6 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                 </div>
                             </div>
 
-                            {/* Symptoms */}
                             <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
                                 <div className="flex items-center gap-2 mb-2">
                                     <Activity className="w-5 h-5 text-blue-600" />
@@ -2416,7 +2311,6 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                 </div>
                             </div>
 
-                            {/* Doctor or Services */}
                             {(selectedVisit.assignedDoctor || selectedVisit.preferredDoctor) ? (
                                 <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
                                     <div className="flex items-center gap-2 mb-2">
@@ -2459,7 +2353,6 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                 </div>
                             )}
 
-                            {/* Follow-up Note */}
                             {selectedVisit.notes && selectedVisit.notes.includes('Follow-up reason:') && (
                                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                     <div className="flex items-start gap-3">
@@ -2474,7 +2367,6 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                 </div>
                             )}
 
-                            {/* Rejection Reason */}
                             {selectedVisit.appointmentStatus === 'rejected' && selectedVisit.rejectionReason && (
                                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                                     <div className="flex items-start gap-3">
@@ -2492,7 +2384,6 @@ const PatientDetail = ({ patient, setSelectedPatient, patients, workspaceRef, ha
                                 </div>
                             )}
 
-                            {/* Timestamps */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                                     <CalendarDays className="w-5 h-5 text-gray-500 flex-shrink-0" />

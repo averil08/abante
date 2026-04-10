@@ -39,10 +39,10 @@ export const doctors = [
     id: 1,
     name: "Dr. Melissa B. Edic",
     consultationPrice: 1000,
-    specialization: "Pediatrics", // Keep for backward compatibility if needed
+    specialization: "Pediatrics",
     specializations: [
-      "pedia", "follow-up", // Pediatrics
-      "urinalysis", "fecalysis" // Basic lab work for pediatrics
+      "pedia", "follow-up",
+      "urinalysis", "fecalysis"
     ],
     schedule: "Thu-Fri: 10AM-12NN then 2PM-4PM, 2nd & 4th Wed, 1st & 3rd Sat: 10AM-4PM",
     availability: [
@@ -260,10 +260,7 @@ export const doctors = [
 ];
 
 
-//ADDED change 1/30/26
-// UPDATED 3/12/26: Enhanced assignment logic (Symptoms + Demographics)
 export const assignDoctor = (patientData, patients, activeDoctors = []) => {
-  // Backward compatibility: handle if serviceIds array is passed instead of patient object
   const isArrayInput = Array.isArray(patientData);
   const serviceIds = isArrayInput ? patientData : (patientData?.services || []);
   const symptoms = isArrayInput ? [] : (patientData?.symptoms || []);
@@ -271,7 +268,6 @@ export const assignDoctor = (patientData, patients, activeDoctors = []) => {
 
   console.log('🔍 assignDoctor called with:', { serviceIds, symptoms, age, activeDoctorsCount: activeDoctors.length });
 
-  // Get list of active doctors based on IDs provided
   const activeDoctorsList = doctors.filter(d => activeDoctors.includes(d.id));
 
   if (activeDoctorsList.length === 0) {
@@ -279,7 +275,6 @@ export const assignDoctor = (patientData, patients, activeDoctors = []) => {
     return null;
   }
 
-  // Define a helper to find the least busy doctor from a specific subset
   const getLeastBusy = (subset) => {
     if (!subset || subset.length === 0) return null;
     const loads = subset.map(doctor => {
@@ -295,7 +290,7 @@ export const assignDoctor = (patientData, patients, activeDoctors = []) => {
     return loads[0].doctor;
   };
 
-  // Case 1: Services selected - find active doctors who can handle these services
+  // Services selected - find active doctors who can handle these services
   if (serviceIds && serviceIds.length > 0) {
     const capableActiveDoctors = activeDoctorsList.filter(doctor => {
       return serviceIds.some(serviceId => doctor.specializations.includes(serviceId));
@@ -306,7 +301,7 @@ export const assignDoctor = (patientData, patients, activeDoctors = []) => {
     }
   }
 
-  // Case 2: No specific services matched - Use Symptoms and Demographics
+  // No specific services matched - Use Symptoms and Demographics
   if (!isArrayInput) {
     // A. Pediatrics (Age-based)
     if (age !== null && age < 18) {
@@ -347,7 +342,7 @@ export const assignDoctor = (patientData, patients, activeDoctors = []) => {
     }
   }
 
-  // Case 3: Ultimate Fallback - Assign to least busy among ALL active doctors
+  // Fallback - Assign to least busy among ALL active doctors
   console.log('ℹ️ No specific mapping found - assigning to least busy overall active doctor');
   return getLeastBusy(activeDoctorsList);
 };

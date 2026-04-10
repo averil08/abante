@@ -7,59 +7,47 @@ import { Badge } from "@/components/ui/badge";
 import { AiOutlineMenu, AiOutlineClose } from "react-icons/ai";
 import { doctors, specializationCategories } from "./doctorData";
 
-//THIS IS THE PATIENT DASHBOARD IN PATIENT UI
 const Homepage = () => {
   const navigate = useNavigate();
   const [nav, setNav] = useState(false);
   const handleNav = () => setNav(!nav);
   const { patients, activePatient, notifications, markNotificationsRead, clearNotifications } = useContext(PatientContext);
   const [showNotifications, setShowNotifications] = useState(false);
-  // State for specialization filter and search
   const [selectedSpecialization, setSelectedSpecialization] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showBookingSuccessModal, setShowBookingSuccessModal] = useState(false);
-
-  // Handle ?showNotifications=true and ?booking_success=true
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('showNotifications') === 'true') {
       setShowNotifications(true);
       markNotificationsRead();
-      // Clean up URL
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     } else if (params.get('booking_success') === 'true') {
       setShowBookingSuccessModal(true);
-      // Clean up URL
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
   }, []);
 
-  // Get current day of the week
   const getCurrentDay = () => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     return days[new Date().getDay()];
   };
-
-  // Updated function to check if doctor is available today
   const isDoctorAvailableToday = (doctor) => {
     if (!doctor || !doctor.availability) return false;
 
     const now = new Date();
-    const currentDayIndex = now.getDay(); // 0 is Sunday, 1 is Monday ... 6 is Saturday
+    const currentDayIndex = now.getDay();
     const currentDayOfMonth = now.getDate();
     const currentWeekOfMonth = Math.ceil(currentDayOfMonth / 7);
 
-    // If it's the 14th doctor, he's "By Appointment Only"
     if (doctor.id === 14) return false;
 
     return doctor.availability.some(range => {
-      // Basic day match
       const dayMatches = range.days.includes(currentDayIndex);
       if (!dayMatches) return false;
 
-      // Week match (if specified)
       if (range.weeksOfMonth && !range.weeksOfMonth.includes(currentWeekOfMonth)) {
         return false;
       }
@@ -69,7 +57,6 @@ const Homepage = () => {
   };
 
 
-  // Filter doctors based on selected specialization and search query
   const getFilteredDoctors = () => {
     let result = doctors;
 
@@ -88,9 +75,7 @@ const Homepage = () => {
 
   const filteredDoctors = getFilteredDoctors();
 
-  // ── Service category grouping ────────────────────────────────────────────
   const SERVICE_CATEGORY_MAP = {
-    // General Consultation
     pedia: 'General Consultation',
     adult: 'General Consultation',
     senior: 'General Consultation',
@@ -155,11 +140,6 @@ const Homepage = () => {
     ent: 'ENT',
   };
 
-  /**
-   * Given a doctor's specializations array, returns a deduplicated list of
-   * human-readable category names (mapped via SERVICE_CATEGORY_MAP).
-   * Any key not found in the map is shown as-is (capitalised).
-   */
   const getServiceCategories = (specializations) => {
     const seen = new Set();
     const categories = [];
@@ -248,10 +228,9 @@ const Homepage = () => {
                             className={`p-4 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors cursor-default ${!notification.read ? 'bg-green-50/30' : 'bg-white'}`}
                           >
                             <div className="flex items-start gap-3">
-                              <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                                notification.type === 'accepted' ? 'bg-green-50' : 
-                                notification.type === 'follow-up' ? 'bg-blue-50' : 'bg-red-50'
-                              }`}>
+                              <div className={`mt-1 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${notification.type === 'accepted' ? 'bg-green-50' :
+                                  notification.type === 'follow-up' ? 'bg-blue-50' : 'bg-red-50'
+                                }`}>
                                 {notification.type === 'accepted' ? (
                                   <CheckCircle className="w-4 h-4 text-green-600" />
                                 ) : notification.type === 'follow-up' ? (
@@ -263,8 +242,8 @@ const Homepage = () => {
                               <div className="flex-1 min-w-0">
                                 <div className="flex justify-between items-start gap-2">
                                   <p className="text-sm font-semibold text-gray-900 truncate">
-                                    {notification.type === 'accepted' ? 'Appointment Accepted' : 
-                                     notification.type === 'follow-up' ? 'Follow-up Requested' : 'Appointment Declined'}
+                                    {notification.type === 'accepted' ? 'Appointment Accepted' :
+                                      notification.type === 'follow-up' ? 'Follow-up Requested' : 'Appointment Declined'}
                                   </p>
                                   <span className="text-[10px] font-bold text-gray-400 whitespace-nowrap mt-0.5">
                                     {new Date(notification.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

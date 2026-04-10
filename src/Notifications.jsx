@@ -20,20 +20,16 @@ const Notifications = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedNotification, setSelectedNotification] = useState(null);
     const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-
-    // Date Filtering State
     const [dateFilter, setDateFilter] = useState('all');
     const [customStartDate, setCustomStartDate] = useState('');
     const [customEndDate, setCustomEndDate] = useState('');
 
     const { patients, markSecretaryNotificationsAsRead } = useContext(PatientContext);
 
-    // Clear notifications on mount
     React.useEffect(() => {
         markSecretaryNotificationsAsRead();
     }, []);
 
-    // Helper to check if date is within range
     const isWithinDateRange = (dateString) => {
         if (!dateString) return false;
         const date = new Date(dateString);
@@ -75,8 +71,6 @@ const Notifications = () => {
 
         return true;
     };
-
-    // Filter for patients who have cancelled their appointment requests
     const cancelledAppointments = useMemo(() => {
         return (patients || [])
             .filter(p =>
@@ -220,7 +214,6 @@ const Notifications = () => {
                     </div>
                 </div>
 
-                {/* Notification List Section */}
                 <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
                     <div className="flex items-center justify-between mb-8 px-2">
                         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">

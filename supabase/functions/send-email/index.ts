@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    // SECURITY: Manual Authorization Check (Replaces --verify-jwt)
+    // Manual Authorization Check 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       throw new Error('Unauthorized: Missing Authorization header')
@@ -42,7 +42,6 @@ serve(async (req) => {
     const SMTP_PASSWORD = Deno.env.get('SMTP_PASSWORD')
     
     if (!SMTP_EMAIL || !SMTP_PASSWORD) {
-      // In development, if no credentials are set, log instead of failing.
       console.log('Would send email to:', to)
       console.log('Subject:', subject)
       return new Response(
@@ -59,14 +58,14 @@ serve(async (req) => {
       service: 'gmail',
       auth: {
         user: SMTP_EMAIL,
-        pass: SMTP_PASSWORD, // this should be the App Password
+        pass: SMTP_PASSWORD, 
       },
     })
 
-    // Send the email
+    // For sending email
     const info = await transporter.sendMail({
       from: `"Valley Care Clinic" <${SMTP_EMAIL}>`, 
-      to: to, // can be a comma-separated list or an array
+      to: to, 
       subject: subject,
       text: text,
       html: html,

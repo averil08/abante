@@ -18,12 +18,10 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   try {
-    // 1. DETERMINE MANILA "TODAY" AND "TOMORROW"
-    // We use a robust way to get ONLY the YYYY-MM-DD in Manila time
+    // Determine date of today and tomorrow (YYYY-MM-DD in Manila time)
     const manilaTimeOpts = { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' };
     const manilaTodayStr = new Intl.DateTimeFormat('en-CA', manilaTimeOpts).format(new Date()); // Returns "YYYY-MM-DD"
     
-    // Also determine Tomorrow
     const manilaTomorrow = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
     manilaTomorrow.setDate(manilaTomorrow.getDate() + 1);
     const manilaTomorrowStr = new Intl.DateTimeFormat('en-CA', manilaTimeOpts).format(manilaTomorrow);
@@ -32,8 +30,7 @@ serve(async (req) => {
     console.log(`🚀 [CRON] Target Manila Date (Today): ${manilaTodayStr}`);
     console.log(`🚀 [CRON] Target Manila Date (Tomorrow): ${manilaTomorrowStr}`);
 
-    // 2. CALCULATE DAILY BASE (Matching patientService.js logic)
-    // We parse the Manila date back to a Date object to get the UTC block
+    //Calculate daily date base
     const manilaNow = new Date(manilaTodayStr); 
     const utcNow = Date.UTC(manilaNow.getFullYear(), manilaNow.getMonth(), manilaNow.getDate());
     const start = Date.UTC(2024, 0, 1);
@@ -43,7 +40,7 @@ serve(async (req) => {
     const rangeStart = dailyBase + 10001;
     const rangeEnd = dailyBase + 19999;
 
-    // 3. FETCH CANDIDATES
+    //Fetch patients
     const { data: candidates, error: fetchError } = await supabase
       .from('patients')
       .select('*')
@@ -56,7 +53,7 @@ serve(async (req) => {
 
     console.log(`🔍 Total Accepted Appointments found in DB: ${candidates?.length || 0}`);
 
-    // 4. FILTER FOR TODAY'S DATE
+    //Filter today's date
     const todayAppointments = (candidates || []).filter(p => {
       if (!p.appointment_datetime) return false;
       
@@ -68,7 +65,7 @@ serve(async (req) => {
 
       const isToday = patientDateStr === manilaTodayStr;
       
-      // Filter for unassigned (either null or in the 900k range)
+      // Filter for unassigned queue number
       const isUnassigned = !p.queue_no || (p.queue_no >= 900000 && p.queue_no < 1000000);
 
       if (isToday) {
@@ -78,7 +75,7 @@ serve(async (req) => {
       return isToday && isUnassigned;
     }).sort((a, b) => new Date(a.appointment_datetime).getTime() - new Date(b.appointment_datetime).getTime());
 
-    // 4b. FILTER FOR TOMORROW'S REMINDERS
+    // Filter for tomorrow's appointments
     const tomorrowAppointments = (candidates || []).filter(p => {
       if (!p.appointment_datetime) return false;
       
@@ -110,7 +107,7 @@ serve(async (req) => {
 
     console.log(`📈 Found ${todayAppointments.length} appointments to finalize and ${tomorrowAppointments.length} reminders to send.`);
 
-    // 4. GET STARTING SEQUENCE NUMBER
+    // Get start sequence number
     const { data: maxData } = await supabase
       .from('patients')
       .select('queue_no')
@@ -122,7 +119,7 @@ serve(async (req) => {
     let nextNum = (maxData?.[0]?.queue_no || (rangeStart - 1)) + 1;
     let processedCount = 0;
 
-    // 5. SEQUENTIAL UPDATE & EMAIL TRIGGER
+    // Email trigger
     for (const patient of todayAppointments) {
       const assignedNo = nextNum++;
       const displayNo = `A${String(assignedNo % 10000).padStart(3, '0')}`;
@@ -185,7 +182,7 @@ serve(async (req) => {
       processedCount++;
     }
 
-    // 6. PROCESS TOMORROW'S REMINDERS
+    // Process tomorrow's reminders
     let reminderCount = 0;
     for (const patient of tomorrowAppointments) {
       // Format email

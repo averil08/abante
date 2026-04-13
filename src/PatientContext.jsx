@@ -1498,6 +1498,7 @@ export const PatientProvider = ({ children }) => {
     if (nextPriorityPatient) {
       console.log(`Debug: Calling Priority Patient ${nextPriorityPatient.queueNo}`);
       updatePatientStatus(nextPriorityPatient.queueNo, 'in progress');
+      setDoctorCurrentServingPatient(dId, nextPriorityPatient.queueNo);
       return;
     }
 
@@ -1515,6 +1516,7 @@ export const PatientProvider = ({ children }) => {
     if (nextWaitingPatient) {
       console.log(`Debug: Calling Waiting Patient ${nextWaitingPatient.queueNo}`);
       updatePatientStatus(nextWaitingPatient.queueNo, 'in progress');
+      setDoctorCurrentServingPatient(dId, nextWaitingPatient.queueNo);
     }
   };
 

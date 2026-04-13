@@ -1607,11 +1607,15 @@ const Dashboard = () => {
                   ) : (
                     <>
                       {(() => {
-                        const doctorCurrentPatient = getDoctorCurrentServing(selectedDoctor);
+                        const doctorCurrentQueueNo = getDoctorCurrentServing(selectedDoctor);
+                        const doctorCurrentPatient = doctorCurrentQueueNo
+                          ? patients.find(p => p.queueNo === doctorCurrentQueueNo)
+                          : null;
+
                         return (
                           <>
                             <p className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">
-                              {doctorCurrentPatient ? formatQueueNumber(doctorCurrentPatient, 'walk-in') : 'No Patient'}
+                              {doctorCurrentPatient ? doctorCurrentPatient.displayQueueNo : 'No Patient'}
                             </p>
                             <p className="text-xs text-gray-500 mb-3 sm:mb-4">
                               {doctorCurrentPatient ? '1 patient currently being served' : 'No one currently being seen'}

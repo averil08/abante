@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from 'react';
 import { doctors } from './doctorData';
 import { Label } from '@/components/ui/label';
 import Sidebar from "@/components/Sidebar";
-import { Clock, TrendingUp, Users, XCircle, CheckCircle2, Download, ChevronDown, Calendar, History, X, Eye, FileText, Activity, Stethoscope, LogOut } from 'lucide-react';
+import { Clock, TrendingUp, Users, XCircle, CheckCircle2, Download, ChevronDown, Calendar, History, X, Eye, FileText, Activity, Stethoscope, LogOut, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import logoImage from '@/assets/partner-logo.jpg'
